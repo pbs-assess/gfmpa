@@ -1,0 +1,203 @@
+---
+title: "GF MPA index analysis"
+author: "Sean Anderson"
+date: "2021-08-19"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, error = FALSE, message = FALSE)
+library(here)
+library(dplyr)
+library(ggplot2)
+theme_set(ggsidekick::theme_sleek())
+```
+
+
+# Geostatistical
+
+```{r}
+index_syn_geo <- readRDS(here("index-syn-geo-clean.rds"))
+# mean(y$orig_se < 1)
+index <- filter(index_syn_geo, orig_se < 1)
+index <- filter(index, !(species_common_name == "deepsea sole" & survey_abbrev == "SYN WCHG" & year == 2020))
+```
+
+```{r}
+x <- index %>%
+  group_by(species_common_name, survey_abbrev, year) %>%
+  summarise(se_ratio = se[type == "Restricted"] / se[type == "Status quo"])
+
+x %>%
+  ggplot(aes(se_ratio)) + facet_wrap(~survey_abbrev) + geom_histogram() +
+  geom_vline(xintercept = 1, col = "red") +
+  coord_cartesian(expand = FALSE)
+# ggsave("figs/index-geo-syn-se-ratios.pdf", width = 8, height = 4, limitsize = FALSE)
+```
+
+```{r, results='asis'}
+x %>% group_by(survey_abbrev) %>%
+  summarise(mean_ratio = mean(se_ratio)) %>% 
+  knitr::kable(caption = "Mean SE ratio.", digits = 2)
+```
+
+```{r, out.width="4in", fig.cap="SYN geo RE."}
+x <- index %>%
+  group_by(species_common_name, survey_abbrev, year) %>%
+  summarise(re = (est[type == "Restricted"] - est[type == "Status quo"]) /
+      est[type == "Status quo"])
+# 
+# g <- ggplot(x, aes(year, re)) +
+#   geom_line() +
+#   facet_grid(species_common_name~survey_abbrev, scales = "free_y") +
+#   geom_hline(yintercept = 0, lty = 2)
+
+# ggsave("figs/index-syn-geo-restricted-re.pdf", width = 8, height = 65, limitsize = FALSE)
+# knitr::include_graphics("figs/index-syn-geo-restricted-re.pdf")
+```
+
+```{r}
+# ggplot(x, aes(year, re, group = species_common_name)) +
+#   geom_line(alpha = 0.5) +
+#   facet_grid(~survey_abbrev, scales = "free_y") +
+#   geom_hline(yintercept = 0, lty = 2) +
+#   coord_cartesian(ylim = c(-0.5, 0.5))
+
+x %>% group_by(species_common_name, survey_abbrev) %>%
+  summarise(mare = median(abs(re))) %>%
+  ungroup() %>%
+  arrange(-mare) %>%
+  top_n(25) %>%
+  as.data.frame() %>% 
+  knitr::kable(caption = "Top 25 MARE (median absolute relative error).", digits = 2)
+```
+
+```{r}
+x %>% group_by(species_common_name, survey_abbrev) %>%
+  summarise(mare = median(abs(re))) %>%
+  ggplot(aes(mare)) + geom_histogram(binwidth = 0.05) + facet_grid(~survey_abbrev) +
+  coord_cartesian(xlim = c(0, 2))
+```
+
+# Bootstrap design-based
+
+```{r}
+index_syn <- readRDS("index-syn-x.rds")
+```
+
+```{r, fig.cap="Synoptic CV ratios."}
+no_na <- index_syn %>%
+  group_by(survey_abbrev, species_common_name) %>%
+  summarise(nas = sum(is.na(cv) > 0), zeros = sum(median_boot == 0)) %>%
+  filter(nas == FALSE & zeros == 0)
+# nrow(no_na)
+
+# nrow(index_syn)
+# left_join(no_na, index_syn) %>% nrow()
+
+x <- left_join(no_na, index_syn) %>%
+  group_by(species_common_name, survey_abbrev, year) %>%
+  summarise(cv_ratio = cv[type == "Restricted"] / cv[type == "Status quo"])
+
+x %>%
+  ggplot(aes(cv_ratio)) + facet_wrap(~survey_abbrev) + geom_histogram() +
+  geom_vline(xintercept = 1, col = "red") +
+  coord_cartesian(expand = FALSE)
+# ggsave("figs/index-syn-cv-ratios.pdf", width = 8, height = 4, limitsize = FALSE)
+```
+
+```{r}
+x %>% group_by(survey_abbrev) %>%
+  summarise(mean_ratio = mean(cv_ratio)) %>% 
+  knitr::kable(caption = "Mean CV ratio.", digits = 2)
+```
+
+```{r}
+x <- index_syn %>%
+  group_by(species_common_name, survey_abbrev, year) %>%
+  summarise(re = (biomass[type == "Restricted"] - biomass[type == "Status quo"]) /
+      biomass[type == "Status quo"])
+
+# g <- ggplot(x, aes(year, re)) +
+#   geom_line() +
+#   facet_grid(species_common_name~survey_abbrev, scales = "free_y") +
+#   geom_hline(yintercept = 0, lty = 2)
+# 
+# ggsave("figs/index-syn-restricted-re.pdf", width = 8, height = 65, limitsize = FALSE)
+
+# ggplot(x, aes(year, re, group = species_common_name)) +
+#   geom_line(alpha = 0.5) +
+#   facet_grid(~survey_abbrev, scales = "free_y") +
+#   geom_hline(yintercept = 0, lty = 2) +
+#   coord_cartesian(ylim = c(-0.5, 0.5))
+
+x %>% group_by(species_common_name, survey_abbrev) %>%
+  summarise(mare = median(abs(re))) %>%
+  ungroup() %>%
+  arrange(-mare) %>%
+  top_n(25) %>%
+  as.data.frame()%>% 
+  knitr::kable(caption = "25 largest MARE.", digits = 2)
+```
+
+# Design-based HBLL
+
+```{r, fig.cap = "HBLL CV ratio. Bootstrap."}
+index_hbll <- readRDS(here("index-hbll-x.rds"))
+# g <- ggplot(index_hbll, aes(year, biomass, ymin = lwr, ymax = upr, colour = type, fill = type)) +
+#   geom_line() +
+#   facet_wrap(~species_common_name, scales = "free_y", ncol = 4) +
+#   geom_ribbon(alpha = 0.2, colour = NA)
+# 
+# ggsave("figs/index-hbll-restricted.pdf", width = 18, height = 18, limitsize = FALSE)
+# 
+
+no_na <- index_hbll %>%
+  group_by(survey_abbrev, species_common_name) %>%
+  summarise(nas = sum(is.na(cv) > 0), zeros = sum(median_boot == 0)) %>%
+  filter(nas == FALSE & zeros == 0)
+
+x <- left_join(no_na, index_hbll) %>%
+  group_by(species_common_name, survey_abbrev, year) %>%
+  summarise(cv_ratio = cv[type == "Restricted"] / cv[type == "Status quo"])
+
+x %>%
+  ggplot(aes(cv_ratio)) + facet_wrap(~survey_abbrev) + geom_histogram() +
+  geom_vline(xintercept = 1, col = "red") +
+  coord_cartesian(expand = FALSE)
+```
+
+```{r}
+x %>% group_by(survey_abbrev) %>%
+  summarise(mean_ratio = mean(cv_ratio)) %>% 
+  knitr::kable(digits = 2, caption = "HBLL mean CV ratio.")
+```
+
+```{r}
+x <- index_hbll %>%
+  group_by(species_common_name, survey_abbrev, year) %>%
+  summarise(re = (biomass[type == "Restricted"] - biomass[type == "Status quo"]) /
+      biomass[type == "Status quo"])
+
+# g <- ggplot(x, aes(year, re)) +
+#   geom_line() +
+#   facet_wrap(~species_common_name, scales = "fixed", ncol = 4) +
+#   geom_hline(yintercept = 0, lty = 2)
+
+# ggsave("figs/index-hbll-restricted-re.pdf", width = 15, height = 15, limitsize = FALSE)
+
+# ggplot(x, aes(year, re, group = species_common_name)) +
+#   geom_line(alpha = 0.5) +
+#   facet_grid(~survey_abbrev, scales = "free_y") +
+#   geom_hline(yintercept = 0, lty = 2) +
+#   coord_cartesian(ylim = c(-0.5, 0.5))
+
+x %>% group_by(species_common_name, survey_abbrev) %>%
+  summarise(mare = median(abs(re))) %>%
+  ungroup() %>%
+  arrange(-mare) %>%
+  top_n(25) %>%
+  as.data.frame() %>% 
+  knitr::kable(digits = 2, caption = "HBLL MARE top 25")
+```
+

@@ -4,13 +4,16 @@ library(sf)
 library(future)
 plan(multisession)
 options(future.rng.onMisuse = "ignore")
+theme_set(ggsidekick::theme_sleek())
 
 # source("load-data.R")
 source("functions.R")
 
-dat_to_fit <- readRDS("data-generated/dat_to_fit.rds")
+dat_to_fit <- readRDS("data-generated/dat_to_fit_hbll.rds")
 
-index_syn <- dat_to_fit %>%
+dat_to_fit$density_kgpm2 <- dat_to_fit$density_ppkm2 # fake for functions!
+
+index_hbll <- dat_to_fit %>%
   group_by(survey_abbrev, species_common_name) %>%
   group_split() %>%
   furrr::future_map_dfr(function(.x) {
@@ -32,15 +35,15 @@ index_syn <- dat_to_fit %>%
     combined
   }, .progress = TRUE)
 
-saveRDS(index_syn, file = "index-syn-x.rds")
+saveRDS(index_hbll, file = "index-hbll-x.rds")
 
-index_syn <- readRDS("index-syn-x.rds")
-g <- ggplot(index_syn, aes(year, biomass, ymin = lwr, ymax = upr, colour = type, fill = type)) +
+index_hbll <- readRDS("index-hbll-x.rds")
+g <- ggplot(index_hbll, aes(year, biomass, ymin = lwr, ymax = upr, colour = type, fill = type)) +
   geom_line() +
-  facet_grid(species_common_name~survey_abbrev, scales = "free_y") +
+  facet_wrap(~species_common_name, scales = "free_y", ncol = 4) +
   geom_ribbon(alpha = 0.2, colour = NA)
 
-ggsave("figs/index-syn-restricted.pdf", width = 8, height = 85, limitsize = FALSE)
+ggsave("figs/index-hbll-restricted.pdf", width = 18, height = 18, limitsize = FALSE)
 
 # check:
 # ii <- readRDS("/Volumes/Extreme-SSD/src/gfsynopsis-2021/report/data-cache/pacific-cod.rds")$survey_index
@@ -50,16 +53,16 @@ ggsave("figs/index-syn-restricted.pdf", width = 8, height = 85, limitsize = FALS
 #   geom_line() +
 #   geom_ribbon(alpha = 0.2)
 
-no_na <- index_syn %>%
+no_na <- index_hbll %>%
   group_by(survey_abbrev, species_common_name) %>%
   summarise(nas = sum(is.na(cv) > 0), zeros = sum(median_boot == 0)) %>%
   filter(nas == FALSE & zeros == 0)
 nrow(no_na)
 
-nrow(index_syn)
-left_join(no_na, index_syn) %>% nrow()
+nrow(index_hbll)
+left_join(no_na, index_hbll) %>% nrow()
 
-x <- left_join(no_na, index_syn) %>%
+x <- left_join(no_na, index_hbll) %>%
   group_by(species_common_name, survey_abbrev, year) %>%
   summarise(cv_ratio = cv[type == "Restricted"] / cv[type == "Status quo"])
 
@@ -68,24 +71,24 @@ x %>%
   geom_vline(xintercept = 1, col = "red") +
   coord_cartesian(expand = FALSE)
 
-ggsave("figs/index-syn-cv-ratios.pdf", width = 8, height = 4, limitsize = FALSE)
+ggsave("figs/index-hbll-cv-ratios.pdf", width = 4, height = 4, limitsize = FALSE)
 
 x %>% group_by(survey_abbrev) %>%
   summarise(mean_ratio = mean(cv_ratio))
 
 plan(sequential)
 
-x <- index_syn %>%
+x <- index_hbll %>%
   group_by(species_common_name, survey_abbrev, year) %>%
   summarise(re = (biomass[type == "Restricted"] - biomass[type == "Status quo"]) /
       biomass[type == "Status quo"])
 
 g <- ggplot(x, aes(year, re)) +
   geom_line() +
-  facet_grid(species_common_name~survey_abbrev, scales = "free_y") +
+  facet_wrap(~species_common_name, scales = "fixed", ncol = 4) +
   geom_hline(yintercept = 0, lty = 2)
 
-ggsave("figs/index-syn-restricted-re.pdf", width = 8, height = 65, limitsize = FALSE)
+ggsave("figs/index-hbll-restricted-re.pdf", width = 15, height = 15, limitsize = FALSE)
 
 ggplot(x, aes(year, re, group = species_common_name)) +
   geom_line(alpha = 0.5) +
