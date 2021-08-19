@@ -2,7 +2,7 @@ library(dplyr)
 library(ggplot2)
 library(sf)
 library(future)
-plan(multisession)
+plan(multisession, workers = round(future::availableCores() / 3))
 options(future.rng.onMisuse = "ignore")
 library(sdmTMB)
 
