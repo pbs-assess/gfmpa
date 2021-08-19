@@ -4,6 +4,9 @@ library(future)
 plan(multisession)
 
 dir.create("data-generated", showWarnings = FALSE)
+dir.create("figs", showWarnings = FALSE)
+
+source("functions.R")
 
 x <- sf::read_sf("~/Downloads/MPAnetwork_Working_Draft_Scen2_VO1_IOAC_20210610.gdb/")
 # plot(x["hu_co_demersalfishing_bottomtrawling_d"])
@@ -17,6 +20,7 @@ saveRDS(trawl_removed, file = "data-generated/demersalfishing_bottomtrawling_X.r
 
 trawl_empty_x <- dplyr::filter(x, hu_co_demersalfishing_bottomtrawling_d %in% c("", "X"))
 # plot(trawl_empty_x["hu_co_demersalfishing_bottomtrawling_d"])
+saveRDS(trawl_empty_x, file = "data-generated/demersalfishing_bottomtrawling_emptyX.rds")
 
 f <- list.files("/Volumes/Extreme-SSD/src/gfsynopsis-2021/report/data-cache/",
   full.names = TRUE)
@@ -46,3 +50,4 @@ dat_to_fit <- left_join(tokeep, dat, by = c("species_common_name", "survey_abbre
 
 saveRDS(dat_to_fit, file = "data-generated/dat_to_fit.rds")
 
+plan(sequential)

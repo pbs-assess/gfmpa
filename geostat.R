@@ -2,12 +2,16 @@ library(dplyr)
 library(ggplot2)
 library(sf)
 library(future)
-plan(multisession, workers = round(future::availableCores() / 3))
+is_rstudio <- !is.na(Sys.getenv("RSTUDIO", unset = NA))
+is_unix <- .Platform$OS.type == "unix"
+if (!is_rstudio && is_unix) plan(multicore, workers = 7L) else plan(multisession)
 options(future.rng.onMisuse = "ignore")
 library(sdmTMB)
 
-source("load-data.R")
+# source("load-data.R")
 source("functions.R")
+
+dat_to_fit <- readRDS("data-generated/dat_to_fit.rds")
 
 geo_wrapper <- function(trawl_dat) {
   utm_zone9 <- 3156
@@ -22,6 +26,12 @@ geo_wrapper <- function(trawl_dat) {
   trawl_dat$density <- trawl_dat$density_kgpm2 * 1000
   mesh <- make_mesh(trawl_dat, c("X", "Y"), cutoff = 15)
   # mesh$mesh$n
+
+  null_df <- data.frame(
+    species_common_name = trawl_dat$species_common_name[1],
+    survey_abbrev = trawl_dat$survey_abbrev[1],
+    stringsAsFactors = FALSE
+  )
   m <- try({
     sdmTMB(density ~ 0 + as.factor(year),
       data = trawl_dat,
@@ -30,24 +40,26 @@ geo_wrapper <- function(trawl_dat) {
       spde = mesh
     )
   })
-  if (class(m) == "try-error") {
-    return(NULL)
+  if (class(m)[[1]] == "try-error") {
+    return(null_df)
   }
   if (max(m$gradients) > 0.01) {
-    m <- try({run_extra_optimization(m, newton_loops = 1L, nlminb_loops = 0L)})
+    m <- try({
+      run_extra_optimization(m, newton_loops = 1L, nlminb_loops = 0L)
+    })
   }
-  if (class(m) == "try-error") {
-    return(NULL)
+  if (class(m)[[1]] == "try-error") {
+    return(null_df)
   }
   .grid <- gfplot::synoptic_grid %>%
     dplyr::filter(survey == unique(trawl_dat$survey_abbrev)) %>%
     expand_prediction_grid(years = unique(trawl_dat$year))
   set.seed(1)
   pred <- try({
-    predict(m, newdata = .grid, xy_cols = c("X", "Y"), sims = 200L)
+    predict(m, newdata = .grid, xy_cols = c("X", "Y"), sims = 250L)
   })
-  if (class(pred) == "try-error") {
-    return(NULL)
+  if (class(pred)[[1]] == "try-error") {
+    return(null_df)
   }
   ind <- get_index_sims(pred, area = rep(4, nrow(pred)))
   ind$species_common_name <- trawl_dat$species_common_name[1]
@@ -71,3 +83,7 @@ index_syn_geo <- dat_to_fit %>%
   }, .progress = TRUE)
 
 saveRDS(index_syn, file = "index-syn-geo.rds")
+
+plan(sequential)
+
+index_syn <- readRDS("index-syn-geo.rds")

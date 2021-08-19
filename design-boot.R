@@ -5,8 +5,10 @@ library(future)
 plan(multisession)
 options(future.rng.onMisuse = "ignore")
 
-source("load-data.R")
+# source("load-data.R")
 source("functions.R")
+
+dat_to_fit <- readRDS("data-generated/dat_to_fit.rds")
 
 index_syn <- dat_to_fit %>%
   group_by(survey_abbrev, species_common_name) %>%
@@ -66,3 +68,4 @@ x %>%
 x %>% group_by(survey_abbrev) %>%
   summarise(mean_ratio = mean(cv_ratio))
 
+plan(sequential)
