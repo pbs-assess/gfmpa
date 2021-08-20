@@ -3,3 +3,7 @@
 .RData
 .Ruserdata
 data-generated
+.log
+.aux
+.pdf
+.rds

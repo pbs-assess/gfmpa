@@ -1,0 +1,109 @@
+---
+title: "Impacts of draft proposed Marine Protected Areas on population indexes derived from DFO research surveys"
+author: "|
+  Sean C. Anderson$^1$^[Corresponding author: sean.anderson@dfo-mpo.gc.ca], Other authors\n| $^1$Pacific Biological Station Fisheries and Oceans Canada, \n| Nanaimo, BC, Canada\n|
+  $^2$Other addresses\n"
+output:
+    bookdown::pdf_document2:
+      toc: false
+      number_sections: false
+      fig_caption: true
+csl: mee.csl
+bibliography: refs.bib
+link-citations: yes
+header-includes:
+  \newcommand{\beginsupplement}{
+  \setcounter{equation}{0}
+  \renewcommand{\theequation}{S.\arabic{equation}}
+  \setcounter{table}{0}
+  \renewcommand{\thetable}{S\arabic{table}}
+  \setcounter{figure}{0}
+  \renewcommand{\thefigure}{S\arabic{figure}}}
+editor_options:
+  markdown:
+    wrap: sentence
+abstract: |
+  Abstract here
+---
+
+```{r libs, echo = FALSE, include = FALSE, message = FALSE, warnings = FALSE}
+library(here)
+library(ggplot2)
+library(dplyr)
+library(knitr)
+```
+
+```{r options, include=FALSE}
+options(tinytex.verbose = TRUE)
+knitr::opts_chunk$set(
+  echo = FALSE, message = FALSE, warnings = FALSE,
+  collapse = TRUE,
+  comment = "#>",
+  fig.align = "center"
+)
+```
+
+```{r load-data}
+
+```
+
+# Introduction
+
+# Methods
+
+# Results
+
+# Discussion
+
+# Acknowledgements
+
+# Figures
+
+```{r, out.width="\\textwidth", fig.cap="HBLL N geo indexes."}
+include_graphics(here("figs/index-hbll-geo-restricted.pdf"))
+```
+
+
+```{r, out.width="\\textwidth", fig.cap="HBLL N RE."}
+include_graphics(here("figs/index-hbll-geo-restricted-re.pdf"))
+```
+
+```{r, out.width="6in", fig.cap="HBLL N CV."}
+include_graphics(here("figs/index-geo-hbll-cv-ratio-dotplot.pdf"))
+```
+
+```{r, out.width="6in", fig.cap="HBLL N MARE."}
+include_graphics(here("figs/index-geo-hbll-mare-dotplot.pdf"))
+```
+
+
+
+```{r, out.width="\\textwidth", fig.cap="SYN geo indexes."}
+include_graphics(here("figs/index-syn-geo-restricted-highlight.pdf"))
+```
+
+```{r, out.width="\\textwidth", fig.cap="SYN geo RE."}
+include_graphics(here("figs/index-syn-geo-restricted-re-highlights.pdf"))
+```
+
+```{r, out.width="6in", fig.cap="SYN  CV."}
+include_graphics(here("figs/index-geo-syn-cv-ratio-dotplot.pdf"))
+```
+
+```{r, out.width="6in", fig.cap="SYN MARE."}
+include_graphics(here("figs/index-geo-syn-mare-dotplot.pdf"))
+```
+
+\clearpage
+
+# References
+
+::: {#refs}
+:::
+
+```{=tex}
+\clearpage
+\beginsupplement
+```
+
+# Supplemental Materials
