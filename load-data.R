@@ -124,7 +124,7 @@ saveRDS(dat_to_fit, file = "data-generated/dat_to_fit_hbll.rds")
 
 plan(sequential)
 
-# if (survey == "HBLL") {
+dat_to_fit <- readRDS("data-generated/dat_to_fit_hbll.rds")
 hbll_grid <- gfplot::hbll_n_grid$grid
 utm_zone9 <- 3156
 coords <- hbll_grid %>%
@@ -138,12 +138,13 @@ coords$X <- coords$X / 1000
 coords$Y <- coords$Y / 1000
 coords$restricted <- coords_restr$restricted
 grid <- coords %>%
-  expand_prediction_grid(years = unique(dat_to_fit$year)) %>%
-  as_tibble()
+  expand_prediction_grid(years = sort(unique(dat_to_fit$year))) %>%
+  as_tibble() %>%
+  arrange(year, X, Y)
 
 saveRDS(grid, "data-generated/hbll-n-grid-w-restr.rds")
-# }
-# if (survey == "SYN") {
+
+dat_to_fit <- readRDS("data-generated/dat_to_fit.rds")
 syn_grid <- gfplot::synoptic_grid
 syn_grid$X <- syn_grid$X * 1000
 syn_grid$Y <- syn_grid$Y * 1000
@@ -159,8 +160,8 @@ coords$Y <- coords$Y / 1000
 coords$restricted <- coords_restr$restricted
 coords$survey_abbrev <- syn_grid$survey
 grid <- coords %>%
-  expand_prediction_grid(years = unique(dat_to_fit$year)) %>%
-  as_tibble()
-# }
+  expand_prediction_grid(years = sort(unique(dat_to_fit$year))) %>%
+  as_tibble() %>%
+  arrange(survey_abbrev, year, X, Y)
 
 saveRDS(grid, "data-generated/syn-grid-w-restr.rds")
