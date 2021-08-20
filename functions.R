@@ -60,3 +60,61 @@ shrink_a_survey <- function(grid_dat, restriction_dat, plot = FALSE) {
   grid_dat$latitude <- orig$latitude
   grid_dat %>% as_tibble()
 }
+
+fit_geo_model <- function(surv_dat, pred_grid, shrink_survey = FALSE, survey = c("HBLL", "SYN")) {
+  survey <- match.arg(survey)
+  utm_zone9 <- 3156
+  coords <- surv_dat %>%
+    st_as_sf(crs = 4326, coords = c("longitude", "latitude")) %>%
+    st_transform(utm_zone9) %>%
+    sf::st_coordinates() %>%
+    as.data.frame()
+  coords$X <- coords$X / 1000
+  coords$Y <- coords$Y / 1000
+  surv_dat <- dplyr::bind_cols(surv_dat, coords)
+
+  if (survey == "HBLL") surv_dat$density <- surv_dat$density_ppkm2
+  if (survey == "SYN") surv_dat$density <- surv_dat$density_kgpm2 * 1000
+  cutoff <- if (survey == "HBLL") 10 else 15
+  mesh <- make_mesh(surv_dat, c("X", "Y"), cutoff = cutoff)
+  # plot(mesh)
+  # mesh$mesh$n
+
+  null_df <- data.frame(
+    species_common_name = surv_dat$species_common_name[1],
+    survey_abbrev = surv_dat$survey_abbrev[1],
+    stringsAsFactors = FALSE
+  )
+  m <- try({
+    sdmTMB(density ~ 0 + as.factor(year),
+      data = surv_dat,
+      family = sdmTMB::tweedie(),
+      time = "year",
+      spde = mesh
+    )
+  })
+  if (class(m)[[1]] == "try-error") {
+    return(null_df)
+  }
+  if (max(m$gradients) > 0.01) {
+    m <- try({
+      run_extra_optimization(m, newton_loops = 1L, nlminb_loops = 0L)
+    })
+  }
+  if (class(m)[[1]] == "try-error") {
+    return(null_df)
+  }
+  set.seed(1)
+  pred_grid <- filter(pred_grid, survey_abbrev == null_df$survey_abbrev[1])
+  pred <- try({
+    predict(m, newdata = pred_grid, xy_cols = c("X", "Y"), sims = 250L)
+  })
+  if (class(pred)[[1]] == "try-error") {
+    return(null_df)
+  }
+  ind <- get_index_sims(pred, area = rep(4, nrow(pred))) # 2 x 2 km
+  ind$species_common_name <- surv_dat$species_common_name[1]
+  ind$survey_abbrev <- surv_dat$survey_abbrev[1]
+  ind$max_gradient <- max(m$gradients)
+  ind
+}

@@ -225,8 +225,6 @@ g <- ggplot(x_long, aes(year, re, colour = `Restriction type`)) +
 
 ggsave("figs/index-hbll-geo-restricted-re.pdf", width = 10, height = 9)
 
-
-
 lu <- tibble("Restriction type" = c("re_restr", "re_shrunk"),
   restr_clean = c("Same survey domain", "Shrunk survey domain"))
 
