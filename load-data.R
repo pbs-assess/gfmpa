@@ -94,11 +94,11 @@ assign_restricted_tows_hbll <- function(dat) {
   dat %>% as_tibble()
 }
 
-library(ggplot2)
-aleut <- readRDS(f[grep("aleut", f)])$survey_sets
-aleut <- filter(aleut, survey_abbrev == "HBLL OUT N", year == 2015)
-aleut <- assign_restricted_tows_hbll(aleut)
-ggplot(aleut, aes(longitude, latitude, size = density_ppkm2, colour = restricted)) + geom_point()
+# library(ggplot2)
+# aleut <- readRDS(f[grep("aleut", f)])$survey_sets
+# aleut <- filter(aleut, survey_abbrev == "HBLL OUT N", year == 2015)
+# aleut <- assign_restricted_tows_hbll(aleut)
+# ggplot(aleut, aes(longitude, latitude, size = density_ppkm2, colour = restricted)) + geom_point()
 
 dat <- furrr::future_map_dfr(seq_along(f), function(i) {
   d <- readRDS(f[i])$survey_sets
@@ -123,3 +123,44 @@ dat_to_fit <- left_join(tokeep, dat, by = c("species_common_name", "survey_abbre
 saveRDS(dat_to_fit, file = "data-generated/dat_to_fit_hbll.rds")
 
 plan(sequential)
+
+# if (survey == "HBLL") {
+hbll_grid <- gfplot::hbll_n_grid$grid
+utm_zone9 <- 3156
+coords <- hbll_grid %>%
+  sf::st_as_sf(crs = 4326, coords = c("X", "Y")) %>%
+  sf::st_transform(utm_zone9)
+coords_restr <- shrink_a_survey(coords, ll_removed, plot = FALSE)
+coords <- coords %>%
+  sf::st_coordinates() %>%
+  as.data.frame()
+coords$X <- coords$X / 1000
+coords$Y <- coords$Y / 1000
+coords$restricted <- coords_restr$restricted
+grid <- coords %>%
+  expand_prediction_grid(years = unique(dat_to_fit$year)) %>%
+  as_tibble()
+
+saveRDS(grid, "data-generated/hbll-n-grid-w-restr.rds")
+# }
+# if (survey == "SYN") {
+syn_grid <- gfplot::synoptic_grid
+syn_grid$X <- syn_grid$X * 1000
+syn_grid$Y <- syn_grid$Y * 1000
+utm_zone9 <- 3156
+coords <- syn_grid %>%
+  sf::st_as_sf(crs = utm_zone9, coords = c("X", "Y"))
+coords_restr <- shrink_a_survey(coords, trawl_removed, plot = FALSE)
+coords <- coords %>%
+  sf::st_coordinates() %>%
+  as.data.frame()
+coords$X <- coords$X / 1000
+coords$Y <- coords$Y / 1000
+coords$restricted <- coords_restr$restricted
+coords$survey_abbrev <- syn_grid$survey
+grid <- coords %>%
+  expand_prediction_grid(years = unique(dat_to_fit$year)) %>%
+  as_tibble()
+# }
+
+saveRDS(grid, "data-generated/syn-grid-w-restr.rds")

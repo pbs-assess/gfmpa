@@ -106,6 +106,7 @@ fit_geo_model <- function(surv_dat, pred_grid, shrink_survey = FALSE, survey = c
   }
   set.seed(1)
   pred_grid <- filter(pred_grid, survey_abbrev == null_df$survey_abbrev[1])
+  pred_grid <- filter(pred_grid, year %in% surv_dat$year)
   pred <- try({
     predict(m, newdata = pred_grid, xy_cols = c("X", "Y"), sims = 250L)
   })

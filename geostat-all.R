@@ -4,7 +4,7 @@ library(sf)
 library(future)
 is_rstudio <- !is.na(Sys.getenv("RSTUDIO", unset = NA))
 is_unix <- .Platform$OS.type == "unix"
-if (!is_rstudio && is_unix) plan(multicore, workers = 8L) else plan(multisession)
+if (!is_rstudio && is_unix) plan(multicore, workers = 8L) else plan(multisession, workers = 8L)
 options(future.rng.onMisuse = "ignore")
 library(sdmTMB)
 theme_set(ggsidekick::theme_sleek())
@@ -17,57 +17,22 @@ survey <- "SYN"
 
 if (survey == "HBLL") {
   dat_to_fit <- readRDS("data-generated/dat_to_fit_hbll.rds")
+  grid <- readRDS("data-generated/hbll-n-grid-w-restr.rds")
 }
 if (survey == "SYN") {
   dat_to_fit <- readRDS("data-generated/dat_to_fit.rds")
+  grid <- readRDS("data-generated/syn-grid-w-restr.rds")
 }
 
 ll_removed <- readRDS("data-generated/hu_co_demersalfishing_bottomlongline_d_X.rds")
 trawl_removed <- readRDS("data-generated/hu_co_demersalfishing_bottomlongline_d_X.rds")
-
-if (survey == "HBLL") {
-  hbll_grid <- gfplot::hbll_n_grid$grid
-  utm_zone9 <- 3156
-  coords <- hbll_grid %>%
-    sf::st_as_sf(crs = 4326, coords = c("X", "Y")) %>%
-    sf::st_transform(utm_zone9)
-  coords_restr <- shrink_a_survey(coords, ll_removed, plot = FALSE)
-  coords <- coords %>%
-    sf::st_coordinates() %>%
-    as.data.frame()
-  coords$X <- coords$X / 1000
-  coords$Y <- coords$Y / 1000
-  coords$restricted <- coords_restr$restricted
-  grid <- coords %>%
-    expand_prediction_grid(years = unique(dat_to_fit$year)) %>%
-    as_tibble()
-}
-if (survey == "SYN") {
-  syn_grid <- gfplot::synoptic_grid
-  syn_grid$X <- syn_grid$X * 1000
-  syn_grid$Y <- syn_grid$Y * 1000
-  utm_zone9 <- 3156
-  coords <- syn_grid %>%
-    sf::st_as_sf(crs = utm_zone9, coords = c("X", "Y"))
-  coords_restr <- shrink_a_survey(coords, trawl_removed, plot = FALSE)
-  coords <- coords %>%
-    sf::st_coordinates() %>%
-    as.data.frame()
-  coords$X <- coords$X / 1000
-  coords$Y <- coords$Y / 1000
-  coords$restricted <- coords_restr$restricted
-  coords$survey_abbrev <- syn_grid$survey
-  grid <- coords %>%
-    expand_prediction_grid(years = unique(dat_to_fit$year)) %>%
-    as_tibble()
-}
 
 index_orig <- dat_to_fit %>%
   group_by(survey_abbrev, species_common_name) %>%
   group_split() %>%
   furrr::future_map_dfr(function(.x) {
     out <- .x %>%
-      fit_geo_model(pred_grid = grid) %>%
+      fit_geo_model(pred_grid = grid, survey = survey) %>%
       mutate(type = "Status quo")
   }, .progress = TRUE)
 
@@ -77,7 +42,7 @@ index_restr <- dat_to_fit %>%
   group_split() %>%
   furrr::future_map_dfr(function(.x) {
     out <- .x %>%
-      fit_geo_model(pred_grid = grid) %>%
+      fit_geo_model(pred_grid = grid, survey = survey) %>%
       mutate(type = "Restricted")
   }, .progress = TRUE)
 
@@ -86,10 +51,12 @@ index_shrunk <- dat_to_fit %>%
   group_by(survey_abbrev, species_common_name) %>%
   group_split() %>%
   furrr::future_map_dfr(function(.x) {
+  # purrr::map_dfr(function(.x) {
     out <- .x %>%
-      fit_geo_model(pred_grid = filter(grid, !restricted)) %>%
+      fit_geo_model(pred_grid = filter(grid, !restricted), survey = survey) %>%
       mutate(type = "Restricted and shrunk")
   }, .progress = TRUE)
+  # })
 
 index_all <- bind_rows(index_orig, index_restr, index_shrunk)
 
@@ -136,12 +103,17 @@ if (survey == "SYN") ggsave("figs/index-syn-geo-restricted.pdf", width = 18, hei
 x <- index %>%
   group_by(species_common_name, survey_abbrev, year) %>%
   summarise(
-    cv_ratio_restr = cv[type == "Restricted"] / cv[type == "Status quo"],
-    cv_ratio_shrunk = cv[type == "Restricted and shrunk"] / cv[type == "Status quo"]
+    cv_ratio_restr = cv[type == "Restricted"] /
+      cv[type == "Status quo"],
+    cv_ratio_shrunk = cv[type == "Restricted and shrunk"] /
+      cv[type == "Status quo"]
   )
 
-x %>%
-  tidyr::pivot_longer(starts_with("cv"), names_to = "Restriction type", values_to = "CV ratio") %>%
+x_long <- x %>%
+  tidyr::pivot_longer(starts_with("cv"),
+    names_to = "Restriction type", values_to = "CV ratio")
+
+x_long %>%
   ggplot(aes(`CV ratio`)) +
   facet_wrap(~survey_abbrev) +
   geom_histogram() +
@@ -151,9 +123,6 @@ x %>%
 
 if (survey == "HBLL") ggsave("figs/index-geo-hbll-cv-ratios.pdf", width = 8, height = 4)
 if (survey == "SYN") ggsave("figs/index-geo-syn-cv-ratios.pdf", width = 8, height = 4)
-
-x_long <- x %>%
-  tidyr::pivot_longer(starts_with("cv"), names_to = "Restriction type", values_to = "CV ratio")
 
 x_long %>%
   group_by(`Restriction type`) %>%
