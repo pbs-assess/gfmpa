@@ -1,5 +1,5 @@
 ---
-title: "Impacts of the exclusion of scientific surveys closed areas on population indices, stock assessment, and conservation"
+title: "Impacts of the exclusion of scientific surveys from closed areas on population indices, stock assessment, and conservation"
 author: "|
   Authors$^1$^[Corresponding author: email@dfo-mpo.gc.ca], Other authors\n| $^1$Pacific Biological Station Fisheries and Oceans Canada, \n| Nanaimo, BC, Canada\n|
   $^2$Other addresses\n"
