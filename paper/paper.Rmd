@@ -1,7 +1,7 @@
 ---
-title: "Impacts of draft proposed Marine Protected Areas on population indexes derived from DFO research surveys"
+title: "Impacts of the exclusion of scientific surveys closed areas on population indices, stock assessment, and conservation"
 author: "|
-  Sean C. Anderson$^1$^[Corresponding author: sean.anderson@dfo-mpo.gc.ca], Other authors\n| $^1$Pacific Biological Station Fisheries and Oceans Canada, \n| Nanaimo, BC, Canada\n|
+  Authors$^1$^[Corresponding author: email@dfo-mpo.gc.ca], Other authors\n| $^1$Pacific Biological Station Fisheries and Oceans Canada, \n| Nanaimo, BC, Canada\n|
   $^2$Other addresses\n"
 output:
     bookdown::pdf_document2:
@@ -48,6 +48,21 @@ knitr::opts_chunk$set(
 ```
 
 # Introduction
+
+<!-- # Paragraph 1: scientific surveys are important and pervasive -->
+Scientific surveys form the backbone of population assessment for conservation, commercial, and First Nations purposes.
+
+<!-- # Paragraph 2: globally MPAs are being proposed more and more -->
+Globally, regions of the ocean are increasingly set aside in various forms of reserves or marine protected areas (MPAs). E.g., various policy targets. Protecting benthic habitat..
+
+<!-- # Paragraph 3: restricted from fishing, but then the question becomes scientific surveys -->
+While MPAs typically restrict commercial and/or recreational fishing activities, there is sometimes concern about allowing scientific surveys with gear that may impact benthic habitat.
+
+<!-- # Paragraph 4: if excluded, this presents a number of possible issues -->
+If scientific surveys are excluded from MPAs, there are a number of possible concerns related to loss of precision and possible biases in population indices derived from surveys as well as the ability to monitor population status within the closed area.
+
+<!-- # Paragraph 5: -->
+Here, we...
 
 # Methods
 
