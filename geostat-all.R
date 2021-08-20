@@ -8,6 +8,7 @@ is_unix <- .Platform$OS.type == "unix"
 options(future.rng.onMisuse = "ignore")
 library(sdmTMB)
 theme_set(ggsidekick::theme_sleek())
+options(dplyr.summarise.inform = FALSE)
 
 # source("load-data.R")
 source("functions.R")
@@ -141,7 +142,8 @@ syn_highlights <- c(
   "Yellowtail Rockfish",
   "Widow Rockfish",
   "Walleye Pollock",
-  "Pacific Ocean Perch"
+  "Pacific Ocean Perch",
+  "Pacific Cod"
 )
 
 # focus on some
@@ -184,8 +186,9 @@ x_long <- x %>%
 # if (survey == "SYN") ggsave("figs/index-geo-syn-cv-ratios.pdf", width = 8, height = 4)
 
 x_long %>%
-  group_by(`Restriction type`) %>%
-  summarise(mean_ratio = mean(`CV ratio`))
+  group_by(`Restriction type`, survey_abbrev) %>%
+  summarise(mean_ratio = mean(`CV ratio`)) %>%
+  knitr::kable(digits = 2)
 
 lu <- tibble(
   "Restriction type" = c("cv_ratio_restr", "cv_ratio_shrunk"),
@@ -244,14 +247,14 @@ g <- ggplot(x_long, aes(year, re, colour = restr_clean)) +
   labs(colour = "Survey domain treatment")
 
 if (survey == "HBLL") {
-  g <- g + facet_wrap(~species_common_name, scales = "free_y", ncol = 4)
+  g <- g + facet_wrap(~species_common_name, scales = "free_y", ncol = 5)
 }
 if (survey == "SYN") {
   g <- g + facet_grid(species_common_name~survey_abbrev, scales = "free_y") +     theme(strip.text.y = element_text(size = 7))
 
 }
 
-if (survey == "HBLL") ggsave("figs/index-hbll-geo-restricted-re.pdf", width = 10, height = 9)
+if (survey == "HBLL") ggsave("figs/index-hbll-geo-restricted-re.pdf", width = 12, height = 8)
 if (survey == "SYN") ggsave("figs/index-syn-geo-restricted-re.pdf", width = 9, height = 60, limitsize = FALSE)
 
 # focus on some
@@ -289,3 +292,18 @@ if (survey == "SYN") {
   g <- g + facet_wrap(~survey_abbrev)
   ggsave("figs/index-geo-syn-mare-dotplot.pdf", width = 8, height = 8)
 }
+
+x_long %>%
+  group_by(survey_abbrev, species_common_name, `Restriction type`) %>%
+  summarise(lwr = min(re), upr = max(re), est = median(abs(re))) %>%
+  group_by(`Restriction type`, survey_abbrev) %>%
+  summarise(mean = mean(est)) %>%
+  knitr::kable(digits = 2)
+
+x_long %>%
+  group_by(survey_abbrev, species_common_name, `Restriction type`) %>%
+  summarise(lwr = min(re), upr = max(re), est = median(abs(re))) %>%
+  group_by(`Restriction type`, survey_abbrev, species_common_name) %>%
+  summarise(mean = mean(est)) %>%
+  arrange(mean) %>%
+  knitr::kable(digits = 2)
