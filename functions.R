@@ -39,3 +39,24 @@ expand_prediction_grid <- function(grid, years) {
   nd[["year"]] <- rep(years, each = nrow(grid))
   nd
 }
+
+
+shrink_a_survey <- function(grid_dat, restriction_dat, plot = FALSE) {
+  orig <- grid_dat
+  grid_dat <- grid_dat %>% st_transform(sf::st_crs(restriction_dat))
+  intersected <- sf::st_intersects(grid_dat, restriction_dat)
+  remain <- which(lengths(intersected) == 0)
+  lost <- which(lengths(intersected) > 0)
+  if (plot) {
+    .d <- as.data.frame(st_coordinates(orig))
+    remain_df <- .d[remain,]
+    lost_df <- .d[lost,]
+    plot(remain_df$X, remain_df$Y, col = "black")
+    points(lost_df$X, lost_df$Y, col = "red")
+  }
+  grid_dat$restricted <- lengths(intersected) > 0
+  grid_dat <- as.data.frame(grid_dat) %>% select(-geometry)
+  grid_dat$longitude <- orig$longitude
+  grid_dat$latitude <- orig$latitude
+  grid_dat %>% as_tibble()
+}
