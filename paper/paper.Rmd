@@ -100,7 +100,7 @@ In all cases, comparing restricted estimates to the estimates from the full hist
 
 # Figures
 
-```{r, out.width="\\textwidth", fig.cap="HBLL N indexes calculated from a geostatistical model."}
+```{r, out.width="\\textwidth", fig.cap="HBLL N indices calculated from a geostatistical model."}
 include_graphics(here("figs/index-hbll-geo-restricted.pdf"))
 ```
 
@@ -108,7 +108,7 @@ include_graphics(here("figs/index-hbll-geo-restricted.pdf"))
 include_graphics(here("figs/index-hbll-geo-restricted-re.pdf"))
 ```
 
-```{r, out.width="5in", fig.cap="HBLL N indexes: ratio of the restricted to the original index CV. Dots represent the mean CV ratio and line segments represent the lower and upper ratios across years."}
+```{r, out.width="5in", fig.cap="HBLL N indices: ratio of the restricted to the original index CV. Dots represent the mean CV ratio and line segments represent the lower and upper ratios across years."}
 include_graphics(here("figs/index-geo-hbll-cv-ratio-dotplot.pdf"))
 ```
 
@@ -118,7 +118,7 @@ include_graphics(here("figs/index-geo-hbll-mare-dotplot.pdf"))
 
 
 
-```{r, out.width="0.72\\textwidth", fig.cap="Synoptic trawl survey indexes calculated from a geostatistical model."}
+```{r, out.width="0.72\\textwidth", fig.cap="Synoptic trawl survey indices calculated from a geostatistical model."}
 include_graphics(here("figs/index-syn-geo-restricted-highlight.pdf"))
 ```
 
