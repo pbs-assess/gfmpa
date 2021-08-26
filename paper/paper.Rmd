@@ -8,7 +8,7 @@ output:
       toc: false
       number_sections: false
       fig_caption: true
-csl: mee.csl
+csl: ecological-applications.csl
 bibliography: refs.bib
 link-citations: yes
 header-includes:
@@ -50,21 +50,47 @@ knitr::opts_chunk$set(
 # Introduction
 
 <!-- # Paragraph 1: scientific surveys are important and pervasive -->
-Scientific surveys form the backbone of population assessment for conservation, commercial, and First Nations purposes.
+Scientific surveys form the backbone of population status assessment for exploited marine species.
 
 <!-- # Paragraph 2: globally MPAs are being proposed more and more -->
-Globally, regions of the ocean are increasingly set aside in various forms of reserves or marine protected areas (MPAs). E.g., various policy targets. Protecting benthic habitat..
+Globally, regions of the ocean are increasingly set aside as reserves or marine protected areas (MPAs). E.g., various policy targets. Protecting benthic habitat is often an objective...
 
 <!-- # Paragraph 3: restricted from fishing, but then the question becomes scientific surveys -->
-While MPAs typically restrict commercial and/or recreational fishing activities, there is sometimes concern about allowing scientific surveys with gear that may impact benthic habitat.
+While MPAs typically restrict commercial and/or recreational fishing activities, there is also concern about allowing scientific surveys with gear that can impact benthic habitat.
 
 <!-- # Paragraph 4: if excluded, this presents a number of possible issues -->
-If scientific surveys are excluded from MPAs, there are a number of possible concerns related to loss of precision and possible biases in population indices derived from surveys as well as the ability to monitor population status within the closed area.
+If scientific surveys are excluded from MPAs, there are a number of possible concerns related to loss of precision and biases in population indices derived from surveys as well as the ability to monitor population status within the closed area [e.g., @benoit2020; @benoit2020a].
 
 <!-- # Paragraph 5: -->
 Here, we...
 
 # Methods
+
+### Calculating indices three ways:
+
+1. Restricted: Remove historical observations that would be part of closed areas with restrictions on the survey gear type; do not shrink the survey domain. In other words, continue extrapolating into the no-longer-surveyed area.
+
+2. Restricted and shrunk: Same as restricted, but also "shrink" the survey domain by removing survey grid cells that overlap with the closed areas.
+
+3. Status quo: Full survey domain; no changes.
+
+### The survey indices can be calculated at least two ways:
+
+1. Design-based bootstrap: Calculate the mean density in each survey stratum, multiply that by each stratum area, and add these biomass/abundance estimates to derive an index. Perform this repeatedly, each time sampling with replacement stratified by survey strata, to derive a bootstrap confidence interval. (I have done these for the 'restricted' version only so far, but they are not shown here. The bootstrap CI can behave counterintuitively where reducing observations can increase precision if it eliminates outlying observations or there are few unique/positive observations.)
+
+2. Model-based bootstrap: Fit a geostatistical spatiotemporal model to the observed data, predict on the full survey grid, sum the predicted biomass/abundance for the full survey domain.
+
+There are analytical design-based approaches and other non-geostatistical model-based approaches that are used elsewhere.
+
+### Measures of precision, bias, and accuracy:
+
+In all cases, comparing restricted estimates to the estimates from the full historical survey set.
+
+- CV: the coefficient of variation of the index value in each year; this represents a standardized measure of imprecision on the estimate.
+
+- RE: relative error; $(\hat{\theta}_t - \theta_t) / \theta_t$, where $\hat{\theta}_t$ represents the index estimate from the restricted model in year $t$ and $\theta$ represents the index estimate from the full survey set.
+
+- MARE: median absolute relative error; this is the median absolute relative error, here taken across years. This represents the typical magnitude of relative error you would expect for any year.
 
 # Results
 
@@ -74,38 +100,37 @@ Here, we...
 
 # Figures
 
-```{r, out.width="\\textwidth", fig.cap="HBLL N geo indexes."}
+```{r, out.width="\\textwidth", fig.cap="HBLL N indexes calculated from a geostatistical model."}
 include_graphics(here("figs/index-hbll-geo-restricted.pdf"))
 ```
 
-
-```{r, out.width="\\textwidth", fig.cap="HBLL N RE."}
+```{r, out.width="\\textwidth", fig.cap="HBLL N: relative error over years and across species."}
 include_graphics(here("figs/index-hbll-geo-restricted-re.pdf"))
 ```
 
-```{r, out.width="6in", fig.cap="HBLL N CV."}
+```{r, out.width="5in", fig.cap="HBLL N indexes: ratio of the restricted to the original index CV. Dots represent the mean CV ratio and line segments represent the lower and upper ratios across years."}
 include_graphics(here("figs/index-geo-hbll-cv-ratio-dotplot.pdf"))
 ```
 
-```{r, out.width="6in", fig.cap="HBLL N MARE."}
+```{r, out.width="5in", fig.cap="HBLL N: median absolute relative error across years."}
 include_graphics(here("figs/index-geo-hbll-mare-dotplot.pdf"))
 ```
 
 
 
-```{r, out.width="\\textwidth", fig.cap="SYN geo indexes."}
+```{r, out.width="0.72\\textwidth", fig.cap="Synoptic trawl survey indexes calculated from a geostatistical model."}
 include_graphics(here("figs/index-syn-geo-restricted-highlight.pdf"))
 ```
 
-```{r, out.width="\\textwidth", fig.cap="SYN geo RE."}
+```{r, out.width="0.72\\textwidth", fig.cap="Synoptic trawl survey: relative error over years and across species."}
 include_graphics(here("figs/index-syn-geo-restricted-re-highlights.pdf"))
 ```
 
-```{r, out.width="6in", fig.cap="SYN  CV."}
+```{r, out.width="6in", fig.cap="Synoptic trawl survey: ratio of the restricted to the original index CV. Dots represent the mean CV ratio and line segments represent the lower and upper ratios across years."}
 include_graphics(here("figs/index-geo-syn-cv-ratio-dotplot.pdf"))
 ```
 
-```{r, out.width="6in", fig.cap="SYN MARE."}
+```{r, out.width="6in", fig.cap="Synoptic trawl survey: median absolute relative error across years."}
 include_graphics(here("figs/index-geo-syn-mare-dotplot.pdf"))
 ```
 

@@ -284,7 +284,8 @@ g <- x_long %>%
   labs(colour = "Restricted survey domain") +
   scale_color_brewer(palette = "Set2") +
   theme(legend.position = "top") +
-  theme(panel.grid.major.y = element_line(colour = "grey90"))
+  theme(panel.grid.major.y = element_line(colour = "grey90")) +
+  guides(colour = guide_legend(nrow = 2L))
 
 if (survey == "HBLL") ggsave("figs/index-geo-hbll-mare-dotplot.pdf", width = 6, height = 7)
 
