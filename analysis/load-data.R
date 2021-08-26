@@ -6,7 +6,7 @@ plan(multisession)
 dir.create("data-generated", showWarnings = FALSE)
 dir.create("figs", showWarnings = FALSE)
 
-source("functions.R")
+source("analysis/functions.R")
 
 x <- sf::read_sf("data-raw/Spatial_N1_May17_2021.gdb")
 # plot(x["hu_co_demersalfishing_bottomtrawling_d"])

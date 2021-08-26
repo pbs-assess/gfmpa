@@ -10,8 +10,8 @@ library(sdmTMB)
 theme_set(ggsidekick::theme_sleek())
 options(dplyr.summarise.inform = FALSE)
 
-# source("load-data.R")
-source("functions.R")
+# source("analysis/load-data.R")
+source("analysis/functions.R")
 
 # survey <- "HBLL"
 survey <- "SYN"

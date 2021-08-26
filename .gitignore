@@ -9,3 +9,4 @@ data-generated
 *.rds
 *.png
 data-raw
+archive/
