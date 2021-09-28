@@ -4,7 +4,7 @@ library(sf)
 library(future)
 is_rstudio <- !is.na(Sys.getenv("RSTUDIO", unset = NA))
 is_unix <- .Platform$OS.type == "unix"
-# if (!is_rstudio && is_unix) plan(multicore, workers = 8L) else plan(multisession, workers = 8L)
+if (!is_rstudio && is_unix) plan(multicore, workers = 7L) else plan(multisession, workers = 7L)
 options(future.rng.onMisuse = "ignore")
 library(sdmTMB)
 theme_set(ggsidekick::theme_sleek())
@@ -13,12 +13,17 @@ options(dplyr.summarise.inform = FALSE)
 # source("analysis/load-data.R")
 source("analysis/functions.R")
 
-# survey <- "HBLL"
-survey <- "SYN"
+# Globals to set ------------------------------
+survey <- "HBLL"
+# survey <- "SYN"
+family <- "binomial-gamma"
+# family <- "tweedie"
+# ---------------------------------------------
 
 if (survey == "HBLL") {
   dat_to_fit <- readRDS("data-generated/dat_to_fit_hbll.rds")
   grid <- readRDS("data-generated/hbll-n-grid-w-restr.rds")
+  grid$survey_abbrev <- "HBLL OUT N"
 }
 if (survey == "SYN") {
   dat_to_fit <- readRDS("data-generated/dat_to_fit.rds")
@@ -29,10 +34,10 @@ ll_removed <- readRDS("data-generated/hu_co_demersalfishing_bottomlongline_d_X.r
 trawl_removed <- readRDS("data-generated/hu_co_demersalfishing_bottomlongline_d_X.rds")
 
 if (survey == "SYN") {
-  save_file <- "data-generated/index-syn-geo.rds"
+  save_file <- paste0("data-generated/index-syn-geo-", family, ".rds")
 }
 if (survey == "HBLL") {
-  save_file <- "data-generated/index-hbll-geo.rds"
+  save_file <- paste0("data-generated/index-hbll-geo-", family, ".rds")
 }
 
 if (!file.exists(save_file)) {
@@ -40,10 +45,12 @@ if (!file.exists(save_file)) {
     group_by(survey_abbrev, species_common_name) %>%
     group_split() %>%
     furrr::future_map_dfr(function(.x) {
+    # purrr::map_dfr(function(.x) {
       out <- .x %>%
-        fit_geo_model(pred_grid = grid, survey = survey) %>%
+        fit_geo_model(pred_grid = grid, survey = survey, family = family) %>%
         mutate(type = "Status quo")
     }, .progress = TRUE)
+    # })
 
   index_restr <- dat_to_fit %>%
     filter(!restricted) %>%
@@ -51,7 +58,7 @@ if (!file.exists(save_file)) {
     group_split() %>%
     furrr::future_map_dfr(function(.x) {
       out <- .x %>%
-        fit_geo_model(pred_grid = grid, survey = survey) %>%
+        fit_geo_model(pred_grid = grid, survey = survey, family = family) %>%
         mutate(type = "Restricted")
     }, .progress = TRUE)
 
@@ -61,7 +68,7 @@ if (!file.exists(save_file)) {
     group_split() %>%
     furrr::future_map_dfr(function(.x) {
       out <- .x %>%
-        fit_geo_model(pred_grid = filter(grid, !restricted), survey = survey) %>%
+        fit_geo_model(pred_grid = filter(grid, !restricted), family = family, survey = survey) %>%
         mutate(type = "Restricted and shrunk")
     }, .progress = TRUE)
 
@@ -70,10 +77,15 @@ if (!file.exists(save_file)) {
 }
 plan(sequential) # don't crash!
 
+# gg <- bind_rows(tw, dg) %>% filter(survey_abbrev != "SYN WCHG") %>% ggplot(aes(year, est, ymin = lwr, ymax = upr, colour = type, fill = type)) +
+#   geom_line(lwd = 0.9) +
+#   geom_ribbon(alpha = 0.2, colour = NA) +
+#   labs(x = "Year", colour = "Type", fill = "Type") +  facet_grid(species_common_name~survey_abbrev, scales = "free_y")
+
 index <- readRDS(save_file)
 index <- filter(index, !is.na(est), !is.na(se)) # didn't fit
 index <- index %>% mutate(cv = sqrt(exp(se^2) - 1))
-stopifnot(max(index$max_gradient) < 0.01)
+# stopifnot(max(index$max_gradient) < 0.01)
 
 # how many didn't fit in orig?
 .u1 <- distinct(index, survey_abbrev, species_common_name, type) %>%
