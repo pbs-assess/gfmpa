@@ -62,7 +62,7 @@ shrink_a_survey <- function(grid_dat, restriction_dat, plot = FALSE) {
 }
 
 do_sdmTMB_fit <- function(surv_dat, cutoff, pred_grid,
-  family = sdmTMB::tweedie(link = "log")) {
+  family = sdmTMB::tweedie(link = "log"), return_model = FALSE, ...) {
 
   mesh <- make_mesh(surv_dat, c("X", "Y"), cutoff = cutoff)
   # plot(mesh)
@@ -72,7 +72,8 @@ do_sdmTMB_fit <- function(surv_dat, cutoff, pred_grid,
       data = surv_dat,
       family = family,
       time = "year",
-      spde = mesh
+      spde = mesh,
+      ...
     )
   })
   if (class(m)[[1]] == "try-error") return(NULL)
@@ -81,6 +82,7 @@ do_sdmTMB_fit <- function(surv_dat, cutoff, pred_grid,
       run_extra_optimization(m, newton_loops = 1L, nlminb_loops = 0L)
     })
   }
+  if (return_model) return(m)
   if (class(m)[[1]] == "try-error" || max(m$gradients) > 0.01) return(NULL)
   set.seed(1)
   pred <- try({
@@ -92,7 +94,8 @@ do_sdmTMB_fit <- function(surv_dat, cutoff, pred_grid,
 
 fit_geo_model <- function(surv_dat, pred_grid, shrink_survey = FALSE,
   survey = c("HBLL", "SYN"),
-  family = c("tweedie", "binomial-gamma")) {
+  family = c("tweedie", "binomial-gamma"),
+  return_model = FALSE, ...) {
 
   survey <- match.arg(survey)
   family <- match.arg(family)
@@ -123,9 +126,10 @@ fit_geo_model <- function(surv_dat, pred_grid, shrink_survey = FALSE,
   if (family == "tweedie") {
     surv_dat$response <- surv_dat$density
     pred <- do_sdmTMB_fit(surv_dat, cutoff = cutoff, family = tweedie(),
-      pred_grid = pred_grid)
+      pred_grid = pred_grid, return_model = return_model, ...)
+    if (return_model) return(pred)
     if (is.null(pred)) return(null_df)
-    ind_bin <- get_index_sims(pred, area = rep(4, nrow(pred_bin))) # 2 x 2 km
+    ind <- get_index_sims(pred, area = rep(4, nrow(pred))) # 2 x 2 km
   } else {
     surv_dat$present <- ifelse(surv_dat$density > 0, 1, 0)
     surv_dat$response <- surv_dat$present
@@ -133,11 +137,12 @@ fit_geo_model <- function(surv_dat, pred_grid, shrink_survey = FALSE,
     surv_dat_pos$response <- surv_dat_pos$density
     pred_grid <- filter(pred_grid, year %in% unique(surv_dat_pos$year)) # in case 'pos' is missing some
     pred_bin <- do_sdmTMB_fit(surv_dat, cutoff = cutoff, family = binomial(),
-      pred_grid = pred_grid)
+      pred_grid = pred_grid, return_model = return_model, ...)
     if (is.null(pred_bin)) return(null_df)
     pred_pos <- do_sdmTMB_fit(surv_dat_pos, cutoff = cutoff,
-      family = Gamma(link = "log"), pred_grid = pred_grid)
+      family = Gamma(link = "log"), pred_grid = pred_grid, return_model = return_model, ...)
     if (is.null(pred_pos)) return(null_df)
+    if (return_model) list(bin = pred_bin, pos = pred_pos)
 
     pred_combined <- log(plogis(pred_bin) * exp(pred_pos))
     ind <- get_index_sims(pred_combined, area = rep(4, nrow(pred_combined)))
