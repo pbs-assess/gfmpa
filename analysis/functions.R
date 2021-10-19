@@ -43,12 +43,12 @@ expand_prediction_grid <- function(grid, years) {
 
 shrink_a_survey <- function(grid_dat, restriction_dat, plot = FALSE) {
   orig <- grid_dat
-  grid_dat <- grid_dat %>% st_transform(sf::st_crs(restriction_dat))
+  grid_dat <- grid_dat %>% sf::st_transform(sf::st_crs(restriction_dat))
   intersected <- sf::st_intersects(grid_dat, restriction_dat)
   remain <- which(lengths(intersected) == 0)
   lost <- which(lengths(intersected) > 0)
   if (plot) {
-    .d <- as.data.frame(st_coordinates(orig))
+    .d <- as.data.frame(sf::st_coordinates(orig))
     remain_df <- .d[remain,]
     lost_df <- .d[lost,]
     plot(remain_df$X, remain_df$Y, col = "black")
@@ -102,8 +102,8 @@ fit_geo_model <- function(surv_dat, pred_grid, shrink_survey = FALSE,
 
   utm_zone9 <- 3156
   coords <- surv_dat %>%
-    st_as_sf(crs = 4326, coords = c("longitude", "latitude")) %>%
-    st_transform(utm_zone9) %>%
+    sf::st_as_sf(crs = 4326, coords = c("longitude", "latitude")) %>%
+    sf::st_transform(utm_zone9) %>%
     sf::st_coordinates() %>%
     as.data.frame()
   coords$X <- coords$X / 1000
