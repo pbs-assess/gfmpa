@@ -18,55 +18,53 @@ fe <- tidy(m)
 re <- tidy(m, effects = "ran_pars") %>% distinct()
 effects <- bind_rows(fe, re)
 
-dat <- m$data
-mesh <- make_mesh(m$data, xy_cols = c("X", "Y"), cutoff = 10)
-plot(mesh$mesh, asp = 1)
-
-# m$tmb_data$X_ij %>% head
-
-# loc <- unique(select(dat, X, Y, year))
-
-# ff <- y ~ 0 + as.factor(year)
-# utils::str(m <- model.frame(ff, trees))
-# mat <- model.matrix(ff, m)
-
 ####### Fix from here down:
 
-mm <- m$tmb_data$X_ij
-out <- lapply(seq_len(ncol(mm)), function(x) as.matrix(mm))
-mm <- do.call(rbind, out)
+recovery <- seq(5, 7, length.out = ncol(m$tmb_data$X_ij))
+plot(unique(m$data$year), exp(recovery))
 
-
-s <- sdmTMB::sdmTMB_sim2(mesh = mesh, x = loc$X, y = loc$Y,
-  X = mm,
-  betas = seq(0, 1, length.out = ncol(mm)),
+sim_dat <- sdmTMB_sim2(
+  formula = m$formula,
+  data = m$data,
+  time = "year",
+  spde = m$spde,
+  family = tweedie(link = "log"),
   range = effects$estimate[effects$term == "range"],
-  sigma_O = effects$estimate[effects$term == "sigma_O"],
   sigma_E = effects$estimate[effects$term == "sigma_E"],
-  family = tweedie(),
-  phi = effects$estimate[effects$term == "phi"],
   tweedie_p = effects$estimate[effects$term == "tweedie_p"],
-  time_steps = length(unique(loc$year))
+  phi = effects$estimate[effects$term == "phi"],
+  sigma_O = effects$estimate[effects$term == "sigma_O"],
+  # seed = 3542,
+  B = recovery)
+  # B = fe$estimate
 )
 
-yr_lu <- data.frame(year = sort(unique(dat$year)),
-  time = seq_len(length(unique(loc$year)))
-)
-s <- left_join(s, yr_lu)
-s <- rename(s, X = x, Y = y)
-s2 <- left_join(loc, s)
-
-nrow(s2)
-nrow(loc)
-
+dat <- m$data
 ggplot(dat, aes(X, Y, size = density)) + geom_point() +
   facet_wrap(vars(year))
 
-ggplot(s2, aes(X, Y, size = observed)) + geom_point() +
+ggplot(sim_dat, aes(X, Y, size = observed)) + geom_point() +
   facet_wrap(vars(year))
 
-mean(s2$observed)
-median(s2$observed)
-mean(dat$density)
-median(dat$density)
+# median(dat$density)
+# median(sim_dat$observed)
+#
+# mean(sim_dat$observed)
+# mean(dat$density)
+#
+# hist(log(dat$density + 1))
+# hist(log(sim_dat$observed + 1))
 
+sim_dat$response <- sim_dat$observed
+m_sim <- sdmTMB(
+  m$formula,
+  data = sim_dat,
+  time = "year",
+  spde = m$spde,
+  family = tweedie(link = "log"),
+  silent = FALSE
+)
+
+m_sim
+
+# now predict only in an MPA and check index!
