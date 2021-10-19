@@ -16,6 +16,7 @@ m <- fit_geo_model(d, pred_grid = grid, survey = "HBLL", family = "tweedie",
 
 fe <- tidy(m)
 re <- tidy(m, effects = "ran_pars") %>% distinct()
+effects <- bind_rows(fe, re)
 
 dat <- m$data
 mesh <- make_mesh(m$data, xy_cols = c("X", "Y"), cutoff = 10)
@@ -23,17 +24,28 @@ plot(mesh$mesh, asp = 1)
 
 # m$tmb_data$X_ij %>% head
 
-loc <- unique(select(dat, X, Y, year))
+# loc <- unique(select(dat, X, Y, year))
 
-s <- sdmTMB::sdmTMB_sim(mesh = mesh, x = loc$X, y = loc$Y,
-  X = matrix(data = 1, nrow = length(loc$X) * length(unique(loc$year))),
-  betas = mean(fe$estimate),
-  range = re$estimate[re$term == "range"],
-  sigma_O = re$estimate[re$term == "sigma_O"],
-  sigma_E = re$estimate[re$term == "sigma_E"],
+# ff <- y ~ 0 + as.factor(year)
+# utils::str(m <- model.frame(ff, trees))
+# mat <- model.matrix(ff, m)
+
+####### Fix from here down:
+
+mm <- m$tmb_data$X_ij
+out <- lapply(seq_len(ncol(mm)), function(x) as.matrix(mm))
+mm <- do.call(rbind, out)
+
+
+s <- sdmTMB::sdmTMB_sim2(mesh = mesh, x = loc$X, y = loc$Y,
+  X = mm,
+  betas = seq(0, 1, length.out = ncol(mm)),
+  range = effects$estimate[effects$term == "range"],
+  sigma_O = effects$estimate[effects$term == "sigma_O"],
+  sigma_E = effects$estimate[effects$term == "sigma_E"],
   family = tweedie(),
-  phi = re$estimate[re$term == "phi"],
-  thetaf = plogis(m$model$par[["thetaf"]]) + 1,
+  phi = effects$estimate[effects$term == "phi"],
+  tweedie_p = effects$estimate[effects$term == "tweedie_p"],
   time_steps = length(unique(loc$year))
 )
 
