@@ -14,9 +14,6 @@ trawl_removed <- dplyr::filter(x, hu_co_demersalfishing_bottomtrawling_d %in% c(
 saveRDS(trawl_removed, file = "data-generated/demersalfishing_bottomtrawling_X.rds")
 # plot(trawl_removed["hu_co_demersalfishing_bottomtrawling_d"])
 
-f <- list.files("/Volumes/Extreme-SSD/src/gfsynopsis-2021/report/data-cache/",
-  full.names = TRUE)
-
 # aleut <- readRDS(f[grep("aleut", f)])$survey_sets
 # aleut <- filter(aleut, survey_abbrev == "SYN HS", year == 2015)
 # aleut <- assign_restricted_tows(aleut)
@@ -41,12 +38,21 @@ assign_restricted_tows <- function(trawl_dat) {
   trawl_dat %>% as_tibble()
 }
 
-dat <- furrr::future_map_dfr(seq_along(f), function(i) {
-  d <- readRDS(f[i])$survey_sets
-  d <- filter(d, survey_abbrev %in% c("SYN QCS", "SYN HS", "SYN WCHG"))
-  d2 <- assign_restricted_tows(d)
-  d2
-})
+if (Sys.info()[['user']] == "seananderson") {
+  f <- list.files("/Volumes/Extreme-SSD/src/gfsynopsis-2021/report/data-cache/",
+    full.names = TRUE)
+  synoptic_data <- furrr::future_map_dfr(seq_along(f), function(i) {
+    d <- readRDS(f[i])$survey_sets
+    filter(d, survey_abbrev %in% c("SYN QCS", "SYN HS", "SYN WCHG")) %>%
+      select(year, survey_abbrev, species_science_name, species_common_name,
+        density_kgpm2, latitude, longitude, grouping_code, area_km2, depth_m)
+  })
+  saveRDS(synoptic_data, file = "data-raw/syn-survey-data.rds")
+} else {
+  synoptic_data <- readRDS("data-raw/syn-survey-data.rds")
+}
+
+dat <- assign_restricted_tows(synoptic_data)
 
 frac_pos_df <- dat %>% group_by(species_common_name, survey_abbrev) %>%
   summarise(frac_pos = sum(density_kgpm2 > 0) / length(density_kgpm2), .groups = "drop")
@@ -71,9 +77,6 @@ saveRDS(ll_removed, file = "data-generated/hu_co_demersalfishing_bottomlongline_
 # png("figs/ll-map.png", width = 5, height = 6, units = "in", res = 200)
 # plot(ll_removed["hu_co_demersalfishing_bottomlongline_d"])
 # dev.off()
-
-f <- list.files("/Volumes/Extreme-SSD/src/gfsynopsis-2021/report/data-cache/",
-  full.names = TRUE)
 
 assign_restricted_tows_hbll <- function(dat) {
   orig <- dat
@@ -100,12 +103,21 @@ assign_restricted_tows_hbll <- function(dat) {
 # aleut <- assign_restricted_tows_hbll(aleut)
 # ggplot(aleut, aes(longitude, latitude, size = density_ppkm2, colour = restricted)) + geom_point()
 
-dat <- furrr::future_map_dfr(seq_along(f), function(i) {
-  d <- readRDS(f[i])$survey_sets
-  d <- filter(d, survey_abbrev %in% c("HBLL OUT N"))
-  d2 <- assign_restricted_tows_hbll(d)
-  d2
-})
+if (Sys.info()[['user']] == "seananderson") {
+  f <- list.files("/Volumes/Extreme-SSD/src/gfsynopsis-2021/report/data-cache/",
+    full.names = TRUE)
+  hbll_data <- furrr::future_map_dfr(seq_along(f), function(i) {
+    d <- readRDS(f[i])$survey_sets
+    filter(d, survey_abbrev %in% c("HBLL OUT N")) %>%
+      select(year, survey_abbrev, species_science_name, species_common_name,
+        density_ppkm2, latitude, longitude, grouping_code, area_km2, depth_m)
+  })
+  saveRDS(hbll_data, file = "data-raw/hbll-survey-data.rds")
+} else {
+  hbll_data <- readRDS("data-raw/hbll-survey-data.rds")
+}
+
+dat <- assign_restricted_tows_hbll(hbll_data)
 
 frac_pos_df <- dat %>% group_by(species_common_name, survey_abbrev) %>%
   summarise(frac_pos = sum(density_ppkm2 > 0) / length(density_ppkm2), .groups = "drop")
