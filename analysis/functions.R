@@ -62,20 +62,40 @@ shrink_a_survey <- function(grid_dat, restriction_dat, plot = FALSE) {
 }
 
 do_sdmTMB_fit <- function(surv_dat, cutoff, pred_grid,
+  MPA_trend = MPA_trend,
   family = sdmTMB::tweedie(link = "log"), return_model = FALSE, ...) {
 
   mesh <- make_mesh(surv_dat, c("X", "Y"), cutoff = cutoff)
   # plot(mesh)
   # mesh$mesh$n
-  m <- try({
-    sdmTMB(response ~ 0 + as.factor(year),
-      data = surv_dat,
-      family = family,
-      time = "year",
-      spde = mesh,
-      ...
+  if(MPA_trend){
+
+    surv_dat <- surv_dat %>% mutate(
+      MPA = case_when(restricted == FALSE ~ 0, restricted == TRUE ~ 1),
+      year_seq = year-min(surv_dat$year)
     )
-  })
+
+    m <- try({
+      sdmTMB(response ~ 1 + year_seq + MPA + year_seq:MPA,
+        data = surv_dat,
+        family = family,
+        time = "year",
+        spde = mesh,
+        ...
+      )
+    })
+  } else{
+    m <- try({
+      sdmTMB(response ~ 0 + as.factor(year),
+        data = surv_dat,
+        family = family,
+        time = "year",
+        spde = mesh,
+        ...
+      )
+    })
+  }
+
   if (class(m)[[1]] == "try-error") return(NULL)
   if (max(m$gradients) > 0.01) {
     m <- try({
@@ -92,7 +112,9 @@ do_sdmTMB_fit <- function(surv_dat, cutoff, pred_grid,
   pred
 }
 
-fit_geo_model <- function(surv_dat, pred_grid, shrink_survey = FALSE,
+fit_geo_model <- function(surv_dat, pred_grid,
+  MPA_trend = FALSE,
+  shrink_survey = FALSE,
   survey = c("HBLL", "SYN"),
   family = c("tweedie", "binomial-gamma"),
   return_model = FALSE, ...) {
@@ -125,7 +147,8 @@ fit_geo_model <- function(surv_dat, pred_grid, shrink_survey = FALSE,
 
   if (family == "tweedie") {
     surv_dat$response <- surv_dat$density
-    pred <- do_sdmTMB_fit(surv_dat, cutoff = cutoff, family = tweedie(),
+    pred <- do_sdmTMB_fit(surv_dat, MPA_trend = MPA_trend,
+      cutoff = cutoff, family = tweedie(),
       pred_grid = pred_grid, return_model = return_model, ...)
     if (return_model) return(pred)
     if (is.null(pred)) return(null_df)
@@ -136,10 +159,10 @@ fit_geo_model <- function(surv_dat, pred_grid, shrink_survey = FALSE,
     surv_dat_pos <- dplyr::filter(surv_dat, density > 0)
     surv_dat_pos$response <- surv_dat_pos$density
     pred_grid <- filter(pred_grid, year %in% unique(surv_dat_pos$year)) # in case 'pos' is missing some
-    pred_bin <- do_sdmTMB_fit(surv_dat, cutoff = cutoff, family = binomial(),
+    pred_bin <- do_sdmTMB_fit(surv_dat, MPA_trend = MPA_trend, cutoff = cutoff, family = binomial(),
       pred_grid = pred_grid, return_model = return_model, ...)
     if (is.null(pred_bin)) return(null_df)
-    pred_pos <- do_sdmTMB_fit(surv_dat_pos, cutoff = cutoff,
+    pred_pos <- do_sdmTMB_fit(surv_dat_pos, MPA_trend = MPA_trend, cutoff = cutoff,
       family = Gamma(link = "log"), pred_grid = pred_grid, return_model = return_model, ...)
     if (is.null(pred_pos)) return(null_df)
     if (return_model) list(bin = pred_bin, pos = pred_pos)
