@@ -1,21 +1,23 @@
 # mapping MPAs
 library(dplyr)
+library(ggplot2)
 library(sf)
+
+
+#### TRAWL ####
+
+dat_to_fit <- readRDS("data-generated/dat_to_fit.rds")
+trawl <- readRDS("data-generated/syn-grid-w-restr.rds") %>% filter(year == 2018) %>% select(-year)
+
+df <- trawl %>%
+  dplyr::mutate(X = X*1000, Y = Y*1000) %>%
+  gfplot:::utm2ll(., utm_zone = 9)
 
 coast <- gfplot:::load_coastline(
   range(df$X) + c(-1, 1),
   range(df$Y) + c(-1, 1),
   utm_zone = 9
 )
-
-#### TRAWL ####
-
-dat_to_fit <- readRDS("data-generated/dat_to_fit.rds")
-trawl <- readRDS("data-generated/syn-grid-w-restr.rds") %>% select(-year)
-
-df <- trawl %>%
-  dplyr::mutate(X = X*1000, Y = Y*1000) %>%
-  gfplot:::utm2ll(., utm_zone = 9)
 
 dat <- dat_to_fit
 
@@ -44,18 +46,21 @@ dat <- dat %>% filter(species_common_name == "arrowtooth flounder") %>%
   ),
     year_true = year
   )
+
 ggplot(trawl) +
-  geom_tile(aes(X, Y, fill = restricted), width=2, height=2) +
+  geom_tile(aes(X, Y, fill = restricted), alpha = 0.8, width=2, height=2) +
   geom_polygon(
     data = coast, aes(x = X, y = Y, group = PID),
     fill = "grey87", col = "grey70", lwd = 0.2
   ) +
-  geom_point(data = dat, aes(X, Y), size = 0.1) +
+  geom_point(data = dat, aes(X, Y, colour = restricted), size = 0.1) +
   scale_fill_brewer("MPA", palette = "Set1", direction = -1) +
+  scale_colour_manual("MPA", values = c("#2166AC", "#B2182B")) +
   coord_fixed(xlim = c(180, 590), ylim = c(5640, 6050)) +
-  gfplot::theme_pbs() + theme(legend.position=c(0.9,0.9)) +
+  gfplot::theme_pbs() + theme(legend.position=c(0.15,0.15)) +
   xlab("Easting (km)") + ylab("Northing (km)")
 ggsave("figs/trawl-grid.png", width = 6, height = 6)
+
 
 ggplot(trawl) +
   geom_tile(aes(X, Y, fill = restricted), width=2, height=2) +
@@ -78,7 +83,7 @@ ggsave("figs/trawl-grid-by-year.png", width = 12, height = 12)
 
 #### HBLL ####
 dat_to_fit_hbll <- readRDS("data-generated/dat_to_fit_hbll.rds")
-hbll <- readRDS("data-generated/hbll-n-grid-w-restr.rds")
+hbll <- readRDS("data-generated/hbll-n-grid-w-restr.rds") %>% filter(year == 2019) %>% select(-year)
 
 df_hbll <- hbll %>%
   dplyr::mutate(X = X*1000, Y = Y*1000) %>%
@@ -101,18 +106,19 @@ dat_hbll <- dat_hbll %>% filter(species_common_name == "arrowtooth flounder") %>
       ),
       year_true = year
   )
+
 ggplot(hbll) +
-  geom_tile(aes(X, Y, fill = restricted), width=2, height=2) +
+  geom_tile(aes(X, Y, fill = restricted), alpha = 0.8, width=2, height=2) +
   geom_polygon(
     data = coast, aes(x = X, y = Y, group = PID),
     fill = "grey87", col = "grey70", lwd = 0.2
   ) +
-  geom_point(data = dat_hbll, aes(X, Y), size = 0.15) +
+  geom_point(data = dat_hbll, aes(X, Y, colour = restricted), size = 0.15) +
   scale_fill_brewer("MPA", palette = "Set1", direction = -1) +
+  scale_colour_manual("MPA", values = c("#2166AC", "#B2182B")) +
   coord_fixed(xlim = c(210, 535), ylim = c(5740, 6050)) +
-  gfplot::theme_pbs() + theme(legend.position=c(0.9,0.9)) +
+  gfplot::theme_pbs() + theme(legend.position=c(0.15,0.15)) +
   xlab("Easting (km)") + ylab("Northing (km)")
-
 ggsave("figs/hbll-grid.png", width = 6, height = 6)
 
 ggplot(hbll) +
@@ -130,6 +136,5 @@ ggplot(hbll) +
     # strip.text.x = element_text(size = 12),
     axis.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank()
   )
-
 ggsave("figs/hbll-grid-by-year.png", width = 7, height = 7)
 
