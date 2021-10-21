@@ -48,14 +48,14 @@ dat <- dat %>% filter(species_common_name == "arrowtooth flounder") %>%
   )
 
 ggplot(trawl) +
-  geom_tile(aes(X, Y, fill = restricted), alpha = 0.8, width=2, height=2) +
+  geom_tile(aes(X, Y, fill = restricted), alpha = 0.45, width=2, height=2) +
   geom_polygon(
     data = coast, aes(x = X, y = Y, group = PID),
     fill = "grey87", col = "grey70", lwd = 0.2
   ) +
   geom_point(data = dat, aes(X, Y, colour = restricted), size = 0.1) +
-  scale_fill_brewer("MPA", palette = "Set1", direction = -1) +
-  scale_colour_manual("MPA", values = c("#2166AC", "#B2182B")) +
+  scale_fill_brewer("Restricted", palette = "Set1", direction = -1) +
+  scale_colour_manual("Restricted", values = c("#2166AC", "#B2182B")) +
   coord_fixed(xlim = c(180, 590), ylim = c(5640, 6050)) +
   gfplot::theme_pbs() + theme(legend.position=c(0.15,0.15)) +
   xlab("Easting (km)") + ylab("Northing (km)")
@@ -63,17 +63,18 @@ ggsave("figs/trawl-grid.png", width = 6, height = 6)
 
 
 ggplot(trawl) +
-  geom_tile(aes(X, Y, fill = restricted), width=2, height=2) +
+  geom_tile(aes(X, Y, fill = restricted), alpha = 0.2, width=2, height=2) +
   geom_polygon(
     data = coast, aes(x = X, y = Y, group = PID),
     fill = "grey87", col = "grey70", lwd = 0.2
   ) +
-  geom_point(data = dat, aes(X, Y), size = 0.1, shape = 20, stroke = 1) +
+  geom_point(data = dat, aes(X, Y, colour = restricted), size = 0.1, shape = 20, stroke = 1) +
+  scale_colour_manual("Restricted", values = c("#2166AC", "#B2182B")) +
   facet_wrap(~year_pair) +
-  scale_fill_brewer("MPA", palette = "Set1", direction = -1) +
+  scale_fill_brewer("Restricted", palette = "Set1", direction = -1) +
   coord_fixed(xlim = c(180, 590), ylim = c(5640, 6050)) +
   # xlab("Easting (km)") + ylab("Northing (km)")+
-  gfplot::theme_pbs() + theme(legend.position=c(0.3,0.94),
+  gfplot::theme_pbs() + theme(legend.position=c(0.07,0.75),
     strip.text.x = element_text(size = 12),
     axis.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank()
     )
@@ -108,29 +109,30 @@ dat_hbll <- dat_hbll %>% filter(species_common_name == "arrowtooth flounder") %>
   )
 
 ggplot(hbll) +
-  geom_tile(aes(X, Y, fill = restricted), alpha = 0.8, width=2, height=2) +
+  geom_tile(aes(X, Y, fill = restricted), alpha = 0.5, width=2, height=2) +
   geom_polygon(
     data = coast, aes(x = X, y = Y, group = PID),
     fill = "grey87", col = "grey70", lwd = 0.2
   ) +
   geom_point(data = dat_hbll, aes(X, Y, colour = restricted), size = 0.15) +
-  scale_fill_brewer("MPA", palette = "Set1", direction = -1) +
-  scale_colour_manual("MPA", values = c("#2166AC", "#B2182B")) +
-  coord_fixed(xlim = c(210, 535), ylim = c(5740, 6050)) +
+  scale_fill_brewer("Restricted", palette = "Set1", direction = -1) +
+  scale_colour_manual("Restricted", values = c("#2166AC", "#B2182B")) +
+  coord_fixed(xlim = c(212, 533), ylim = c(5733, 6057)) +
   gfplot::theme_pbs() + theme(legend.position=c(0.15,0.15)) +
   xlab("Easting (km)") + ylab("Northing (km)")
 ggsave("figs/hbll-grid.png", width = 6, height = 6)
 
 ggplot(hbll) +
-  geom_tile(aes(X, Y, fill = restricted), width=2, height=2) +
+  geom_tile(aes(X, Y, fill = restricted), alpha = 0.2, width=2, height=2) +
   geom_polygon(
     data = coast, aes(x = X, y = Y, group = PID),
     fill = "grey87", col = "grey70", lwd = 0.2
   ) +
-  geom_point(data = dat_hbll, aes(X, Y), size = 0.25, shape = 1) +
-  facet_wrap(~year_pair) +
-  scale_fill_brewer("MPA", palette = "Set1", direction = -1) +
+  geom_point(data = dat_hbll, aes(X, Y, colour = restricted), size = 0.2, shape = 20) +
+  scale_colour_manual("Restricted", values = c("#2166AC", "#B2182B")) +
+  scale_fill_brewer("Restricted", palette = "Set1", direction = -1) +
   coord_fixed(xlim = c(210, 535), ylim = c(5740, 6050)) +
+  facet_wrap(~year_pair) +
   # xlab("Easting (km)") + ylab("Northing (km)")+
   gfplot::theme_pbs() + theme(legend.position=c(0.45,0.2),
     # strip.text.x = element_text(size = 12),
