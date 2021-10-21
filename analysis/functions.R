@@ -101,14 +101,14 @@ fit_geo_model <- function(surv_dat, pred_grid, shrink_survey = FALSE,
   family <- match.arg(family)
 
   utm_zone9 <- 3156
-  coords <- surv_dat %>%
-    sf::st_as_sf(crs = 4326, coords = c("longitude", "latitude")) %>%
-    sf::st_transform(utm_zone9) %>%
-    sf::st_coordinates() %>%
-    as.data.frame()
-  coords$X <- coords$X / 1000
-  coords$Y <- coords$Y / 1000
-  surv_dat <- dplyr::bind_cols(surv_dat, coords)
+  # coords <- surv_dat %>%
+  #   sf::st_as_sf(crs = 4326, coords = c("longitude", "latitude")) %>%
+  #   sf::st_transform(utm_zone9) %>%
+  #   sf::st_coordinates() %>%
+  #   as.data.frame()
+  # coords$X <- coords$X / 1000
+  # coords$Y <- coords$Y / 1000
+  # surv_dat <- dplyr::bind_cols(surv_dat, coords)
 
   if (survey == "HBLL") surv_dat$density <- surv_dat$density_ppkm2
   if (survey == "SYN") surv_dat$density <- surv_dat$density_kgpm2 * 1000 # for computational reasons

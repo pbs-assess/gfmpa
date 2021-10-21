@@ -35,6 +35,14 @@ assign_restricted_tows <- function(trawl_dat) {
   trawl_dat <- as.data.frame(trawl_dat) %>% select(-geometry)
   trawl_dat$longitude <- orig$longitude
   trawl_dat$latitude <- orig$latitude
+  utm_zone9 <- 3156
+  coords <- orig %>%
+    sf::st_as_sf(crs = 4326, coords = c("longitude", "latitude")) %>%
+    sf::st_transform(utm_zone9) %>%
+    sf::st_coordinates() %>%
+    as.data.frame()
+  trawl_dat$X <- coords$X / 1000
+  trawl_dat$Y <- coords$Y / 1000
   trawl_dat %>% as_tibble()
 }
 
@@ -94,6 +102,14 @@ assign_restricted_tows_hbll <- function(dat) {
   dat <- as.data.frame(dat) %>% select(-geometry)
   dat$longitude <- orig$longitude
   dat$latitude <- orig$latitude
+  utm_zone9 <- 3156
+  coords <- orig %>%
+    sf::st_as_sf(crs = 4326, coords = c("longitude", "latitude")) %>%
+    sf::st_transform(utm_zone9) %>%
+    sf::st_coordinates() %>%
+    as.data.frame()
+  dat$X <- coords$X / 1000
+  dat$Y <- coords$Y / 1000
   dat %>% as_tibble()
 }
 
