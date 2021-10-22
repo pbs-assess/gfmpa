@@ -17,7 +17,7 @@ ll_removed <- readRDS("data-generated/hu_co_demersalfishing_bottomlongline_d_X.r
 d <- filter(dat_to_fit, species_common_name == "north pacific spiny dogfish")
 
 m <- fit_geo_model(d, pred_grid = grid, survey = "HBLL", family = "tweedie",
-  MPA_trend = TRUE,
+  # MPA_trend = TRUE,
   return_model = TRUE, silent = T)
 
 
@@ -32,7 +32,7 @@ trawl_removed <- readRDS("data-generated/hu_co_demersalfishing_bottomlongline_d_
 d <- filter(dat_to_fit, species_common_name == "redbanded rockfish")
 
 m <- fit_geo_model(d, pred_grid = grid, survey = "SYN", family = "tweedie",
-  MPA_trend = TRUE,
+  # MPA_trend = TRUE,
   return_model = TRUE, silent = T)
 
 m
