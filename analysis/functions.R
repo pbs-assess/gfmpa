@@ -80,7 +80,7 @@ do_sdmTMB_fit <- function(surv_dat, cutoff, pred_grid,
         data = surv_dat,
         family = family,
         time = "year",
-        spde = mesh,
+        mesh = mesh,
         ...
       )
     })
@@ -90,7 +90,7 @@ do_sdmTMB_fit <- function(surv_dat, cutoff, pred_grid,
         data = surv_dat,
         family = family,
         time = "year",
-        spde = mesh,
+        mesh = mesh,
         ...
       )
     })
