@@ -62,9 +62,10 @@ set.seed(SEED)
 dat_to_fit <- readRDS(here("data-generated/dat_to_fit_hbll.rds"))
 grid <- readRDS(here("data-generated/hbll-n-grid-w-restr.rds"))
 grid$survey_abbrev <- "HBLL OUT N"
-ll_removed <- readRDS(here("data-generated/hu_co_demersalfishing_bottomlongline_d_X.rds"))
+# ll_removed <- readRDS(here("data-generated/hu_co_demersalfishing_bottomlongline_d_X.rds"))
 d <- filter(dat_to_fit, species_common_name == "north pacific spiny dogfish")
 
+# quick hack to get formatted data for fitting:
 m0 <- fit_geo_model(d, pred_grid = grid, survey = "HBLL",
   family = "tweedie",
   # MPA_trend = TRUE,
