@@ -1,9 +1,9 @@
-# remotes::install_github("pbs-assess/sdmTMB", ref="62119e0")
 # remotes::install_github("pbs-assess/sdmTMB", ref="sim2")
 
 library(sdmTMB)
 library(dplyr)
 library(ggplot2)
+library(mgcv)
 theme_set(ggsidekick::theme_sleek())
 options(dplyr.summarise.inform = FALSE)
 
@@ -24,8 +24,8 @@ m0 <- fit_geo_model(d, pred_grid = grid, survey = "HBLL",
 mesh <- make_mesh(m0$data, xy_cols = c("X", "Y"), cutoff = 15)
 mesh$mesh$n
 dat <- m0$data
-m <- sdmTMB(response ~ 1, data = dat, family = tweedie(), mesh = mesh,
-  silent = FALSE, time = "year", spatiotemporal = "AR1")
+m <- sdmTMB(response ~ 1 + s(year, k = 5), data = dat, family = tweedie(), mesh = mesh,
+  silent = FALSE, time = "year", spatiotemporal = "IID")
 m
 
 s <- sdmTMB::sdmTMB_simulate(
@@ -50,7 +50,6 @@ b1 <- tidy(m)
 b2 <- tidy(m, "ran_pars")
 b <- bind_rows(b1, b2)
 
-
 dat$year_covariate <- dat$year - min(dat$year)
 mpa_increase_per_year <- 0.1
 
@@ -60,8 +59,8 @@ s <- sdmTMB::sdmTMB_simulate(
   mesh = mesh,
   family = tweedie(),
   time = "year",
-  rho = 2 * plogis(m$model$par[['ar1_phi']]) - 1, # TODO!?
-  # rho = 0,
+  # rho = 2 * plogis(m$model$par[['ar1_phi']]) - 1, # TODO!?
+  rho = 0,
   sigma_O = b$estimate[b$term == "sigma_O"],
   sigma_E = b$estimate[b$term == "sigma_E"],
   phi = b$estimate[b$term == "phi"],
@@ -69,8 +68,9 @@ s <- sdmTMB::sdmTMB_simulate(
   range = b$estimate[b$term == "range"],
   simulate_re = TRUE,
   # (Intercept), restrictedTRUE, year_covariate, restrictedTRUE:year_covariate
-  B = c(rep(b$estimate[b$term == "(Intercept)"], 2), 0, 0.05)
+  B = c(b$estimate[b$term == "(Intercept)"], 0, 0, mpa_increase_per_year)
 )
+s <- rename(s, restricted = restrictedTRUE)
 
 ggplot(s, aes(X, Y, colour = omega_s)) + geom_point() +
   scale_colour_gradient2()
@@ -82,12 +82,16 @@ ggplot(s, aes(X, Y, colour = epsilon_st)) + geom_point() +
 ggplot(s, aes(X, Y, colour = mu)) + geom_point() +
   scale_color_viridis_c() +
   facet_wrap(~year) +
-  geom_point(data = filter(s, restrictedTRUE == 1L),
+  geom_point(data = filter(s, restricted == 1L),
     pch = 21, colour = "black", fill = NA)
 
-s <- rename(s, restricted = restrictedTRUE)
-# s$`(Intercept)` <- NULL
-# s$`restrictedTRUE:year_covariate` <- NULL
+s %>%
+  group_by(restricted, year) %>%
+  summarise(m = mean(eta)) %>%
+  group_by(restricted) %>%
+  mutate(m = m / m[1]) %>%
+  ggplot(aes(year, m, colour = as.factor(restricted))) +
+  geom_line()
 
 # s$year_covariate <- s$year_covariate - mean(s$year_covariate)
 m2 <- sdmTMB(
@@ -95,7 +99,8 @@ m2 <- sdmTMB(
   data = s,
   mesh = mesh,
   time = "year",
-  spatiotemporal = "AR1",
+  # spatiotemporal = "AR1",
+  spatiotemporal = "IID",
   family = tweedie(),
   silent = FALSE
 )
@@ -114,8 +119,40 @@ attr(p_out, "time") <- "year"
 ind_mpa <- get_index_sims(p_mpa)
 ind_out <- get_index_sims(p_out)
 
-ggplot(ind_mpa, aes(year, est, ymin = lwr, ymax = upr)) +
-  geom_ribbon(alpha = 0.1) + geom_line()
+ind <- ind_mpa %>% mutate(type = "Restricted") %>%
+  bind_rows(mutate(ind_out, type = "Not restricted"))
 
-ggplot(ind_out, aes(year, est, ymin = lwr, ymax = upr)) +
-  geom_ribbon(alpha = 0.1) + geom_line()
+# How to assess improvement?
+
+# 1. visual on geostat index?
+ind %>%
+  group_by(type) %>%
+  mutate(lwr = lwr / est[1], upr = upr / est[1], est = est / est[1]) %>%
+  ggplot(aes(year, est, ymin = lwr, ymax = upr, colour = type, fill = type)) +
+  geom_ribbon(alpha = 0.1, colour = NA) + geom_line() +
+  scale_fill_brewer(palette = "Set1") +
+  scale_colour_brewer(palette = "Set1")
+
+# 2. fancy geostat BACI?
+tidy(m2)
+
+# 3. naive GLM BACI on geostat output?
+# glm(est ~ year, data = ind_mpa, family = Gamma(link = "log"))
+# glm(est ~ year, data = ind_out, family = Gamma(link = "log"))
+a <- glm(est ~ type*year, data = ind, family = Gamma(link = "log"))
+broom::tidy(a)
+# above ignores autocorrelation
+
+# 4. naive GLM BACI on raw observations?
+b <- mgcv::gam(observed ~ restricted * year_covariate, data = s, family = tw())
+# above ignores spatial correlation and temporal autocorrelation and sampling location
+summary(b)
+
+# 5. plot of mean by area?
+s %>%
+  group_by(restricted, year) %>%
+  summarise(m = mean(eta)) %>%
+  group_by(restricted) %>%
+  mutate(m = m / m[1]) %>%
+  ggplot(aes(year, m, colour = as.factor(restricted))) +
+  geom_line()
