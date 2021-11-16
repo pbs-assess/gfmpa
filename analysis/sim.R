@@ -1,3 +1,10 @@
+# TODO:
+# - include depth quadratic?
+# - what to do with time? s()? AR1? linear?
+# - which tests to do after?
+# - what time span to check?
+# - what ramps of 'recovery' to check?
+
 # remotes::install_github("pbs-assess/sdmTMB", ref="sim2")
 
 library(sdmTMB)
