@@ -144,9 +144,9 @@ broom::tidy(a)
 # above ignores autocorrelation
 
 # 4. naive GLM BACI on raw observations?
-b <- mgcv::gam(observed ~ restricted * year_covariate, data = s, family = tw())
+a1 <- mgcv::gam(observed ~ restricted * year_covariate, data = s, family = tw())
 # above ignores spatial correlation and temporal autocorrelation and sampling location
-summary(b)
+summary(a1)
 
 # 5. plot of mean by area?
 s %>%
