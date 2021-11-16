@@ -58,7 +58,7 @@ b2 <- tidy(m, "ran_pars")
 b <- bind_rows(b1, b2)
 
 dat$year_covariate <- dat$year - min(dat$year)
-mpa_increase_per_year <- 0.1
+mpa_increase_per_year <- log(1.05)
 
 s <- sdmTMB::sdmTMB_simulate(
   formula = ~ 1 + restricted * year_covariate,
@@ -149,6 +149,18 @@ tidy(m2)
 a <- glm(est ~ type*year, data = ind, family = Gamma(link = "log"))
 broom::tidy(a)
 # above ignores autocorrelation
+
+# 3.1 weight by 1/SE?
+a <- glm(est ~ type*year, data = ind, family = Gamma(link = "log"), weights = 1/se)
+broom::tidy(a)
+
+# 3.2 via lm()?
+a <- lm(log(est) ~ type*year, data = ind)
+broom::tidy(a)
+
+# 3.3 via gls() with AR1 residuals?
+a <- gls(log(est) ~ type*year, data = ind, correlation = corAR1(form = ~ 1 | type))
+summary(a)
 
 # 4. naive GLM BACI on raw observations?
 a1 <- mgcv::gam(observed ~ restricted * year_covariate, data = s, family = tw())

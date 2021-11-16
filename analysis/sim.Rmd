@@ -1,0 +1,294 @@
+---
+title: Simulating and detecting recovery in closed areas
+---
+
+Goal:
+
+- Simulate recovery in restricted areas to assess whether current survey effort is sufficient to detect population recovery
+
+- Approach: 
+    1. fit geostatistical models to observed data
+    1. use parameters from that model to simulate new data with observations at the actual historically observed locations
+    1. when simulating, simulate recovery at some rate within closed areas and a stationary abundance/density outside of closed areas
+    
+- Dimensions that will likely affect the answer:
+    1. species (therefore estimated spatial and spatiotemporal SD, spatial correlation range, observation error)
+    1. rate of 'recovery'
+    1. number of years observed
+    1. whether one assesses all restricted areas together or individually
+    
+TODO:
+
+- include depth effect? (for now, no, just a spatial random field)
+- what to do with time in conditioning model? s(year)? AR1? linear? independent? (for now s(year, k = 5))
+- which tests to do after to assess recovery? (a bunch of GLMs etc. are here)
+- what time spans to check? (starting with all historical HBLL N; 13 years; 7 survey years)
+- what possible 'recoveries' to check? (starting with 5% per year)
+- fix vs. simulate spatial and/or spatiotemporal random effects? (for now fixing spatial but not spatiotemporal fields)
+- all MPAs together and/or look at some individual ones? (starting with all)
+- which species to work with (starting with dogfish for no good reason other than lots of data)
+
+```{r setup, include = FALSE, cache=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.asp = 0.618,
+  cache = TRUE,
+  autodep = TRUE
+)
+```
+
+```{r libs}
+# remotes::install_github("pbs-assess/sdmTMB", ref="sim2")
+library(sdmTMB)
+library(dplyr)
+library(ggplot2)
+library(mgcv)
+library(here)
+theme_set(ggsidekick::theme_sleek())
+options(dplyr.summarise.inform = FALSE)
+source(here("analysis/functions.R"))
+```
+
+```{r seed}
+SEED <- 2938
+set.seed(SEED)
+```
+
+## Try  HBLL N dogfish
+
+```{r data-prep-model-fit, warning=FALSE, message=FALSE}
+dat_to_fit <- readRDS(here("data-generated/dat_to_fit_hbll.rds"))
+grid <- readRDS(here("data-generated/hbll-n-grid-w-restr.rds"))
+grid$survey_abbrev <- "HBLL OUT N"
+ll_removed <- readRDS(here("data-generated/hu_co_demersalfishing_bottomlongline_d_X.rds"))
+d <- filter(dat_to_fit, species_common_name == "north pacific spiny dogfish")
+
+m0 <- fit_geo_model(d, pred_grid = grid, survey = "HBLL",
+  family = "tweedie",
+  # MPA_trend = TRUE,
+  return_model = TRUE, do_fit = FALSE)
+
+mesh <- make_mesh(m0$data, xy_cols = c("X", "Y"), cutoff = 15)
+mesh$mesh$n
+dat <- m0$data
+m <- sdmTMB(response ~ 1 + s(year, k = 5), data = dat, family = tweedie(), mesh = mesh,
+  silent = TRUE, time = "year", spatiotemporal = "IID")
+m
+```
+
+```{r include=FALSE}
+# s <- sdmTMB::sdmTMB_simulate(
+#   previous_fit = m,
+#   simulate_re = TRUE
+# )
+# 
+# p <- predict(m, newdata = NULL)
+# ggplot(p, aes(X, Y, colour = omega_s)) + geom_point() +
+#   scale_colour_gradient2()
+# 
+# ggplot(s, aes(X, Y, colour = omega_s)) + geom_point() +
+#   scale_colour_gradient2()
+# 
+# ggplot(dat, aes(X, Y, colour = response)) + geom_point() +
+#   scale_color_viridis_c(trans = "sqrt")
+# 
+# ggplot(s, aes(X, Y, colour = observed)) + geom_point() +
+#   scale_color_viridis_c(trans = "sqrt")
+
+```
+
+What actually happened in vs. outside restricted areas?
+
+```{r index-real}
+pred_grid <- grid
+pred_grid <- filter(pred_grid, year %in% unique(dat$year))
+p <- predict(m, newdata = pred_grid, sims = 200L)
+p_mpa <- p[pred_grid$restricted, ]
+attr(p_mpa, "time") <- "year"
+p_out <- p[!pred_grid$restricted, ]
+attr(p_out, "time") <- "year"
+ind_mpa <- get_index_sims(p_mpa)
+ind_out <- get_index_sims(p_out)
+ind_real <- ind_mpa %>% mutate(type = "Restricted") %>%
+  bind_rows(mutate(ind_out, type = "Not restricted"))
+ind_real %>%
+  group_by(type) %>%
+  mutate(lwr = lwr / est[1], upr = upr / est[1], est = est / est[1]) %>%
+  ggplot(aes(year, est, ymin = lwr, ymax = upr, colour = type, fill = type)) +
+  geom_ribbon(alpha = 0.1, colour = NA) + geom_line() +
+  scale_fill_brewer(palette = "Set1") +
+  scale_colour_brewer(palette = "Set1")
+```
+
+Simulate new data:
+
+- Keep spatial random effects as estimated (constant stuff like depth)
+- Simulate new spatiotemporal random effects(?) (temperature, predator/prey etc.)
+- Simulate new underlying fixed effects in BACI design
+- Increase mean density within MPA by 5% per year
+- Keep mean density constant within MPA
+- Note the spatiotemporal random effect draws will not always have exactly mean zero
+  so we can still see random variation year to year.
+
+```{r sim-dat, warning=FALSE, message=FALSE}
+b1 <- tidy(m)
+b2 <- tidy(m, "ran_pars")
+b <- bind_rows(b1, b2)
+
+dat$year_covariate <- dat$year - min(dat$year)
+mpa_increase_per_year <- log(1.05)
+
+pars <- m$tmb_obj$env$last.par.best
+omega_s <- pars[names(pars) == "omega_s"]
+epsilon_st <- matrix(pars[names(pars) == "epsilon_st"], ncol = length(unique(dat$year)))
+
+s <- sdmTMB::sdmTMB_simulate(
+  formula = ~ 1 + restricted * year_covariate,
+  data = dat,
+  mesh = mesh,
+  family = tweedie(),
+  time = "year",
+  # rho = 2 * plogis(m$model$par[['ar1_phi']]) - 1, # TODO!?
+  rho = NULL,
+  sigma_O = b$estimate[b$term == "sigma_O"],
+  sigma_E = b$estimate[b$term == "sigma_E"],
+  phi = b$estimate[b$term == "phi"],
+  tweedie_p = b$estimate[b$term == "tweedie_p"],
+  range = b$estimate[b$term == "range"],
+  fixed_re = list(omega_s = omega_s, epsilon_st = NULL, zeta_s = NULL),
+  # (Intercept), restrictedTRUE, year_covariate, restrictedTRUE:year_covariate
+  B = c(b$estimate[b$term == "(Intercept)"], 0, 0, mpa_increase_per_year),
+  seed = SEED
+)
+s <- rename(s, restricted = restrictedTRUE)
+```
+
+Real data:
+
+```{r plot-real, fig.asp=1}
+p <- predict(m)
+ggplot(p, aes(X, Y, colour = omega_s)) + geom_point() +
+  scale_colour_gradient2()
+
+ggplot(p, aes(X, Y, colour = epsilon_st)) + geom_point() +
+  scale_colour_gradient2() +
+  facet_wrap(vars(year))
+ 
+ggplot(dat, aes(X, Y, colour = response + 1)) + geom_point() +
+  scale_color_viridis_c(trans = "log10") +
+  facet_wrap(vars(year))
+```
+
+Simulated data:
+
+```{r plot-sim-dat, fig.asp=1}
+ggplot(s, aes(X, Y, colour = omega_s)) + geom_point() +
+  scale_colour_gradient2()
+
+ggplot(s, aes(X, Y, colour = epsilon_st)) + geom_point() +
+  scale_colour_gradient2() +
+  facet_wrap(vars(year))
+
+ggplot(s, aes(X, Y, colour = log(mu))) + geom_point() +
+  scale_color_viridis_c() +
+  facet_wrap(~year) +
+  geom_point(data = filter(s, restricted == 1L),
+    pch = 21, colour = "black", fill = NA)
+
+ggplot(s, aes(X, Y, colour = observed + 1)) + geom_point() +
+  scale_color_viridis_c(trans = "log10") +
+  facet_wrap(~year) +
+  geom_point(data = filter(s, restricted == 1L),
+    pch = 21, colour = "black", fill = NA)
+
+s %>%
+  group_by(restricted, year) %>%
+  summarise(m = mean(eta)) %>%
+  group_by(restricted) %>%
+  mutate(m = m / m[1]) %>%
+  ggplot(aes(year, m, colour = as.factor(restricted))) +
+  geom_line()
+```
+
+```{r fit-sim-dat}
+# s$year_covariate <- s$year_covariate - mean(s$year_covariate)
+m2 <- sdmTMB(
+  observed ~ 1 + restricted * year_covariate,
+  data = s,
+  mesh = mesh,
+  time = "year",
+  # spatiotemporal = "AR1",
+  spatiotemporal = "IID",
+  family = tweedie(),
+  silent = TRUE
+)
+
+pred_grid <- grid
+pred_grid <- filter(pred_grid, year %in% unique(dat$year))
+pred_grid$year_covariate <- pred_grid$year - min(pred_grid$year)
+p <- predict(m2, newdata = pred_grid, sims = 200L)
+
+p_mpa <- p[pred_grid$restricted, ]
+attr(p_mpa, "time") <- "year"
+
+p_out <- p[!pred_grid$restricted, ]
+attr(p_out, "time") <- "year"
+
+ind_mpa <- get_index_sims(p_mpa)
+ind_out <- get_index_sims(p_out)
+
+ind <- ind_mpa %>% mutate(type = "Restricted") %>%
+  bind_rows(mutate(ind_out, type = "Not restricted"))
+```
+
+## How to assess improvement in closed areas combined?
+
+```{r assess-sim-dat}
+# 1. visual on geostat index?
+ind %>%
+  group_by(type) %>%
+  mutate(lwr = lwr / est[1], upr = upr / est[1], est = est / est[1]) %>%
+  ggplot(aes(year, est, ymin = lwr, ymax = upr, colour = type, fill = type)) +
+  geom_ribbon(alpha = 0.1, colour = NA) + geom_line() +
+  scale_fill_brewer(palette = "Set1") +
+  scale_colour_brewer(palette = "Set1")
+
+# 2. fancy geostat BACI?
+tidy(m2)
+
+# 3. naive GLM BACI on geostat output?
+# glm(est ~ year, data = ind_mpa, family = Gamma(link = "log"))
+# glm(est ~ year, data = ind_out, family = Gamma(link = "log"))
+a <- glm(est ~ type*year, data = ind, family = Gamma(link = "log"))
+broom::tidy(a)
+# above ignores autocorrelation
+
+# 3.1 weight by 1/SE?
+a <- glm(est ~ type*year, data = ind, family = Gamma(link = "log"), weights = 1/se)
+broom::tidy(a)
+
+# 3.2 via lm()?
+a <- lm(log(est) ~ type*year, data = ind)
+broom::tidy(a)
+
+# 3.3 via gls() with AR1 residuals?
+a <- gls(log(est) ~ type*year, data = ind, correlation = corAR1(form = ~ 1 | type))
+summary(a)
+
+# 4. naive GLM BACI on raw observations?
+a1 <- mgcv::gam(observed ~ restricted * year_covariate, data = s, family = tw())
+# above ignores spatial correlation and temporal autocorrelation and sampling location
+summary(a1)
+
+# 5. plot of mean by area?
+s %>%
+  group_by(restricted, year) %>%
+  summarise(m = mean(eta)) %>%
+  group_by(restricted) %>%
+  mutate(m = m / m[1]) %>%
+  ggplot(aes(year, m, colour = as.factor(restricted))) +
+  geom_line()
+```
+

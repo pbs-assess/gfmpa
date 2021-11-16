@@ -10,3 +10,5 @@ data-generated
 *.png
 data-raw
 archive/
+*cache*
+*.html
