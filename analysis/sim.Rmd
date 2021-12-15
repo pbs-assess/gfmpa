@@ -19,14 +19,21 @@ Goal:
     
 TODO:
 
-- include depth effect? (for now, no, just a spatial random field)
-- what to do with time in conditioning model? s(year)? AR1? linear? independent? (for now s(year, k = 5))
-- which tests to do after to assess recovery? (a bunch of GLMs etc. are here)
-- what time spans to check? (starting with all historical HBLL N; 13 years; 7 survey years)
-- what possible 'recoveries' to check? (starting with 5% per year)
-- fix vs. simulate spatial and/or spatiotemporal random effects? (for now fixing spatial but not spatiotemporal fields)
-- all MPAs together and/or look at some individual ones? (starting with all)
-- which species to work with (starting with dogfish for no good reason other than lots of data)
+- include depth effect? (for now, no, just a spatial random field) - yes?
+- what to do with time in conditioning model? s(year)? AR1? linear? independent? (for now as.factor(year))) [factor?]
+- which tests to do after to assess recovery? (a bunch of GLMs etc. are here) - at least fancy + GLM
+- what time spans to check? (starting with all historical HBLL N; 13 years; 7 survey years) [2, 5, 10, 20]
+- what possible 'recoveries' to check? (starting with 5% per year) [0, 0.02, 0.05, 0.1]
+- fix vs. simulate spatial and/or spatiotemporal random effects? (for now fixing spatial but not spatiotemporal fields) [sim new?]
+- all MPAs together and/or look at some individual ones? (starting with all) [do all; gwaii haanas; 1 or 2 others] --nearshore vs. offshore, number of samples...
+- which species to work with (starting with dogfish for no good reason other than lots of data) - HBLL, count distribution,
+
+- plotting out the closed areas... proportions closed
+- plot cv stuff against MARE
+- correlates of those metrics... proportion of abundance in MPAs
+- turn fig 2 into supplement? or illustration... fit lm() and plot the slopes.
+- plot against Fig 3 - precise temporally biased is bad
+- plot both error things against CV (precision)
 
 ```{r setup, include = FALSE, cache=FALSE}
 knitr::opts_chunk$set(
@@ -74,7 +81,7 @@ m0 <- fit_geo_model(d, pred_grid = grid, survey = "HBLL",
 mesh <- make_mesh(m0$data, xy_cols = c("X", "Y"), cutoff = 15)
 mesh$mesh$n
 dat <- m0$data
-m <- sdmTMB(response ~ 1 + s(year, k = 5), data = dat, family = tweedie(), mesh = mesh,
+m <- sdmTMB(response ~ 0 + as.factor(year), data = dat, family = tweedie(), mesh = mesh,
   silent = TRUE, time = "year", spatiotemporal = "IID")
 m
 ```
@@ -160,7 +167,7 @@ s <- sdmTMB::sdmTMB_simulate(
   range = b$estimate[b$term == "range"],
   fixed_re = list(omega_s = omega_s, epsilon_st = NULL, zeta_s = NULL),
   # (Intercept), restrictedTRUE, year_covariate, restrictedTRUE:year_covariate
-  B = c(b$estimate[b$term == "(Intercept)"], 0, 0, mpa_increase_per_year),
+  B = c(mean(b[grep("year", b$term),"estimate"]), 0, 0, mpa_increase_per_year),
   seed = SEED
 )
 s <- rename(s, restricted = restrictedTRUE)
@@ -220,8 +227,8 @@ m2 <- sdmTMB(
   data = s,
   mesh = mesh,
   time = "year",
-  # spatiotemporal = "AR1",
-  spatiotemporal = "IID",
+  spatiotemporal = "AR1",
+  # spatiotemporal = "IID",
   family = tweedie(),
   silent = TRUE
 )
