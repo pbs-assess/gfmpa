@@ -5,7 +5,7 @@ library(sdmTMB)
 theme_set(ggsidekick::theme_sleek())
 options(dplyr.summarise.inform = FALSE)
 
-survey <- "HBLL"
+# survey <- "HBLL"
 survey <- "SYN"
 
 
@@ -19,6 +19,7 @@ mean(y$orig_cv < 1)
 filter(y, orig_cv > 1)
 filter(y, orig_cv <= 1)
 index <- filter(y, orig_cv < 1)
+# index <- filter(index, cv < 2)
 
 index$species_common_name <- stringr::str_to_title(index$species_common_name)
 
@@ -101,31 +102,54 @@ mare2 <- mare %>% rename(mare = est, mare_lwr = lwr, mare_upr = upr) %>%
 library(lme4)
 
 # mean(re_long$year)
-re_long <- re_long %>% mutate(decade = (year - 2012)/10,
-                              re100 = re*100,
-                              spp_by_survey = paste(species_common_name, survey_abbrev)
-                              )
+re_long <- re_long %>%
+  mutate(decade = (year - 2012)/10,
+         re100 = re*100,
+         spp_by_survey = paste(species_common_name,survey_abbrev)
+         )
 
-restr <- filter(re_long, `Restriction type` == "re_restr")
+survs <- unique(re_long$survey_abbrev)
+
+re_long %>% filter(`Restriction type` == "re_restr") %>%
+  ggplot(aes(year, re100, colour = species_common_name)) +
+  geom_line() + facet_wrap(~survey_abbrev, dir= "v")
+
+index %>% filter(type == "Restricted and shrunk") %>%
+  ggplot(aes(year, cv, colour = species_common_name)) +
+  geom_line() + facet_wrap(~survey_abbrev, dir= "v")
+
+index %>% filter(type == "Status quo") %>%
+  ggplot(aes(year, cv, colour = species_common_name)) +
+  geom_line() + facet_wrap(~survey_abbrev, dir= "v")
 
 
+by_surv <- list()
+for (j in seq_along(survs)){
+
+restr <- re_long %>% filter(survey_abbrev == survs[j]) %>%
+  filter(`Restriction type` == "re_restr")
 m_restr <- lmer(re100 ~ 1 + decade + (decade|species_common_name), data = restr)
 m_restr
 
-shrunk <- filter(re_long, `Restriction type` == "re_shrunk")
+shrunk <- re_long %>% filter(survey_abbrev == survs[j]) %>%
+  filter(`Restriction type` == "re_shrunk")
 m_shrunk  <- lmer(re100 ~ 1 + decade + (decade|species_common_name), data = shrunk)
 m_shrunk
 
 # These values are a combination of the fixed effects and the variance components
-restr_coefs <- coef(m_restr)$species_common_name  %>%
+restr_coefs <- coef(m_restr)$species_common_name %>%
   tibble::rownames_to_column(., "species_common_name") %>% rename(slope = decade)
 restr_coefs$restr_clean <- "Same survey domain"
+restr_coefs$survey_abbrev <- survs[j]
 
 shrunk_coefs <- coef(m_shrunk)$species_common_name %>%
   tibble::rownames_to_column(., "species_common_name") %>% rename(slope = decade)
 shrunk_coefs$restr_clean <- "Shrunk survey domain"
+shrunk_coefs$survey_abbrev <- survs[j]
 
-coefs <- bind_rows(restr_coefs, shrunk_coefs)
+by_surv[[j]] <- bind_rows(restr_coefs, shrunk_coefs)
+}
+coefs <- do.call(rbind, by_surv)
 
 # join everything together
 cvdata <- left_join(cvratio2, mare2) %>% left_join(., coefs) %>% left_join(., cvraw)
@@ -144,7 +168,8 @@ sps <- list()
 
 for (i in seq_along(spp)){
   for (j in seq_along(survs)){
-  dat <- re_long %>% filter(survey_abbrev == survs[j]) %>% filter(species_common_name == spp[i])
+  dat <- re_long %>% filter(survey_abbrev == survs[j]) %>%
+    filter(species_common_name == spp[i])
 
   d1 <- filter(dat, `Restriction type` == "re_restr")
   m1  <- tryCatch(lm(re100 ~ 1 + decade, data = d1), error=function(err) NA)
@@ -188,7 +213,8 @@ plot_scatter <- function(dat, x, y) {
                          # shape = "survey_abbrev",
                          group = "species_common_name")) +
   # geom_line(colour = "lightgray") +
-  ggrepel::geom_text_repel(aes(label = species_common_name), colour = "darkgray",
+  ggrepel::geom_text_repel(aes(label = species_common_name),
+                           colour = "darkgray",
                            force = 2, direction = "both", max.overlaps = 3,
                            min.segment.length = 10, size = 2,
                            data = leg) +
@@ -205,7 +231,8 @@ plot_scatter <- function(dat, x, y) {
                            colour = "restr_clean",
                            group = "species_common_name")) +
       geom_line(colour = "lightgray") +
-      ggrepel::geom_text_repel(aes(label = species_common_name), colour = "darkgray",
+      ggrepel::geom_text_repel(aes(label = species_common_name),
+                               colour = "darkgray",
                                force = 2, direction = "both", max.overlaps = 3,
                                min.segment.length = 10, size = 2,
                                data = leg) +
@@ -216,7 +243,8 @@ plot_scatter <- function(dat, x, y) {
 
 }
 
-g1 <- plot_scatter(cvdata, "mare", "slope") + theme(legend.position = c(0.4,0.2), legend.title = element_blank())
+g1 <- plot_scatter(cvdata, "mare", "slope") +
+  theme(legend.position = c(0.4,0.2), legend.title = element_blank())
 g2 <- plot_scatter(cvdata, "cv_orig", "slope")
 ## this has stonger outliers, so keeping mean instead
 # (g3 <- plot_scatter(cvdata, "cv_max", "slope"))
