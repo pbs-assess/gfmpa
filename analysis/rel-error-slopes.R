@@ -5,8 +5,8 @@ library(sdmTMB)
 theme_set(ggsidekick::theme_sleek())
 options(dplyr.summarise.inform = FALSE)
 
-# survey <- "HBLL"
-survey <- "SYN"
+survey <- "HBLL"
+# survey <- "SYN"
 
 
 # for now using delta-gamma?
@@ -23,43 +23,52 @@ index <- filter(y, orig_cv < 1)
 
 index$species_common_name <- stringr::str_to_title(index$species_common_name)
 
-# get raw cvs
-lu <- tibble(
-  "type" = c("Restricted", "Restricted and shrunk"),
-  restr_clean = c("Same survey domain", "Shrunk survey domain")
-)
-
-cvraw <- index %>%
-  group_by(species_common_name, survey_abbrev, type) %>%
-  summarise(
-    cv_orig = mean(orig_cv),
-    cv_max = max(cv),
-    cv_mean = mean(cv)
-  ) %>% filter(type != "Status quo") %>% left_join(., lu)
-
-
-# get cv ratios
+# get cv ratios and prop mpa
 cv2 <- index %>%
   group_by(species_common_name, survey_abbrev, year) %>%
   summarise(
+    prop_mpa = est[type == "MPA only"]/est[type == "Status quo"],
     cv_ratio_restr = cv[type == "Restricted"] /
       cv[type == "Status quo"],
     cv_ratio_shrunk = cv[type == "Restricted and shrunk"] /
       cv[type == "Status quo"]
   )
 
-cv_long <- cv2 %>%
+cv_long <- cv2 %>% select(-prop_mpa) %>%
   tidyr::pivot_longer(starts_with("cv"),
                       names_to = "Restriction type", values_to = "CV ratio")
+
+prop_mpa <- cv2 %>% select(species_common_name, survey_abbrev, year, prop_mpa) %>%
+  group_by(species_common_name, survey_abbrev) %>%
+  summarise(
+    prop_mpa = mean(prop_mpa)
+  )
 
 lu <- tibble(
   "Restriction type" = c("cv_ratio_restr", "cv_ratio_shrunk"),
   restr_clean = c("Same survey domain", "Shrunk survey domain")
 )
+
 cvratio <- cv_long %>%
   group_by(survey_abbrev, species_common_name, `Restriction type`) %>%
   summarise(lwr = min(`CV ratio`), upr = max(`CV ratio`), est = mean(`CV ratio`)) %>%
   left_join(lu)
+
+
+
+# get raw cvs
+lu <- tibble(
+  "type" = c("Restricted", "Restricted and shrunk"),
+  restr_clean = c("Same survey domain", "Shrunk survey domain")
+)
+
+cvraw <- index %>% filter(type !="MPA only") %>%
+  group_by(species_common_name, survey_abbrev, type) %>%
+  summarise(
+    cv_orig = mean(orig_cv),
+    cv_max = max(cv),
+    cv_mean = mean(cv)
+  ) %>% filter(type !="Status quo") %>% left_join(., lu)
 
 
 # bad year in SYN, removed from plot so removing here too
@@ -72,6 +81,7 @@ re <- index %>%
   mutate(est = est / exp(mean(log(est)))) %>%
   group_by(species_common_name, survey_abbrev, year) %>%
   summarise(
+    prop_mpa = est[type == "MPA only"]/est[type == "Status quo"],
     re_restr = (est[type == "Restricted"] - est[type == "Status quo"]) / est[type == "Status quo"],
     re_shrunk = (est[type == "Restricted and shrunk"] - est[type == "Status quo"]) / est[type == "Status quo"]
   )
@@ -123,39 +133,40 @@ index %>% filter(type == "Status quo") %>%
   geom_line() + facet_wrap(~survey_abbrev, dir= "v")
 
 
-by_surv <- list()
-for (j in seq_along(survs)){
-
-restr <- re_long %>% filter(survey_abbrev == survs[j]) %>%
-  filter(`Restriction type` == "re_restr")
-m_restr <- lmer(re100 ~ 1 + decade + (decade|species_common_name), data = restr)
-m_restr
-
-shrunk <- re_long %>% filter(survey_abbrev == survs[j]) %>%
-  filter(`Restriction type` == "re_shrunk")
-m_shrunk  <- lmer(re100 ~ 1 + decade + (decade|species_common_name), data = shrunk)
-m_shrunk
-
-# These values are a combination of the fixed effects and the variance components
-restr_coefs <- coef(m_restr)$species_common_name %>%
-  tibble::rownames_to_column(., "species_common_name") %>% rename(slope = decade)
-restr_coefs$restr_clean <- "Same survey domain"
-restr_coefs$survey_abbrev <- survs[j]
-
-shrunk_coefs <- coef(m_shrunk)$species_common_name %>%
-  tibble::rownames_to_column(., "species_common_name") %>% rename(slope = decade)
-shrunk_coefs$restr_clean <- "Shrunk survey domain"
-shrunk_coefs$survey_abbrev <- survs[j]
-
-by_surv[[j]] <- bind_rows(restr_coefs, shrunk_coefs)
-}
-coefs <- do.call(rbind, by_surv)
-
-# join everything together
-cvdata <- left_join(cvratio2, mare2) %>% left_join(., coefs) %>% left_join(., cvraw)
-
-if (survey == "HBLL") saveRDS(cvdata, "data-generated/hbll-cv-w-re-slopes.rds")
-if (survey == "SYN") saveRDS(cvdata, "data-generated/syn-cv-w-re-slopes.rds")
+# by_surv <- list()
+# for (j in seq_along(survs)){
+#
+# restr <- re_long %>% filter(survey_abbrev == survs[j]) %>%
+#   filter(`Restriction type` == "re_restr")
+# m_restr <- lmer(re100 ~ 1 + decade + (decade|species_common_name), data = restr)
+# m_restr
+#
+# shrunk <- re_long %>% filter(survey_abbrev == survs[j]) %>%
+#   filter(`Restriction type` == "re_shrunk")
+# m_shrunk  <- lmer(re100 ~ 1 + decade + (decade|species_common_name), data = shrunk)
+# m_shrunk
+#
+# # These values are a combination of the fixed effects and the variance components
+# restr_coefs <- coef(m_restr)$species_common_name %>%
+#   tibble::rownames_to_column(., "species_common_name") %>% rename(slope = decade)
+# restr_coefs$restr_clean <- "Same survey domain"
+# restr_coefs$survey_abbrev <- survs[j]
+#
+# shrunk_coefs <- coef(m_shrunk)$species_common_name %>%
+#   tibble::rownames_to_column(., "species_common_name") %>% rename(slope = decade)
+# shrunk_coefs$restr_clean <- "Shrunk survey domain"
+# shrunk_coefs$survey_abbrev <- survs[j]
+#
+# by_surv[[j]] <- bind_rows(restr_coefs, shrunk_coefs)
+# }
+# coefs <- do.call(rbind, by_surv)
+#
+# # join everything together
+# cvdata <- left_join(cvratio2, mare2) %>% left_join(., coefs) %>%
+#   left_join(., cvraw) %>% left_join(., prop_mpa)
+#
+# if (survey == "HBLL") saveRDS(cvdata, "data-generated/hbll-cv-w-re-slopes.rds")
+# if (survey == "SYN") saveRDS(cvdata, "data-generated/syn-cv-w-re-slopes.rds")
 
 
 
@@ -177,6 +188,8 @@ for (i in seq_along(spp)){
   d2 <- filter(dat, `Restriction type` == "re_shrunk")
   m2  <- tryCatch(lm(re100 ~ 1 + decade, data = d2), error=function(err) NA)
 
+  m3  <- tryCatch(lm(prop_mpa ~ 1 + decade, data = d1), error=function(err) NA)
+  m4  <- tryCatch(lm(prop_mpa ~ 1 + decade, data = d2), error=function(err) NA)
 
   k <- length(spp)*(j-1) + i
 
@@ -185,8 +198,10 @@ for (i in seq_along(spp)){
     species_common_name = c(spp[i],spp[i]),
     `(Intercept)` = c(tryCatch(m1$coefficients[[1]], error=function(err) NA),
                       tryCatch(m2$coefficients[[1]], error=function(err) NA)),
-    slope = c(tryCatch(m1$coefficients[["decade"]], error=function(err) NA),
+    slope_re = c(tryCatch(m1$coefficients[["decade"]], error=function(err) NA),
               tryCatch(m2$coefficients[["decade"]], error=function(err) NA)),
+    slope_mpa = c(tryCatch(m3$coefficients[["decade"]], error=function(err) NA),
+              tryCatch(m4$coefficients[["decade"]], error=function(err) NA)),
     restr_clean = c("Same survey domain", "Shrunk survey domain")
   )
   }
@@ -194,7 +209,8 @@ for (i in seq_along(spp)){
 coefs <- do.call(rbind, sps)
 
 # join everything together
-cvdata <- left_join(cvratio2, mare2) %>% left_join(., coefs) %>% left_join(., cvraw)
+cvdata <- left_join(cvratio2, mare2) %>% left_join(., coefs) %>%
+  left_join(., cvraw) %>% left_join(., prop_mpa)
 
 if (survey == "HBLL") saveRDS(cvdata, "data-generated/hbll-cv-w-lm-slopes.rds")
 if (survey == "SYN") saveRDS(cvdata, "data-generated/syn-cv-w-lm-slopes.rds")
@@ -202,7 +218,11 @@ if (survey == "SYN") saveRDS(cvdata, "data-generated/syn-cv-w-lm-slopes.rds")
 
 
 # exploratory plots
+# cvdata <- readRDS("data-generated/hbll-cv-w-re-slopes.rds")
+# cvdata <- readRDS("data-generated/hbll-cv-w-lm-slopes.rds")
+
 leg <- cvdata %>% filter(`Restriction type` == "re_restr")
+
 
 if (survey == "SYN") {
 plot_scatter <- function(dat, x, y) {
@@ -237,31 +257,62 @@ plot_scatter <- function(dat, x, y) {
                                min.segment.length = 10, size = 2,
                                data = leg) +
       geom_point() +
-      scale_color_brewer(palette = "Set2") +
-      theme(legend.position = "none")
+      scale_color_brewer(palette = "Set2")
+    # +
+    #   theme(legend.position = "none")
   }
 
 }
 
-g1 <- plot_scatter(cvdata, "mare", "slope") +
-  theme(legend.position = c(0.4,0.2), legend.title = element_blank())
-g2 <- plot_scatter(cvdata, "cv_orig", "slope")
-## this has stonger outliers, so keeping mean instead
-# (g3 <- plot_scatter(cvdata, "cv_max", "slope"))
-g4 <- plot_scatter(cvdata, "cv_mean", "slope")
-g5 <- plot_scatter(cvdata, "cv_ratio", "slope")
+
+#### fig 1
+# precision - shrunk reduces loss of precision
+(g <- plot_scatter(cvdata, "cv_orig", "cv_ratio")+ theme(legend.position = c(0.8,0.3), legend.title = element_blank()))
+# accuracy of mean - uncertain becomes more uncertain
+(g <- plot_scatter(cvdata, "cv_orig", "mare"))
+
+#### good
+(g <- plot_scatter(cvdata, "prop_mpa", "cv_ratio")+ theme(legend.position = c(0.8,0.2), legend.title = element_blank()))
+(g <- plot_scatter(cvdata, "prop_mpa", "mare"))
 
 
-(g1 + g2 + g4 + g5) + patchwork::plot_layout(guides = "collect")&theme(axis.title.y = element_blank()) #guides = "collect", design = layout
 
-if (survey == "HBLL") ggsave("figs/explore-hbll-slopes.pdf", width = 9, height = 9)
-if (survey == "SYN") ggsave("figs/explore-syn-slopes.pdf", width = 8, height = 6)
+# fig 2
+# good - once you get a slope of prop mpa overtime it predicts a given bias
+# bottomright = increasing hiding sp, so negative bias over time - fishing?, by chance = local climate velocity
+# topleft = increasing species, so positive bias
+# - what is ultimately expected to happen for species target for protection in mpas
+(g <- plot_scatter(cvdata, "slope_mpa", "slope_re") +
+    geom_hline(yintercept = 0)+ geom_vline(xintercept = 0))
+# (g <- plot_scatter(cvdata, "prop_mpa", "abs(slope_re)"))
 
-(g6 <- plot_scatter(cvdata, "`(Intercept)`", "slope")+ theme(legend.position = c(0.8,0.3), legend.title = element_blank()))
-if (survey == "HBLL") ggsave("figs/hbll-slope-by-intercept-for-lm.pdf", width = 3, height = 3)
-if (survey == "SYN") ggsave("figs/syn-slope-by-intercept-for-lm.pdf", width = 6, height = 6)
 
 
-(g7 <- plot_scatter(cvdata, "cv_ratio", "cv_mean")+ theme(legend.position = c(0.8,0.3), legend.title = element_blank()))
-if (survey == "HBLL") ggsave("figs/hbll-cv-mean-ratio.pdf", width = 5, height = 5)
-if (survey == "SYN") ggsave("figs/syn-cv-mean-ratio.pdf", width = 5, height = 5)
+# (g10 <- plot_scatter(cvdata, "cv_ratio", "mare"))
+# (g1 + g2 + g3 + g4 + g5 + g6) + patchwork::plot_layout(guides = "collect", nrow = 3)&theme(axis.title.y = element_blank()) #guides = "collect", design = layout
+#
+# if (survey == "HBLL") ggsave("figs/explore-hbll-slopes.pdf", width = 9, height = 10)
+# if (survey == "SYN") ggsave("figs/explore-syn-slopes.pdf", width = 8, height = 6)
+
+
+
+### benefits of interpolation
+
+d <- cvdata %>% group_by(species_common_name, survey_abbrev) %>% mutate(
+  temp_bias_interp_ratio = abs(slope_re[restr_clean == "Same survey domain"])/abs(slope_re[restr_clean == "Shrunk survey domain"]),
+  cv_interp_ratio = (cv_mean[restr_clean == "Same survey domain"])/(cv_mean[restr_clean == "Shrunk survey domain"]),
+  mare_interp_ratio = (mare[restr_clean == "Same survey domain"])/(mare[restr_clean == "Shrunk survey domain"])
+)
+
+median(d$temp_bias_interp_ratio)
+median(d$cv_interp_ratio)
+median(d$mare_interp_ratio)
+
+# (g <- ggplot(d) + geom_point(aes_string("prop_mpa", "temp_bias_interp_ratio"))+ geom_hline(yintercept = 1))
+# (g <- ggplot(d) + geom_point(aes_string("prop_mpa", "cv_interp_ratio"))+ geom_hline(yintercept = 1))
+# (g <- ggplot(d) + geom_point(aes_string("prop_mpa", "mare_interp_ratio"))+ geom_hline(yintercept = 1))
+#
+# (g <- ggplot(d) + geom_point(aes_string("cv_orig", "temp_bias_interp_ratio"))+ geom_hline(yintercept = 1))
+# (g <- ggplot(d) + geom_point(aes_string("cv_orig", "cv_interp_ratio"))+ geom_hline(yintercept = 1))
+# (g <- ggplot(d) + geom_point(aes_string("cv_orig", "mare_interp_ratio"))+ geom_hline(yintercept = 1))
+

@@ -52,6 +52,17 @@ if (!file.exists(save_file)) {
     }, .progress = TRUE)
     # })
 
+  index_orig_mpa <- dat_to_fit %>%
+    group_by(survey_abbrev, species_common_name) %>%
+    group_split() %>%
+    furrr::future_map_dfr(function(.x) {
+      # purrr::map_dfr(function(.x) {
+      out <- .x %>%
+        fit_geo_model(pred_grid = filter(grid, restricted), survey = survey, family = family) %>%
+        mutate(type = "MPA only")
+    }, .progress = TRUE)
+  # })
+
   index_restr <- dat_to_fit %>%
     filter(!restricted) %>%
     group_by(survey_abbrev, species_common_name) %>%
@@ -72,7 +83,7 @@ if (!file.exists(save_file)) {
         mutate(type = "Restricted and shrunk")
     }, .progress = TRUE)
 
-  index_all <- bind_rows(index_orig, index_restr, index_shrunk)
+  index_all <- bind_rows(index_orig, index_orig_mpa, index_restr, index_shrunk)
   saveRDS(index_all, file = save_file)
 }
 plan(sequential) # don't crash!
