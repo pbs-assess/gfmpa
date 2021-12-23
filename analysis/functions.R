@@ -150,9 +150,19 @@ fit_geo_model <- function(surv_dat, pred_grid,
     pred <- do_sdmTMB_fit(surv_dat, MPA_trend = MPA_trend,
       cutoff = cutoff, family = tweedie(),
       pred_grid = pred_grid, return_model = return_model, ...)
+
     if (return_model) return(pred)
     if (is.null(pred)) return(null_df)
     ind <- get_index_sims(pred, area = rep(4, nrow(pred))) # 2 x 2 km
+    ind$region <- "all"
+
+    if(length(unique(pred_grid$restricted))>1){
+    mpa_only <- pred[pred_grid$restricted, ]
+    attr(mpa_only, "time") <- "year"
+    ind2 <- get_index_sims(mpa_only, area = rep(4, nrow(mpa_only)))
+    ind2$region <- "mpa"
+    ind <- bind_rows(ind, ind2)
+    }
   } else {
     surv_dat$present <- ifelse(surv_dat$density > 0, 1, 0)
     surv_dat$response <- surv_dat$present
@@ -161,14 +171,26 @@ fit_geo_model <- function(surv_dat, pred_grid,
     pred_grid <- filter(pred_grid, year %in% unique(surv_dat_pos$year)) # in case 'pos' is missing some
     pred_bin <- do_sdmTMB_fit(surv_dat, MPA_trend = MPA_trend, cutoff = cutoff, family = binomial(),
       pred_grid = pred_grid, return_model = return_model, ...)
+
+    pred_bin_mpa <- do_sdmTMB_fit(surv_dat, MPA_trend = MPA_trend, cutoff = cutoff, family = binomial(),
+                              pred_grid = pred_grid, return_model = return_model, ...)
+
     if (is.null(pred_bin)) return(null_df)
     pred_pos <- do_sdmTMB_fit(surv_dat_pos, MPA_trend = MPA_trend, cutoff = cutoff,
       family = Gamma(link = "log"), pred_grid = pred_grid, return_model = return_model, ...)
     if (is.null(pred_pos)) return(null_df)
     if (return_model) list(bin = pred_bin, pos = pred_pos)
-
+# browser()
     pred_combined <- log(plogis(pred_bin) * exp(pred_pos))
     ind <- get_index_sims(pred_combined, area = rep(4, nrow(pred_combined)))
+    ind$region <- "all"
+    if(length(unique(pred_grid$restricted))>1){
+    mpa_only <- pred_combined[pred_grid$restricted, ]
+    attr(mpa_only, "time") <- "year"
+    ind2 <- get_index_sims(mpa_only, area = rep(4, nrow(mpa_only)))
+    ind2$region <- "mpa"
+    ind <- bind_rows(ind, ind2)
+    }
   }
   ind$species_common_name <- surv_dat$species_common_name[1]
   ind$survey_abbrev <- surv_dat$survey_abbrev[1]

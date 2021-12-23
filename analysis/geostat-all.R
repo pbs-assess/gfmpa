@@ -14,8 +14,8 @@ options(dplyr.summarise.inform = FALSE)
 source("analysis/functions.R")
 
 # Globals to set ------------------------------
-survey <- "HBLL"
-# survey <- "SYN"
+# survey <- "HBLL"
+survey <- "SYN"
 family <- "binomial-gamma"
 # family <- "tweedie"
 # ---------------------------------------------
@@ -52,17 +52,6 @@ if (!file.exists(save_file)) {
     }, .progress = TRUE)
     # })
 
-  index_orig_mpa <- dat_to_fit %>%
-    group_by(survey_abbrev, species_common_name) %>%
-    group_split() %>%
-    furrr::future_map_dfr(function(.x) {
-      # purrr::map_dfr(function(.x) {
-      out <- .x %>%
-        fit_geo_model(pred_grid = filter(grid, restricted), survey = survey, family = family) %>%
-        mutate(type = "MPA only")
-    }, .progress = TRUE)
-  # })
-
   index_restr <- dat_to_fit %>%
     filter(!restricted) %>%
     group_by(survey_abbrev, species_common_name) %>%
@@ -71,7 +60,7 @@ if (!file.exists(save_file)) {
       out <- .x %>%
         fit_geo_model(pred_grid = grid, survey = survey, family = family) %>%
         mutate(type = "Restricted")
-    }, .progress = TRUE)
+    }, .progress = TRUE) #%>% filter(region != "mpa")
 
   index_shrunk <- dat_to_fit %>%
     filter(!restricted) %>%
@@ -81,9 +70,9 @@ if (!file.exists(save_file)) {
       out <- .x %>%
         fit_geo_model(pred_grid = filter(grid, !restricted), family = family, survey = survey) %>%
         mutate(type = "Restricted and shrunk")
-    }, .progress = TRUE)
+    }, .progress = TRUE) #%>% filter(region != "mpa")
 
-  index_all <- bind_rows(index_orig, index_orig_mpa, index_restr, index_shrunk)
+  index_all <- bind_rows(index_orig, index_restr, index_shrunk)
   saveRDS(index_all, file = save_file)
 }
 plan(sequential) # don't crash!
@@ -93,8 +82,10 @@ plan(sequential) # don't crash!
 #   geom_ribbon(alpha = 0.2, colour = NA) +
 #   labs(x = "Year", colour = "Type", fill = "Type") +  facet_grid(species_common_name~survey_abbrev, scales = "free_y")
 
-index <- readRDS(save_file)
+index <- readRDS(save_file) %>% filter(!(region == "mpa" & type %in% c("Restricted", "Restricted and shrunk")))
+
 index <- filter(index, !is.na(est), !is.na(se)) # didn't fit
+index[index$region == "mpa", ]$type <- "MPA only"
 index <- index %>% mutate(cv = sqrt(exp(se^2) - 1))
 # stopifnot(max(index$max_gradient) < 0.01)
 
@@ -181,7 +172,7 @@ if (survey == "SYN") {
     scale_fill_brewer(palette = "Set2") +
     facet_grid(species_common_name~survey_abbrev, scales = "free_y") +
     ylab("Relative biomass") +     theme(strip.text.y = element_text(size = 7))
-  ggsave("figs/index-syn-geo-restricted-highlight.pdf", width = 8, height = 15)
+  ggsave("figs/index-syn-geo-restricted-highlight2.pdf", width = 8, height = 15)
 }
 
 x <- index %>%
