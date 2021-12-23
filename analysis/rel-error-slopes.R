@@ -5,8 +5,8 @@ library(sdmTMB)
 theme_set(ggsidekick::theme_sleek())
 options(dplyr.summarise.inform = FALSE)
 
-survey <- "HBLL"
-# survey <- "SYN"
+# survey <- "HBLL"
+survey <- "SYN"
 
 
 # for now using delta-gamma?
@@ -108,9 +108,6 @@ mare2 <- mare %>% rename(mare = est, mare_lwr = lwr, mare_upr = upr) %>%
 
 
 
-# calculate slope from fig 2 relative error plots using random effects
-library(lme4)
-
 # mean(re_long$year)
 re_long <- re_long %>%
   mutate(decade = (year - 2012)/10,
@@ -133,6 +130,9 @@ index %>% filter(type == "Status quo") %>%
   geom_line() + facet_wrap(~survey_abbrev, dir= "v")
 
 
+# # calculate slope from fig 2 relative error plots using random effects
+# library(lme4)
+#
 # by_surv <- list()
 # for (j in seq_along(survs)){
 #
@@ -219,62 +219,124 @@ if (survey == "SYN") saveRDS(cvdata, "data-generated/syn-cv-w-lm-slopes.rds")
 
 # exploratory plots
 # cvdata <- readRDS("data-generated/hbll-cv-w-re-slopes.rds")
-# cvdata <- readRDS("data-generated/hbll-cv-w-lm-slopes.rds")
 
-leg <- cvdata %>% filter(`Restriction type` == "re_restr")
+# combine all surveys
+cvdata1 <- readRDS("data-generated/hbll-cv-w-lm-slopes.rds")
+cvdata2 <- readRDS("data-generated/syn-cv-w-lm-slopes.rds")
 
+glimpse(cvdata1)
+glimpse(cvdata2)
 
-if (survey == "SYN") {
-plot_scatter <- function(dat, x, y) {
-  ggplot(dat, aes_string(x, y,
-                         colour = "survey_abbrev", # this upends the way colour was used before
-                         shape = "restr_clean",
-                         # colour = "restr_clean",
-                         # shape = "survey_abbrev",
-                         group = "species_common_name")) +
-  # geom_line(colour = "lightgray") +
-  ggrepel::geom_text_repel(aes(label = species_common_name),
-                           colour = "darkgray",
-                           force = 2, direction = "both", max.overlaps = 3,
-                           min.segment.length = 10, size = 2,
-                           data = leg) +
-  geom_point() +
-  scale_color_brewer(palette = "Set2") +
-  # # might be worth combining with HBLL for 4 survey facets?
-  # facet_wrap(~survey_abbrev, dir = "v") +
-  theme(legend.position = "none")
-}
-} else {
+cvdata <- bind_rows(cvdata1, cvdata2)
+
+#
+# if (survey == "SYN") {
+# plot_scatter <- function(dat, x, y) {
+#   ggplot(dat, aes_string(x, y,
+#                          colour = "survey_abbrev", # this upends the way colour was used before
+#                          shape = "restr_clean",
+#                          # colour = "restr_clean",
+#                          # shape = "survey_abbrev",
+#                          group = "species_common_name")) +
+#   # geom_line(colour = "lightgray") +
+#   ggrepel::geom_text_repel(aes(label = species_common_name),
+#                            colour = "darkgray",
+#                            force = 2, direction = "both", max.overlaps = 3,
+#                            min.segment.length = 10, size = 2,
+#                            data = filter(dat, `Restriction type` == "re_restr")) +
+#   geom_point() +
+#   scale_color_brewer(palette = "Set2") +
+#   # # might be worth combining with HBLL for 4 survey facets?
+#   # facet_wrap(~survey_abbrev, dir = "v") +
+#   theme(legend.position = "none")
+# }
+# } else {
   plot_scatter <- function(dat, x, y) {
     ggplot(dat, aes_string(x, y,
-                           shape = "survey_abbrev",
                            colour = "restr_clean",
                            group = "species_common_name")) +
-      geom_line(colour = "lightgray") +
+      geom_line(colour = "gray95") +
       ggrepel::geom_text_repel(aes(label = species_common_name),
                                colour = "darkgray",
-                               force = 2, direction = "both", max.overlaps = 3,
+                               force = 2, direction = "y", max.overlaps = 5,
                                min.segment.length = 10, size = 2,
-                               data = leg) +
+                               data = filter(dat, `Restriction type` == "re_restr")) +
       geom_point() +
+      theme(legend.position = "none", legend.title = element_blank()) +
       scale_color_brewer(palette = "Set2")
-    # +
-    #   theme(legend.position = "none")
   }
-
-}
+# }
 
 
 #### fig 1
-# precision - shrunk reduces loss of precision
-(g <- plot_scatter(cvdata, "cv_orig", "cv_ratio")+ theme(legend.position = c(0.8,0.3), legend.title = element_blank()))
-# accuracy of mean - uncertain becomes more uncertain
-(g <- plot_scatter(cvdata, "cv_orig", "mare"))
+# cv_ratio = precision - shrunk reduces loss of precision
+# mare = accuracy of mean - uncertain becomes more uncertain
 
-#### good
-(g <- plot_scatter(cvdata, "prop_mpa", "cv_ratio")+ theme(legend.position = c(0.8,0.2), legend.title = element_blank()))
-(g <- plot_scatter(cvdata, "prop_mpa", "mare"))
+d <- cvdata %>%
+  tidyr::pivot_longer(c("cv_ratio", "mare"), names_to = "Response", values_to = "cv_index") %>%
+  ungroup() %>%
+  filter(cv_index < 1.6) %>%
+  mutate(Response = factor(Response, labels = c("CV Ratio", "MARE")))
 
+# plots of just HBLL
+d2 <- filter(d, survey_abbrev == "HBLL OUT N")
+
+(g1 <- plot_scatter(d2, "prop_mpa", "cv_index") +
+    xlab("Biomass proportion inside MPAs") +
+    guides(shape = "none") +
+    facet_grid(rows=vars(Response),
+               # cols = vars(survey_abbrev),
+               switch = "y",
+               scales = "free_y") +
+    theme(axis.title.y = element_blank(),
+          legend.position = c(0.2,0.95),
+          strip.placement = "outside"))
+
+(g2 <- plot_scatter(d2, "cv_orig", "cv_index") +
+    xlab("CV of 'Status quo' index") +
+    guides(shape = "none") +
+    facet_wrap(~Response, strip.position = "top", nrow = 2, scales = "free_y") +
+    theme(strip.placement = "outside", strip.text.x = element_blank(),
+          plot.margin = unit(c(0,0,0,0), "cm"),
+          axis.title.y = element_blank(),
+          axis.text.y = element_blank(),
+          axis.ticks.y = element_blank()))
+
+g1 + g2 + patchwork::plot_layout(nrow = 1)
+if (survey == "HBLL") ggsave("figs/explore-hbll-cv.pdf", width = 9, height = 9)
+# if (survey == "SYN") ggsave("figs/explore-syn-cv.pdf", width = 9, height = 9)
+#guides = "collect", design = layout
+
+
+# plot all surveys at once for appendix
+if(length(unique(d$survey_abbrev))> 3){
+
+(g <- plot_scatter(d, "prop_mpa", "cv_index") +
+    xlab("Biomass proportion inside MPAs") +
+    guides(shape = "none") +
+    facet_grid(rows=vars(Response),
+               cols = vars(survey_abbrev),
+               switch = "y",
+               scales = "free_y") +
+    theme(axis.title.y = element_blank(),
+          legend.position = c(0.1,0.95),
+          strip.placement = "outside"))
+
+ggsave("figs/explore-all-cv-by-mpa.pdf", width = 12, height = 9)
+
+(g0 <- plot_scatter(d, "cv_orig", "cv_index") +
+    xlab("CV of 'Status quo' index") +
+    guides(shape = "none") +
+    facet_grid(rows=vars(Response),
+               cols = vars(survey_abbrev),
+               switch = "y",
+               scales = "free_y") +
+    theme(axis.title.y = element_blank(),
+          legend.position = c(0.1,0.95),
+          strip.placement = "outside"))
+ggsave("figs/explore-all-cv-by-cv.pdf", width = 12, height = 9)
+
+}
 
 
 # fig 2
@@ -282,18 +344,24 @@ plot_scatter <- function(dat, x, y) {
 # bottomright = increasing hiding sp, so negative bias over time - fishing?, by chance = local climate velocity
 # topleft = increasing species, so positive bias
 # - what is ultimately expected to happen for species target for protection in mpas
-(g <- plot_scatter(cvdata, "slope_mpa", "slope_re") +
-    geom_hline(yintercept = 0)+ geom_vline(xintercept = 0))
-# (g <- plot_scatter(cvdata, "prop_mpa", "abs(slope_re)"))
 
 
+(g <- plot_scatter(d, "slope_mpa", "slope_re/100") +
+    facet_wrap(~survey_abbrev,
+      # rows = vars(survey_abbrev), # switch = "y",
+               scales = "free") +
+    ylab("Change in CV ratio per decade") +
+    xlab("Change in proportion of biomass inside MPAs") +
+    geom_hline(yintercept = 0, colour = "gray80") + geom_vline(xintercept = 0, colour = "gray70"))
 
-# (g10 <- plot_scatter(cvdata, "cv_ratio", "mare"))
-# (g1 + g2 + g3 + g4 + g5 + g6) + patchwork::plot_layout(guides = "collect", nrow = 3)&theme(axis.title.y = element_blank()) #guides = "collect", design = layout
-#
-# if (survey == "HBLL") ggsave("figs/explore-hbll-slopes.pdf", width = 9, height = 10)
-# if (survey == "SYN") ggsave("figs/explore-syn-slopes.pdf", width = 8, height = 6)
+ggsave("figs/explore-all-slopes.pdf", width = 9, height = 9)
 
+(g <- plot_scatter(d, "prop_mpa", "abs(slope_re/100)") +
+    ylab("Absolute change in CV ratio per decade") +
+    xlab("Proportion of biomass inside MPAs") +
+    facet_wrap(~survey_abbrev,# rows = vars(survey_abbrev), # switch = "y",
+               scales = "free"))
+ggsave("figs/explore-abs-slope.pdf", width = 9, height = 9)
 
 
 ### benefits of interpolation
