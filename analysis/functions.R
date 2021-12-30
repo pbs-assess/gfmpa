@@ -289,7 +289,8 @@ sim_mpa_surv <- function(surv_dat, grid,
 
   m2 <- try({
     sdmTMB::sdmTMB(
-    observed ~ 1 + depth_scaled + depth_scaled2 + restricted * year_covariate,
+    observed ~ 1 + #depth_scaled + depth_scaled2 +
+      restricted * year_covariate,
     data = s,
     mesh = m$spde,
     time = "year",
@@ -339,12 +340,11 @@ sim_mpa_surv <- function(surv_dat, grid,
   # # above ignores spatial correlation and temporal autocorrelation and sampling location
   # summary(m3)
 
-
   eta <- s %>%
     group_by(restricted, year) %>%
-    summarise(mean_eta = mean(eta)) %>% ungroup()
+    suppressMessages(summarise(mean_eta = mean(eta))) %>% ungroup()
 
-  ind_mpa <- ind_mpa %>% left_join(., filter(eta, restricted == 1)) %>%
+  ind_mpa <- ind_mpa %>% suppressMessages(left_join(., filter(eta, restricted == 1))) %>%
     mutate(type = "Restricted",
            true_slope = mpa_increase_per_year,
            m_slope = b3[b3$term=="restricted:year_covariate",2],
@@ -353,7 +353,7 @@ sim_mpa_surv <- function(surv_dat, grid,
            m_slope_upr = b3[b3$term=="restricted:year_covariate",5]
            )
 
-  ind_out <- ind_out %>% left_join(., filter(eta, restricted == 0)) %>%
+  ind_out <- ind_out %>% suppressMessages(left_join(., filter(eta, restricted == 0))) %>%
      mutate(type = "Not restricted",
             true_slope = 0,
             m_slope = b3[b3$term=="year_covariate",2],

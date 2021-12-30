@@ -14,7 +14,7 @@ is_unix <- .Platform$OS.type == "unix"
 if (!is_rstudio && is_unix) plan(multicore, workers = 7L) else plan(multisession, workers = 7L)
 options(future.rng.onMisuse = "ignore")
 
-library(mgcv)
+# library(mgcv)
 
 theme_set(ggsidekick::theme_sleek())
 options(dplyr.summarise.inform = FALSE)
@@ -30,7 +30,7 @@ if (survey == "HBLL") {
   dat_to_fit <- readRDS("data-generated/dat_to_fit_hbll.rds") %>% rename(depth = depth_m)
   grid <- readRDS("data-generated/hbll-n-grid-w-restr.rds")
   grid$survey_abbrev <- "HBLL OUT N"
-  save_file <- paste0("data-generated/sim-mpa-hbll.rds")
+  save_file <- paste0("data-generated/sim-mpa-hbll-nodepth.rds")
 }
 
 if (survey == "SYN") {
@@ -68,7 +68,8 @@ plan(sequential)
 
 
 s <- readRDS(file = save_file) %>%
-  mutate(species = as.factor(stringr::str_to_title(species_common_name)))
+  mutate(species = as.factor(stringr::str_to_title(species_common_name)),
+         type = as.factor(type))
 
 
 # 1. visual on geostat index?
@@ -86,12 +87,12 @@ s %>% group_by(survey_abbrev, species_common_name, type) %>%
   scale_fill_brewer(palette = "Set1") +
   scale_colour_brewer(palette = "Set1")
 
-ggsave(paste0("sim-index-", survey, ".png"), width = 8, height = 8)
+ggsave(paste0("sim-index-", survey, "-no-depth.png"), width = 8, height = 8)
 
 
 # 2. fancy geostat BACI?
 slopes <- s %>% select(survey_abbrev, species, type, true_slope,
-             m = m_slope, lwr = m_slope_lwr, upr = m_slope_upr) %>% distinct()
+             m = m_slope, lwr = m_slope_lwr, upr = m_slope_upr) %>% distinct() %>% na.omit()
 
 g1 <- slopes %>% ggplot(aes(group = type, colour = type)) +
   geom_pointrange(aes(m, species,  xmin = lwr, xmax = upr),
@@ -107,13 +108,14 @@ g1 <- slopes %>% ggplot(aes(group = type, colour = type)) +
 # 3. naive GLM BACI on geostat output?
 # ignores autocorrelation
 
-a <- s %>% group_by(survey_abbrev, species_common_name) %>% group_split() %>%
+a <- s %>% group_by(survey_abbrev, species_common_name) %>%
+  mutate(n = n()) %>% filter(n > 1) %>% group_split() %>%
   lapply(function(.x){
     try({
     out <- glm(est ~ type*year, family = Gamma(link = "log"), data = .x,  weights = NULL)
     df <- broom::tidy(out)
-    df$survey_abbrev <- .x$survey_abbrev[1]
-    df$species_common_name <- .x$species_common_name[1]
+    df$survey_abbrev <- .x$survey_abbrev[[1]]
+    df$species_common_name <- .x$species_common_name[[1]]
     df
     })
   }
@@ -143,7 +145,8 @@ g2 <- a %>% ggplot(aes(group = type, colour = type)) +
 
 
 # 3.1 weight by 1/SE?
-a <- s %>% group_by(survey_abbrev, species_common_name) %>% group_split() %>%
+a <- s %>% group_by(survey_abbrev, species_common_name) %>%
+  mutate(n = n()) %>% filter(n > 1) %>% group_split() %>%
   lapply(function(.x){
     try({
       out <- glm(est ~ type*year, family = Gamma(link = "log"), data = .x,  weights = 1/se)
@@ -180,7 +183,8 @@ g3 <- a %>% ggplot(aes(group = type, colour = type)) +
 
 
 # 3.2 via lm()?
-a <- s %>% group_by(survey_abbrev, species_common_name) %>% group_split() %>%
+a <- s %>% group_by(survey_abbrev, species_common_name) %>%
+  mutate(n = n()) %>% filter(n > 1) %>% group_split() %>%
   lapply(function(.x){
     try({
       out <- lm(log(est) ~ type*year, data = .x)
@@ -219,7 +223,8 @@ g4 <- a %>% ggplot(aes(group = type, colour = type)) +
 # a <- gls(log(est) ~ type*year, data = s$index, correlation = corAR1(form = ~ 1 | type))
 # summary(a)
 
-a <- s %>% group_by(survey_abbrev, species_common_name) %>% group_split() %>%
+a <- s %>% group_by(survey_abbrev, species_common_name) %>%
+  mutate(n = n()) %>% filter(n > 1) %>% group_split() %>%
   lapply(function(.x){
     try({
       out <- gls(log(est) ~ type*year, correlation = corAR1(form = ~ 1 | type), data = .x)
@@ -262,4 +267,4 @@ g5 <- a %>% ggplot(aes(group = type, colour = type)) +
 
 
 g1 + g2 + g3 + g4 + g5 + patchwork::plot_layout(ncol = 5, guides = 'collect')
-ggsave(paste0("BACI-coefs-", survey, ".png"), width = 12, height = 8)
+ggsave(paste0("BACI-coefs-", survey, "-no-depth.png"), width = 12, height = 8)
