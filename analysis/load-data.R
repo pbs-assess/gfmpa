@@ -165,10 +165,11 @@ coords <- coords %>%
 coords$X <- coords$X / 1000
 coords$Y <- coords$Y / 1000
 coords$restricted <- coords_restr$restricted
+coords$depth <- hbll_grid$depth
 grid <- coords %>%
   expand_prediction_grid(years = sort(unique(dat_to_fit$year))) %>%
   as_tibble() %>%
-  arrange(year, X, Y)
+  arrange(year, X, Y, depth)
 
 saveRDS(grid, "data-generated/hbll-n-grid-w-restr.rds")
 
