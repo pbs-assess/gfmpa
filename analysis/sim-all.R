@@ -87,7 +87,7 @@ s %>% group_by(survey_abbrev, species_common_name, type) %>%
   scale_fill_brewer(palette = "Set1") +
   scale_colour_brewer(palette = "Set1")
 
-ggsave(paste0("sim-index-", survey, "-no-depth.png"), width = 8, height = 8)
+ggsave(paste0("figs/sim-index-", survey, "-no-depth.png"), width = 8, height = 8)
 
 
 # 2. fancy geostat BACI?
@@ -267,4 +267,4 @@ g5 <- a %>% ggplot(aes(group = type, colour = type)) +
 
 
 g1 + g2 + g3 + g4 + g5 + patchwork::plot_layout(ncol = 5, guides = 'collect')
-ggsave(paste0("BACI-coefs-", survey, "-no-depth.png"), width = 12, height = 8)
+ggsave(paste0("figs/BACI-coefs-", survey, "-no-depth.png"), width = 12, height = 8)
