@@ -8,12 +8,6 @@
 library(sdmTMB)
 library(dplyr)
 library(ggplot2)
-library(future)
-is_rstudio <- !is.na(Sys.getenv("RSTUDIO", unset = NA))
-is_unix <- .Platform$OS.type == "unix"
-if (!is_rstudio && is_unix) plan(multicore, workers = 7L) else plan(multisession, workers = 7L)
-options(future.rng.onMisuse = "ignore")
-
 # library(mgcv)
 
 theme_set(ggsidekick::theme_sleek())
@@ -49,21 +43,31 @@ if (survey == "SYN") {
 #                   # spatiotemporal = "AR1" #worse
 # )
 
-s <- dat_to_fit %>%
-  group_by(survey_abbrev, species_common_name) %>%
-  group_split() %>%
-  furrr::future_map_dfr(function(.x) {
-    # purrr::map_dfr(function(.x) {
-    out <- .x %>%
-      sim_mpa_surv(grid = grid, survey = survey,
-                   mpa_increase_per_year = log(1.05),
-                   ## these go through as ... for true model underlying sim
-                   spatial = "on",
-                   spatiotemporal = "IID"
-                   )
-  }, .progress = TRUE)
-saveRDS(s, file = save_file)
-plan(sequential)
+if (!file.exists(save_file)) {
+  library(future)
+  is_rstudio <- !is.na(Sys.getenv("RSTUDIO", unset = NA))
+  is_unix <- .Platform$OS.type == "unix"
+  if (!is_rstudio && is_unix) plan(multicore, workers = 7L) else plan(multisession, workers = 7L)
+  options(future.rng.onMisuse = "ignore")
+
+
+  s <- dat_to_fit %>%
+    group_by(survey_abbrev, species_common_name) %>%
+    group_split() %>%
+    furrr::future_map_dfr(function(.x) {
+      # purrr::map_dfr(function(.x) {
+      out <- .x %>%
+        sim_mpa_surv(grid = grid, survey = survey,
+                     mpa_increase_per_year = log(1.05),
+                     ## these go through as ... for true model underlying sim
+                     spatial = "on",
+                     spatiotemporal = "IID"
+                     )
+    }, .progress = TRUE)
+  saveRDS(s, file = save_file)
+  plan(sequential)
+}
+
 
 
 
@@ -73,9 +77,9 @@ s <- readRDS(file = save_file) %>%
 
 
 # 1. visual on geostat index?
-s %>% group_by(survey_abbrev, species_common_name, type) %>%
-  # remove a couple extreme values in final year to make axes more reasonable
+s %>% # remove a couple extreme values in final year to make axes more reasonable
   filter(!(species_common_name %in% c("sandpaper skate","petrale sole") & year == max(s$year))) %>%
+  group_by(survey_abbrev, species_common_name, type) %>%
   mutate(lwr = lwr / est[1], upr = upr/est[1], est = est/est[1],
          mean_eta = mean_eta / mean_eta[1]) %>%
   ggplot(aes(year, est, ymin = lwr, ymax = ifelse(upr < est * 3, upr, est * 3),
