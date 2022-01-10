@@ -133,7 +133,7 @@ fit_geo_model <- function(surv_dat, pred_grid,
   # surv_dat <- dplyr::bind_cols(surv_dat, coords)
 
   if (survey == "HBLL") surv_dat$density <- surv_dat$density_ppkm2
-  if (survey == "SYN") surv_dat$density <- surv_dat$density_kgpm2 * 1000 # for computational reasons
+  if (survey == "SYN") surv_dat$density <- surv_dat$density_kgpm2 * 1000 # tonnes/km2 for computational reasons
 
   pred_grid <- filter(pred_grid, survey_abbrev == surv_dat$survey_abbrev[1])
   pred_grid <- filter(pred_grid, year %in% unique(surv_dat$year))
