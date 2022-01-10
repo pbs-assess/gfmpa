@@ -1,0 +1,161 @@
+# make plots that combine surveys
+
+library(tidyverse)
+theme_set(ggsidekick::theme_sleek())
+
+include_mpa <- TRUE
+# include_mpa <- FALSE
+
+y1 <- readRDS(file = "data-generated/index-hbll-geo-clean.rds") %>%
+  mutate(est = est/10000, lwr = lwr/10000, upr = upr/10000)
+y2 <- readRDS(file = "data-generated/index-syn-geo-clean.rds")
+y <- bind_rows(y1,y2)
+
+mean(y$orig_cv < 1)
+filter(y, orig_cv > 1)
+filter(y, orig_cv <= 1)
+index <- filter(y, orig_cv < 1)
+
+index$species_common_name <- stringr::str_to_title(index$species_common_name)
+
+sp_list <- index %>% select(survey_abbrev, species_common_name) %>%
+    distinct() %>% group_by(species_common_name) %>%
+    summarise(n = n())
+sp_list2 <- sp_list %>% filter(n > 1)
+
+# syn_highlights <- c(sp_list2$species_common_name)
+
+syn_highlights <- c(
+    "North Pacific Spiny Dogfish",
+    # "Big Skate",
+    "Sandpaper Skate",#
+    # "Longnose Skate",#HS
+    # "Spotted Ratfish",
+
+    "Pacific Cod",
+    "Walleye Pollock",#
+    # "Pacific Hake",
+    "Sablefish",
+    # "Lingcod",
+    # "Blackbelly Eelpout",
+
+    "Canary Rockfish",
+    # "Copper Rockfish",
+    "Greenstriped Rockfish",#HS
+    "Quillback Rockfish",
+    "Redbanded Rockfish",#HS
+    # # "Redstripe Rockfish",
+    # "Rosethorn Rockfish",
+    # "Rougheye/Blackspotted Rockfish Complex",#HBLL
+    # "Silvergray Rockfish",
+    "Yelloweye Rockfish",
+    # "Yellowtail Rockfish",
+    "Shortspine Thornyhead",
+
+    "Arrowtooth Flounder",#
+    "Curlfin Sole"# QCS
+    # "Dover Sole",
+    # "English Sole",
+    # "Flathead Sole",
+    # "Pacific Halibut",
+    # "Rex Sole",
+    # "Slender Sole",
+    # "Southern Rock Sole"
+  )
+
+
+if (!include_mpa) index <- index %>% filter(type != "MPA only")
+
+
+  i1 <- index %>% filter(species_common_name %in% syn_highlights) %>%
+    mutate(species_common_name = factor(species_common_name, levels = syn_highlights)) %>%
+    filter((survey_abbrev == "HBLL OUT N"))
+  i2 <- index %>% filter(species_common_name %in% syn_highlights) %>%
+    mutate(species_common_name = factor(species_common_name, levels = syn_highlights)) %>%
+    filter(!(survey_abbrev == "HBLL OUT N"))
+
+  spp <- as.data.frame(syn_highlights) %>% rename(species_common_name=syn_highlights)
+  i <- left_join(spp, i1) %>% mutate(survey_abbrev = "HBLL OUT N")
+
+  g1 <- i %>%
+    ggplot(aes(year, est, ymin = lwr, ymax = upr, colour = type, fill = type)) +
+    geom_line(lwd = 0.9) +
+    geom_ribbon(alpha = 0.2, colour = NA) +
+    labs(x = "Year", colour = "Type", fill = "Type") +
+    scale_color_brewer(palette = "Set2", direction = 1) +
+    scale_fill_brewer(palette = "Set2", direction = 1) +
+    xlim(2005, 2020) +
+    facet_grid(species_common_name~survey_abbrev, scales = "free_y") +
+    ggtitle("Index type:   ") +
+    ylab("Relative abundance in 1000s (HBLL) or biomass in tonnes (SYN)") +
+    theme(plot.title = element_text(hjust = 0.9),
+          strip.text.y = element_blank(),
+          axis.title.x = element_blank(),
+          legend.position = "none")
+
+  g2 <- i2 %>% filter(survey_abbrev != "SYN WCHG") %>%
+    filter(species_common_name %in% syn_highlights) %>%
+    mutate(species_common_name = factor(species_common_name, levels = syn_highlights)) %>%
+    ggplot(aes(year, est, ymin = lwr, ymax = upr, colour = type, fill = type)) +
+    geom_line(lwd = 0.9) +
+    geom_ribbon(alpha = 0.2, colour = NA) +
+    labs(x = "Year", colour = " ", fill = " ") +
+    scale_color_brewer(palette = "Set2", direction = 1) +
+    scale_fill_brewer(palette = "Set2", direction = 1) +
+    facet_grid(species_common_name~survey_abbrev, scales = "free_y") +
+    ylab("Relative biomass") +
+    ggtitle("") +
+    theme(legend.justification=c(0,1), legend.position=c(-0.28,1.065), legend.direction = "horizontal",
+      strip.text.y = element_text(size = 7, angle = 0, hjust = 0),
+          axis.title.y = element_blank(),
+          axis.title.x = element_text(hjust = 0.2))
+  # g1 + g2 + patchwork::plot_layout(widths = c(1.25,4))
+  g1 + g2 + patchwork::plot_layout(widths = c(1,2))
+
+if (!include_mpa) ggsave("figs/index-geo-restricted-highlights-noMPA.pdf", width = 7, height = 10)
+if (include_mpa) ggsave("figs/index-geo-restricted-highlights.pdf", width = 7, height = 10)
+
+
+  x <- index %>%
+    group_by(species_common_name, survey_abbrev, type) %>%
+    mutate(est = est / exp(mean(log(est)))) %>%
+    group_by(species_common_name, survey_abbrev, year) %>%
+    summarise(
+      re_restr = (est[type == "Restricted"] - est[type == "Status quo"]) / est[type == "Status quo"],
+      re_shrunk = (est[type == "Restricted and shrunk"] - est[type == "Status quo"]) / est[type == "Status quo"]
+    )
+
+  lu <- tibble(
+    "Restriction type" = c("re_restr", "re_shrunk"),
+    restr_clean = c("Same survey domain", "Shrunk survey domain")
+  )
+
+  x_long <- x %>%
+    tidyr::pivot_longer(starts_with("re"), names_to = "Restriction type", values_to = "re") %>%
+    left_join(lu)
+
+  # get two middle colours from plot above
+  library(RColorBrewer)
+  brewer.pal(4, "Set2")
+
+
+  g <- x_long %>% filter(survey_abbrev != "SYN WCHG") %>%
+    filter(species_common_name %in% syn_highlights) %>%
+    mutate(species_common_name = factor(species_common_name, levels = syn_highlights)) %>%
+    ggplot(aes(year, re, colour = restr_clean)) +
+    geom_line() +
+    geom_hline(yintercept = 0, lty = 2) +
+    facet_grid(species_common_name~survey_abbrev, scales = "free") +
+    # scale_color_brewer(palette = "Set2") +
+    scale_colour_manual(values = c("#FC8D62", "#8DA0CB")) +
+    ylab("Relative error") + xlab("Year") +
+    # xlim(2005, 2020) +
+    # labs(colour = "Survey domain treatment") +
+    labs(colour = "") +
+    # ggtitle("") +
+    theme(strip.text.y = element_text(size = 7, angle = 0, hjust = 0),
+          legend.position = "top",
+          legend.justification=c(0.5,1))
+  g
+
+  ggsave("figs/index-geo-restricted-re-highlights.pdf", width = 5.75, height = 10)
