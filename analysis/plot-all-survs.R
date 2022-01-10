@@ -55,7 +55,7 @@ syn_highlights <- c(
     # "Silvergray Rockfish",
     "Yelloweye Rockfish",
     # "Yellowtail Rockfish",
-    "Shortspine Thornyhead",
+    # "Shortspine Thornyhead",
 
     "Arrowtooth Flounder",#
     "Curlfin Sole"# QCS
@@ -82,6 +82,8 @@ if (!include_mpa) index <- index %>% filter(type != "MPA only")
   spp <- as.data.frame(syn_highlights) %>% rename(species_common_name=syn_highlights)
   i <- left_join(spp, i1) %>% mutate(survey_abbrev = "HBLL OUT N")
 
+  # get two middle colours from plot above
+  library(RColorBrewer)
   brewer.pal(4, "Set2")
 
   if (include_mpa) colour_pal <- c("#FC8D62", "#8DA0CB", "gray60", "gray80")
@@ -95,13 +97,12 @@ if (!include_mpa) index <- index %>% filter(type != "MPA only")
     geom_line(lwd = 0.6) +
     geom_ribbon(alpha = 0.2, colour = NA) +
     labs(x = "Year", colour = "Type", fill = "Type", linetype = "Type") +
-    # scale_color_brewer(palette = "Set2", direction = 1) +
-    # scale_fill_brewer(palette = "Set2", direction = 1) +
     scale_colour_manual(values = colour_pal) +
     scale_fill_manual(values = colour_pal) +
     scale_linetype_manual(values = line_pal) +
     xlim(2005, 2020) +
     facet_grid(species_common_name~survey_abbrev, scales = "free_y") +
+    scale_y_continuous(breaks = waiver(), n.breaks = 4) +
     ggtitle("Index type:   ") +
     ylab("Relative abundance in 1000s (HBLL) or biomass in tonnes (SYN)") +
     theme(plot.title = element_text(hjust = 0.9),
@@ -117,12 +118,11 @@ if (!include_mpa) index <- index %>% filter(type != "MPA only")
     geom_line(lwd = 0.6) +
     geom_ribbon(alpha = 0.2, colour = NA) +
     labs(x = "Year", colour = " ", fill = " ", linetype = " ") +
-    # scale_color_brewer(palette = "Set2", direction = 1) +
-    # scale_fill_brewer(palette = "Set2", direction = 1) +
     scale_colour_manual(values = colour_pal) +
     scale_fill_manual(values = colour_pal) +
     scale_linetype_manual(values = line_pal) +
     facet_grid(species_common_name~survey_abbrev, scales = "free_y") +
+    scale_y_continuous(breaks = waiver(), n.breaks = 3) +
     ylab("Relative biomass") +
     ggtitle("") +
     theme(legend.justification=c(0,1), legend.position=c(-0.28,1.065), legend.direction = "horizontal",
@@ -130,15 +130,11 @@ if (!include_mpa) index <- index %>% filter(type != "MPA only")
           axis.title.y = element_blank(),
           axis.title.x = element_text(hjust = 0.2))
 
-
-  # g1 + g2 + patchwork::plot_layout(widths = c(1.25,4))
   g1 + g2 + patchwork::plot_layout(widths = c(1,2))
 
 if (include_mpa) ggsave("figs/index-geo-restricted-highlights.pdf", width = 7, height = 10)
 
-if (!include_mpa) ggsave("figs/index-geo-restricted-highlights-noMPA.pdf", width = 7, height = 10)
-
-
+if (!include_mpa) ggsave("figs/index-geo-restricted-highlights-noMPA.pdf", width = 6.5, height = 10)
 
   x <- index %>%
     group_by(species_common_name, survey_abbrev, type) %>%
@@ -158,28 +154,29 @@ if (!include_mpa) ggsave("figs/index-geo-restricted-highlights-noMPA.pdf", width
     tidyr::pivot_longer(starts_with("re"), names_to = "Restriction type", values_to = "re") %>%
     left_join(lu)
 
-  # get two middle colours from plot above
-  library(RColorBrewer)
-  brewer.pal(4, "Set2")
-
+  library(scales)
+  S_sqrt <- function(x){sign(x)*sqrt(abs(x))}
+  IS_sqrt <- function(x){x^2*sign(x)}
+  S_sqrt_trans <- function() trans_new("S_sqrt",S_sqrt,IS_sqrt)
 
   g <- x_long %>% filter(survey_abbrev != "SYN WCHG") %>%
     filter(species_common_name %in% syn_highlights) %>%
     mutate(species_common_name = factor(species_common_name, levels = syn_highlights)) %>%
     ggplot(aes(year, re, colour = restr_clean)) +
-    geom_line() +
     geom_hline(yintercept = 0, lty = 2) +
-    facet_grid(species_common_name~survey_abbrev, scales = "free") +
+    geom_line(size = 0.8, alpha =0.8) +
     # scale_color_brewer(palette = "Set2") +
     scale_colour_manual(values = c("#FC8D62", "#8DA0CB"), label=c("Extrapolated", "Shrunk")) +
     ylab("Relative error") + xlab("Year") +
-    # xlim(2005, 2020) +
-    # labs(colour = "Survey domain treatment") +
+    facet_grid(species_common_name~survey_abbrev, scales = "free") +
+    scale_y_continuous(breaks = waiver(), n.breaks = 4) +
+    # scale_y_continuous(trans = "S_sqrt", breaks = c(-0.5,-0.1,0, 0.1, 0.5)) +
+    # coord_cartesian(ylim = c(-0.35, 0.4)) +
     labs(colour = "") +
-    # ggtitle("") +
-    theme(strip.text.y = element_text(size = 7, angle = 0, hjust = 0),
-          legend.position = "top",
-          legend.justification=c(0.5,1))
+    ggtitle("") +
+    theme(legend.justification=c(0.5,1), legend.position=c(0.5,1.065), legend.direction = "horizontal",
+          # legend.position = "top", legend.justification=c(0.5,1),
+          strip.text.y = element_text(size = 7, angle = 0, hjust = 0))
   g
 
-  ggsave("figs/index-geo-restricted-re-highlights.pdf", width = 5.75, height = 10)
+  ggsave("figs/index-geo-restricted-re-highlights.pdf", width = 5.75, height = 9.5)
