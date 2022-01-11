@@ -104,11 +104,12 @@ In all cases, comparing restricted estimates to the estimates from the full hist
 
 - CV: the coefficient of variation of the index value in each year; this represents a standardized measure of imprecision on the estimate.
 
-- RE: relative error; $(\hat{\theta}_t - \theta_t) / \theta_t$, where $\hat{\theta}_t$ represents the index estimate from the restricted model in year $t$ and $\theta$ represents the index estimate from the full survey set.
+- RE: relative error; $(\hat{\theta}_t - \theta_t) / \theta_t$, where $\hat{\theta}_t$ represents the index estimate from the restricted model in year $t$ and $\theta$ represents the index estimate from the full survey set. 
+All index estimates were first scaled to their geometric mean across years. 
 
 - MARE: median absolute relative error; this is the median absolute relative error, here taken across years. This represents the typical magnitude of relative error you would expect for any year.
 
-- Change in CV ratio over time: 
+- Change in RE over time: To assess bias, we calculated the slope of a linear regression of RE by year. 
 
 # Results
 
@@ -149,7 +150,7 @@ include_graphics(here("figs/explore-qcs-cv.pdf"))
 <!-- # - what is ultimately expected to happen for species target for protection in mpas -->
 
 
-```{r, out.width="\\textwidth", fig.cap="The relationship between the slope of CV ratio through time and the change in the proportion of a species' abundance or biomass estimated to be inside the restricted areas for each survey. The top left quadrant contains species that ... The bottom right quadrant contains species that..."}
+```{r, out.width="\\textwidth", fig.cap="The direction of bias, as estimated by the slope of relative error (RE) through time, is related to change in the proportion of a species' abundance or biomass inside the restricted areas. Most surveys tended to have a positive trend in RE (restricted survey indices estimating higher abundance than the status quo) if the proportion inside restricted areas was declining (top left quadrant) or a negative trend in RE (restricted survey indices estimating a trend toward lower abundance than the status quo) when the proportion inside restricted areas was declining (bottom right quadrant)."}
 include_graphics(here("figs/explore-all-slopes.pdf"))
 ```
 
