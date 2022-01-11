@@ -256,14 +256,15 @@ cvdata <- bind_rows(cvdata1, cvdata2)
                            colour = "restr_clean",
                            group = "species_common_name")) +
       geom_line(colour = "gray95") +
-      ggrepel::geom_text_repel(aes(label = species_common_name),
+      ggrepel::geom_text_repel(data = filter(dat, `Restriction type` == "re_restr"),
+                               aes(label = species_common_name),
                                colour = "darkgray",
                                force = 2, direction = "y", max.overlaps = 5,
-                               min.segment.length = 10, size = 2,
-                               data = filter(dat, `Restriction type` == "re_restr")) +
+                               min.segment.length = 10, size = 2) +
       geom_point() +
       theme(legend.position = "none", legend.title = element_blank()) +
-      scale_color_brewer(palette = "Set2")
+      scale_colour_manual(values = c("#FC8D62", "#8DA0CB"), label=c("Extrapolated", "Shrunk"))
+      # scale_color_brewer(palette = "Set2")
   }
 # }
 
@@ -281,8 +282,8 @@ d <- cvdata %>%
 # plots of just HBLL
 d2 <- filter(d, survey_abbrev == "HBLL OUT N")
 
-(g1 <- plot_scatter(d2, "prop_mpa", "cv_index") +
-    xlab("Biomass proportion inside MPAs") +
+(g1 <- plot_scatter(d2, "cv_orig", "cv_index") +
+    xlab("CV of 'Status quo' index") +
     guides(shape = "none") +
     facet_grid(rows=vars(Response),
                # cols = vars(survey_abbrev),
@@ -292,8 +293,8 @@ d2 <- filter(d, survey_abbrev == "HBLL OUT N")
           legend.position = c(0.2,0.95),
           strip.placement = "outside"))
 
-(g2 <- plot_scatter(d2, "cv_orig", "cv_index") +
-    xlab("CV of 'Status quo' index") +
+(g2 <- plot_scatter(d2, "prop_mpa", "cv_index") +
+    xlab("Biomass proportion inside MPAs") +
     guides(shape = "none") +
     facet_wrap(~Response, strip.position = "top", nrow = 2, scales = "free_y") +
     theme(strip.placement = "outside", strip.text.x = element_blank(),
@@ -303,9 +304,41 @@ d2 <- filter(d, survey_abbrev == "HBLL OUT N")
           axis.ticks.y = element_blank()))
 
 g1 + g2 + patchwork::plot_layout(nrow = 1)
-if (survey == "HBLL") ggsave("figs/explore-hbll-cv.pdf", width = 9, height = 9)
+# if (survey == "HBLL")
+ggsave("figs/explore-hbll-cv.pdf", width = 7, height = 7)
 # if (survey == "SYN") ggsave("figs/explore-syn-cv.pdf", width = 9, height = 9)
 #guides = "collect", design = layout
+
+
+# plots of just QCS
+d3 <- filter(d, survey_abbrev == "SYN QCS")
+
+(g1 <- plot_scatter(d3, "cv_orig", "cv_index") +
+    xlab("CV of 'Status quo' index") +
+    guides(shape = "none") +
+    facet_grid(rows=vars(Response),
+               # cols = vars(survey_abbrev),
+               switch = "y",
+               scales = "free_y") +
+    theme(axis.title.y = element_blank(),
+          # legend.position = c(0.2,0.95),
+          strip.placement = "outside"))
+
+(g2 <- plot_scatter(d3, "prop_mpa", "cv_index") +
+    xlab("Biomass proportion inside MPAs") +
+    guides(shape = "none") +
+    facet_wrap(~Response, strip.position = "top", nrow = 2, scales = "free_y") +
+    theme(strip.placement = "outside", strip.text.x = element_blank(),
+          plot.margin = unit(c(0,0,0,0), "cm"),
+          legend.position = c(0.2,0.95),
+          axis.title.y = element_blank(),
+          axis.text.y = element_blank(),
+          axis.ticks.y = element_blank()))
+
+g1 + g2 + patchwork::plot_layout(nrow = 1)
+
+ggsave("figs/explore-qcs-cv.pdf", width = 7, height = 7)
+
 
 
 # plot all surveys at once for appendix
@@ -322,7 +355,7 @@ if(length(unique(d$survey_abbrev))> 3){
           legend.position = c(0.1,0.95),
           strip.placement = "outside"))
 
-ggsave("figs/explore-all-cv-by-mpa.pdf", width = 12, height = 9)
+ggsave("figs/explore-all-cv-by-mpa.pdf", width = 10, height = 5.5)
 
 (g0 <- plot_scatter(d, "cv_orig", "cv_index") +
     xlab("CV of 'Status quo' index") +
@@ -334,7 +367,7 @@ ggsave("figs/explore-all-cv-by-mpa.pdf", width = 12, height = 9)
     theme(axis.title.y = element_blank(),
           legend.position = c(0.1,0.95),
           strip.placement = "outside"))
-ggsave("figs/explore-all-cv-by-cv.pdf", width = 12, height = 9)
+ggsave("figs/explore-all-cv-by-cv.pdf", width = 10, height = 5.5)
 
 }
 
@@ -345,23 +378,23 @@ ggsave("figs/explore-all-cv-by-cv.pdf", width = 12, height = 9)
 # topleft = increasing species, so positive bias
 # - what is ultimately expected to happen for species target for protection in mpas
 
-
-(g <- plot_scatter(d, "slope_mpa", "slope_re/100") +
+d_mare <- filter(d, Response == "MARE")
+(g <- plot_scatter(d_mare, "slope_mpa", "slope_re/100") +
     facet_wrap(~survey_abbrev,
       # rows = vars(survey_abbrev), # switch = "y",
                scales = "free") +
-    ylab("Change in CV ratio per decade") +
+    ylab("Change in RE per decade") +
     xlab("Change in proportion of biomass inside MPAs") +
     geom_hline(yintercept = 0, colour = "gray80") + geom_vline(xintercept = 0, colour = "gray70"))
 
-ggsave("figs/explore-all-slopes.pdf", width = 9, height = 9)
+ggsave("figs/explore-all-slopes.pdf", width = 7, height = 7)
 
-(g <- plot_scatter(d, "prop_mpa", "abs(slope_re/100)") +
-    ylab("Absolute change in CV ratio per decade") +
+(g <- plot_scatter(d_mare, "prop_mpa", "abs(slope_re/100)") +
+    ylab("Absolute change in RE per decade") +
     xlab("Proportion of biomass inside MPAs") +
     facet_wrap(~survey_abbrev,# rows = vars(survey_abbrev), # switch = "y",
-               scales = "free"))
-ggsave("figs/explore-abs-slope.pdf", width = 9, height = 9)
+               scales = "free") + theme(legend.position = c(0.08,0.96)))
+ggsave("figs/explore-abs-slope.pdf", width = 7, height = 7)
 
 
 ### benefits of interpolation
