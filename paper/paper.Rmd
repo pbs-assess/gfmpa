@@ -44,7 +44,20 @@ knitr::opts_chunk$set(
 ```
 
 ```{r load-data}
+### benefits of interpolation
+cvdata1 <- readRDS(here("data-generated/hbll-cv-w-lm-slopes.rds"))
+cvdata2 <- readRDS(here("data-generated/syn-cv-w-lm-slopes.rds"))
 
+cvdata <- bind_rows(cvdata1, cvdata2)
+d <- cvdata %>% group_by(species_common_name, survey_abbrev) %>% mutate(
+  temp_bias_interp_ratio = abs(slope_re[restr_clean == "Same survey domain"])/abs(slope_re[restr_clean == "Shrunk survey domain"]),
+  cv_interp_ratio = (cv_mean[restr_clean == "Same survey domain"])/(cv_mean[restr_clean == "Shrunk survey domain"]),
+  mare_interp_ratio = (mare[restr_clean == "Same survey domain"])/(mare[restr_clean == "Shrunk survey domain"])
+)
+
+# median(d$temp_bias_interp_ratio)
+# median(d$cv_interp_ratio)
+# median(d$mare_interp_ratio)
 ```
 
 # Introduction
@@ -66,21 +79,24 @@ Here, we...
 
 # Methods
 
-### Calculating indices three ways:
-
-1. Restricted: Remove historical observations that would be part of closed areas with restrictions on the survey gear type; do not shrink the survey domain. In other words, continue extrapolating into the no-longer-surveyed area.
-
-2. Restricted and shrunk: Same as restricted, but also "shrink" the survey domain by removing survey grid cells that overlap with the closed areas.
-
-3. Status quo: Full survey domain; no changes.
-
-### The survey indices can be calculated at least two ways:
+### The survey indices can be calculated in at least two ways:
 
 1. Design-based bootstrap: Calculate the mean density in each survey stratum, multiply that by each stratum area, and add these biomass/abundance estimates to derive an index. Perform this repeatedly, each time sampling with replacement stratified by survey strata, to derive a bootstrap confidence interval. (I have done these for the 'restricted' version only so far, but they are not shown here. The bootstrap CI can behave counterintuitively where reducing observations can increase precision if it eliminates outlying observations or there are few unique/positive observations.)
 
-2. Model-based bootstrap: Fit a geostatistical spatiotemporal model to the observed data, predict on the full survey grid, sum the predicted biomass/abundance for the full survey domain.
+2. Model-based bootstrap: Fit a geostatistical spatiotemporal model to the observed data, predict on the full survey grid, sum the predicted biomass/abundance for the full survey domain. 
+We will use this index as our `status quo`.
+This model can also be used to predict an index for any portion of the full survey domain, for example, just the closed areas given us an index for within the proposed closed areas (`MPA only`).
 
-There are analytical design-based approaches and other non-geostatistical model-based approaches that are used elsewhere.
+Analytical design-based approaches and other non-geostatistical model-based approaches also exist.
+
+
+<!-- ### Model-based indices can be applied to when restrictions are in place in two ways: -->
+### Approaches to indices when restrictions are in place:
+
+1. Restricted and extrapolated (`extrapolated`): Remove historical observations that would be part of closed areas with restrictions on the survey gear type; do not shrink the survey domain. In other words, continue extrapolating into the no-longer-surveyed area.
+
+2. Restricted and shrunk (`shrunk`): Same as restricted, but also "shrink" the survey domain by removing survey grid cells that overlap with the closed areas.
+
 
 ### Measures of precision, bias, and accuracy:
 
@@ -92,6 +108,8 @@ In all cases, comparing restricted estimates to the estimates from the full hist
 
 - MARE: median absolute relative error; this is the median absolute relative error, here taken across years. This represents the typical magnitude of relative error you would expect for any year.
 
+- Change in CV ratio over time: 
+
 # Results
 
 # Discussion
@@ -100,39 +118,46 @@ In all cases, comparing restricted estimates to the estimates from the full hist
 
 # Figures
 
-```{r, out.width="\\textwidth", fig.cap="HBLL N indices calculated from a geostatistical model."}
-include_graphics(here("figs/index-hbll-geo-restricted.pdf"))
+(ref:indices) Survey indices calculated from a geostatistical model for a selection of species (ordered by taxonomic group) and with a range of relative abundances and certainty regarding their population trajectories. Grey lines are based on the original (status quo) index based on all the survey samples. The dotted line represents the for the whole survey area while the solid line is the estimate within the the proposed restricted areas (MPAs). Coloured solid lines represent indices based on survey samples outside the proposed restricted areas only. The extrapolated index includes estimated relative abundance inside the restricted areas but without any samples from those areas. The shrunk index only estimates the relative abundance for unrestricted parts of the survey grid. Shaded areas indicate the 95% CIs.
+
+```{r indices, out.width="0.8\\textwidth", fig.cap="(ref:indices)"}
+include_graphics(here("figs/index-geo-restricted-highlights.pdf"))
 ```
 
-```{r, out.width="\\textwidth", fig.cap="HBLL N: relative error over years and across species."}
-include_graphics(here("figs/index-hbll-geo-restricted-re.pdf"))
-```
-
-```{r, out.width="5in", fig.cap="HBLL N indices: ratio of the restricted to the original index CV. Dots represent the mean CV ratio and line segments represent the lower and upper ratios across years."}
-include_graphics(here("figs/index-geo-hbll-cv-ratio-dotplot.pdf"))
-```
-
-```{r, out.width="5in", fig.cap="HBLL N: median absolute relative error across years."}
-include_graphics(here("figs/index-geo-hbll-mare-dotplot.pdf"))
+```{r, out.width="0.8\\textwidth", fig.cap="Relative error by year for the same selection of species. Relative error is calculated as the difference between the restricted index estimate (either extrapotated or shrunk) and the status quo index as a proportion of the total status quo index in that year. "}
+include_graphics(here("figs/index-geo-restricted-re-highlights.pdf"))
 ```
 
 
+<!-- #### fig 1 -->
+<!-- # cv_ratio = precision - shrunk reduces loss of precision -->
+<!-- # mare = accuracy of mean - uncertain becomes more uncertain -->
 
-```{r, out.width="0.72\\textwidth", fig.cap="Synoptic trawl survey indices calculated from a geostatistical model."}
-include_graphics(here("figs/index-syn-geo-restricted-highlight.pdf"))
+```{r, out.width="0.9\\textwidth", fig.cap="For the HBLL survey, the uncertainty (precision) as measured by smaller ratios of the CV for restricted to status quo indices (top row), and accuracy in the form of median absolute relative error (MARE; bottom row) for restricted indices appear correlated with uncertainty of the original index and the proportion of a population affected by the restriction. For a given species, shrinking the survey grid (blue), rather than extrapolating (orange), lowers uncertainty (blue dots almost always have lower CV ratio than orange in the top row plots) but can also reduce accuracy (increases MARE; blue dots sometimes higher than orange in bottom row plots). A positive correlation between CV ratio and CV of the Status quo index (top left plot) suggest that already uncertain indices become more uncertain when restricted, but that there isn't a tight relationship between status quo uncertainty and MARE (bottom left). The higher the proportion of a species abundance/biomass found in the restricted area, the more uncertain (CV ratios much greater than 1) a restricted index is relative to status quo (top right)."}
+include_graphics(here("figs/explore-hbll-cv.pdf"))
 ```
 
-```{r, out.width="0.72\\textwidth", fig.cap="Synoptic trawl survey: relative error over years and across species."}
-include_graphics(here("figs/index-syn-geo-restricted-re-highlights.pdf"))
+```{r, out.width="0.9\\textwidth", fig.cap="For the Queen Charlotte Sound synoptic trawl survey, the patterns are similar to those found for the HBLL survey, except that shrinking the survey grid seems to have the increase uncertainty when a lower proportion of a species abundance/biomass is found in the restricted area, but that doing so acts in the usual way to increase precision when a higher proportion of a species abundance/biomass is found in the restricted area. PROBABLY REMOVE, OR MOVE TO SUPPLEMENT."}
+include_graphics(here("figs/explore-qcs-cv.pdf"))
 ```
 
-```{r, out.width="6in", fig.cap="Synoptic trawl survey: ratio of the restricted to the original index CV. Dots represent the mean CV ratio and line segments represent the lower and upper ratios across years."}
-include_graphics(here("figs/index-geo-syn-cv-ratio-dotplot.pdf"))
+
+<!-- # fig 2 -->
+<!-- # good - once you get a slope of prop mpa overtime it predicts a given bias -->
+<!-- # bottomright = increasing hiding sp, so negative bias over time - fishing?, by chance = local climate velocity -->
+<!-- # topleft = increasing species, so positive bias -->
+<!-- # - what is ultimately expected to happen for species target for protection in mpas -->
+
+
+```{r, out.width="\\textwidth", fig.cap="The relationship between the slope of CV ratio through time and the change in the proportion of a species' abundance or biomass estimated to be inside the restricted areas for each survey. The top left quadrant contains species that ... The bottom right quadrant contains species that..."}
+include_graphics(here("figs/explore-all-slopes.pdf"))
 ```
 
-```{r, out.width="6in", fig.cap="Synoptic trawl survey: median absolute relative error across years."}
-include_graphics(here("figs/index-geo-syn-mare-dotplot.pdf"))
-```
+
+<!-- ```{r, out.width="0.9\\textwidth", fig.cap=""} -->
+<!-- include_graphics(here("figs/explore-abs-slope.pdf")) -->
+<!-- ``` -->
+
 
 \clearpage
 
@@ -147,3 +172,56 @@ include_graphics(here("figs/index-geo-syn-mare-dotplot.pdf"))
 ```
 
 # Supplemental Materials
+
+```{r, out.width="\\textwidth", fig.cap="SYN HS indices calculated from a geostatistical model."}
+include_graphics(here("figs/index-hs-geo-restricted.pdf"))
+```
+
+```{r, out.width="\\textwidth", fig.cap="SYN QCS indices calculated from a geostatistical model."}
+include_graphics(here("figs/index-qcs-geo-restricted.pdf"))
+```
+
+```{r, out.width="\\textwidth", fig.cap="SYN WCHG indices calculated from a geostatistical model."}
+include_graphics(here("figs/index-wchg-geo-restricted.pdf"))
+```
+
+```{r, out.width="\\textwidth", fig.cap="HBLL N indices calculated from a geostatistical model."}
+include_graphics(here("figs/index-hbll-geo-restricted.pdf"))
+```
+
+```{r, out.width="\\textwidth", fig.cap="SYN HS: relative error over years and across species."}
+include_graphics(here("figs/index-hs-geo-restricted-re.pdf"))
+```
+
+```{r, out.width="\\textwidth", fig.cap="SYN QCS: relative error over years and across species."}
+include_graphics(here("figs/index-qcs-geo-restricted-re.pdf"))
+```
+
+```{r, out.width="\\textwidth", fig.cap="SYN WCHG: relative error over years and across species."}
+include_graphics(here("figs/index-wchg-geo-restricted-re.pdf"))
+```
+
+```{r, out.width="\\textwidth", fig.cap="HBLL N: relative error over years and across species."}
+include_graphics(here("figs/index-hbll-geo-restricted-re.pdf"))
+```
+
+```{r, out.width="\\textwidth", fig.cap="Plots of the relationship between measures of relative error of restricted indices to status quo (top row: CV ratio; bottom row: MARE) and the average proportion of a species biomass (or abundance for HBLL) that is estimated to occur inside the MPAs."}
+include_graphics(here("figs/explore-all-cv-by-mpa.pdf"))
+```
+
+```{r, out.width="\\textwidth", fig.cap="Plots of the relationship between measures of relative error of restricted indices to status quo (top row: CV ratio; bottom row: MARE) with the CV of the status quo index."}
+include_graphics(here("figs/explore-all-cv-by-cv.pdf"))
+```
+
+```{r, out.width="\\textwidth", fig.cap="Ratio of the restricted to the original (status quo) index CV. Dots represent the mean CV ratio and line segments represent the lower and upper ratios across years."}
+include_graphics(here("figs/index-geo-cv-ratio-dotplot.pdf"))
+```
+
+```{r, out.width="\\textwidth", fig.cap="Median absolute relative error across years."}
+include_graphics(here("figs/index-geo-mare-dotplot.pdf"))
+```
+
+
+
+
+
