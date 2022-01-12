@@ -210,7 +210,7 @@ if (!include_mpa) ggsave("figs/index-geo-restricted-highlights-noMPA.pdf", width
       ggrepel::geom_text_repel(data = filter(dat, `Restriction type` == "re_restr"),
                                aes(label = species_common_name),
                                colour = "darkgray",
-                               force = 3, direction = "y", max.overlaps = 2,
+                               force = 2, direction = "y", max.overlaps = 2,
                                min.segment.length = 10, size = 2) +
       geom_point() +
       theme(legend.position = "none", legend.title = element_blank()) +
@@ -542,8 +542,8 @@ if (!include_mpa) ggsave("figs/index-geo-restricted-highlights-noMPA.pdf", width
     left_join(lu) %>%
     ggplot(aes(forcats::fct_reorder(stringr::str_to_title(species_common_name), -est), est, colour = restr_clean, ymin = lwr, ymax = upr)) +
     geom_hline(yintercept = 1, lty = 2, col = "grey60") +
-    geom_pointrange(position = position_dodge(width = 0.5)) +
-    coord_flip() +
+    geom_pointrange(position = position_dodge(width = 0.75), size = 0.35) +
+    coord_flip(ylim = c(0.9, 1.6)) +
     xlab("") +
     ylab("Ratio of index CV (restricted/status quo)") +
     labs(colour = " ") +
