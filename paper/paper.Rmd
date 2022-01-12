@@ -85,13 +85,13 @@ Here, we...
 
 2. Model-based bootstrap: Fit a geostatistical spatiotemporal model to the observed data, predict on the full survey grid, sum the predicted biomass/abundance for the full survey domain. 
 We will use this index as our `status quo`.
-This model can also be used to predict an index for any portion of the full survey domain, for example, just the closed areas given us an index for within the proposed closed areas (`MPA only`).
+<!-- This model can also be used to predict an index for any portion of the full survey domain, for example, just the closed areas given us an index for within the proposed closed areas (`MPA only`). -->
 
 Analytical design-based approaches and other non-geostatistical model-based approaches also exist.
 
 
 <!-- ### Model-based indices can be applied to when restrictions are in place in two ways: -->
-### Approaches to indices when restrictions are in place:
+### Model-based indices when restrictions are in place can be renerated two ways:
 
 1. Restricted and extrapolated (`extrapolated`): Remove historical observations that would be part of closed areas with restrictions on the survey gear type; do not shrink the survey domain. In other words, continue extrapolating into the no-longer-surveyed area.
 
@@ -113,34 +113,18 @@ All index estimates were first scaled to their geometric mean across years.
 
 # Results
 
-# Discussion
+The effect of restrictions on survey indicies depends on the variability and certainty in the status quo index, as well as the proportion of the species' population occurs inside the restricted areas (Figures \@ref(fig:indices) for highlights, and \@ref(fig:indices-hs), \@ref(fig:indices-qcs), \@ref(fig:indices-wchg), \@ref(fig:indices-hbll) for all species-survey combinations with converged models).
+Extrapolation can either over or underestimate the index for a given survey in a given year (solid orange line vs. dotted grey line in Figure \@ref(fig:indices)). 
+Shrinking the survey index to exclude restricted areas consistently lowers the total index to a degree proportional to the species' average abundance within the restricted areas, but otherwise parallels the extrapolated index (blue line vs. orange line in Figure \@ref(fig:indices)).
+CV ratios greater than 1 represent reduced precision of index estimates relative to the status quo index; the shrunk index loses less precision (has lower CV ratios) than the extrapolated index (blue dots lower than orange ones in Figures \@ref(fig:hbll-plots)a-b and \@ref(fig:qcs-plots)a-b). 
+However, this increase in precision has little 
 
-# Acknowledgements
-
-# Figures
-
-(ref:indices) Survey indices calculated from a geostatistical model for a selection of species (ordered by taxonomic group) and with a range of relative abundances and certainty regarding their population trajectories. Grey lines are based on the original (status quo) index based on all the survey samples. The dotted line represents the for the whole survey area while the solid line is the estimate within the the proposed restricted areas (MPAs). Coloured solid lines represent indices based on survey samples outside the proposed restricted areas only. The extrapolated index includes estimated relative abundance inside the restricted areas but without any samples from those areas. The shrunk index only estimates the relative abundance for unrestricted parts of the survey grid. Shaded areas indicate the 95% CIs.
-
-```{r indices, out.width="0.8\\textwidth", fig.cap="(ref:indices)"}
-include_graphics(here("figs/index-geo-restricted-highlights.pdf"))
-```
-
-```{r, out.width="0.8\\textwidth", fig.cap="Relative error by year for the same selection of species. Relative error is calculated as the difference between the restricted index estimate (either extrapotated or shrunk) and the status quo index as a proportion of the total status quo index in that year. "}
-include_graphics(here("figs/index-geo-restricted-re-highlights.pdf"))
-```
+If a larger portion of the species' population occurs inside the restricted areas, than  imprecision (uncertainty) tends to be higher (Figures \@ref(fig:hbll-plots)b and \@ref(fig:qcs-plots)b), and the relative error (MARE) between restricted indices and the status quo tends to be larger (Figures \@ref(fig:hbll-plots)d and \@ref(fig:qcs-plots)d).
 
 
 <!-- #### fig 1 -->
 <!-- # cv_ratio = precision - shrunk reduces loss of precision -->
 <!-- # mare = accuracy of mean - uncertain becomes more uncertain -->
-
-```{r, out.width="0.9\\textwidth", fig.cap="For the HBLL survey, the uncertainty (precision) as measured by smaller ratios of the CV for restricted to status quo indices (top row), and accuracy in the form of median absolute relative error (MARE; bottom row) for restricted indices appear correlated with uncertainty of the original index and the proportion of a population affected by the restriction. For a given species, shrinking the survey grid (blue), rather than extrapolating (orange), lowers uncertainty (blue dots almost always have lower CV ratio than orange in the top row plots) but can also reduce accuracy (increases MARE; blue dots sometimes higher than orange in bottom row plots). A positive correlation between CV ratio and CV of the Status quo index (top left plot) suggest that already uncertain indices become more uncertain when restricted, but that there isn't a tight relationship between status quo uncertainty and MARE (bottom left). The higher the proportion of a species abundance/biomass found in the restricted area, the more uncertain (CV ratios much greater than 1) a restricted index is relative to status quo (top right)."}
-include_graphics(here("figs/explore-hbll-cv.pdf"))
-```
-
-```{r, out.width="0.9\\textwidth", fig.cap="For the Queen Charlotte Sound synoptic trawl survey, the patterns are similar to those found for the HBLL survey, except that shrinking the survey grid seems to have the increase uncertainty when a lower proportion of a species abundance/biomass is found in the restricted area, but that doing so acts in the usual way to increase precision when a higher proportion of a species abundance/biomass is found in the restricted area. PROBABLY REMOVE, OR MOVE TO SUPPLEMENT."}
-include_graphics(here("figs/explore-qcs-cv.pdf"))
-```
 
 
 <!-- # fig 2 -->
@@ -150,14 +134,42 @@ include_graphics(here("figs/explore-qcs-cv.pdf"))
 <!-- # - what is ultimately expected to happen for species target for protection in mpas -->
 
 
-```{r, out.width="\\textwidth", fig.cap="The direction of bias, as estimated by the slope of relative error (RE) through time, is related to change in the proportion of a species' abundance or biomass inside the restricted areas. Most surveys tended to have a positive trend in RE (restricted survey indices estimating higher abundance than the status quo) if the proportion inside restricted areas was declining (top left quadrant) or a negative trend in RE (restricted survey indices estimating a trend toward lower abundance than the status quo) when the proportion inside restricted areas was declining (bottom right quadrant)."}
-include_graphics(here("figs/explore-all-slopes.pdf"))
+# Discussion
+
+# Acknowledgements
+
+# Figures
+
+(ref:indices) Survey indices calculated from a geostatistical model for a selection of species (ordered by taxonomic group) and with a range of relative abundances and uncertainty regarding their population trajectories. <!--Grey lines are the original (status quo) index based on all the survey samples. The dotted line represents the whole survey area while the solid line is the estimate within the the proposed restricted areas (MPAs). --> The dotted grey line is the index for the whole survey grid based on all the survey samples---the `status quo` index. Coloured solid lines represent indices based on survey samples outside the proposed restricted areas. The `extrapolated` index estimates the relative abundance for the same total area as the `status quo` index but without any samples from inside the restricted areas. The `shrunk` index only estimates the relative abundance for unrestricted parts of the survey grid. Shaded areas indicate the 95% CIs.
+
+```{r indices, out.width="1\\textwidth", fig.cap="(ref:indices)"}
+# include_graphics(here("figs/index-geo-restricted-highlights.pdf")) # could include an MPA only index
+include_graphics(here("figs/index-geo-restricted-highlights-noMPA.pdf"))
+```
+
+```{r re-trend, out.width="1\\textwidth", fig.cap="Relative error by year for the same selection of species. Relative error is calculated as the difference between the restricted index estimate (either extrapotated or shrunk) and the status quo index as a proportion of the total status quo index in that year. "}
+# include_graphics(here("figs/index-geo-restricted-re-highlights.pdf"))
+include_graphics(here("figs/index-geo-restricted-re-highlights-fixed.pdf"))# scale y axis the same across sp
 ```
 
 
-<!-- ```{r, out.width="0.9\\textwidth", fig.cap=""} -->
-<!-- include_graphics(here("figs/explore-abs-slope.pdf")) -->
-<!-- ``` -->
+```{r hbll-plots, out.width="0.9\\textwidth", fig.cap="For the HBLL survey, the uncertainty (precision) as measured by smaller ratios of the CV for restricted to status quo indices (top row), and accuracy in the form of median absolute relative error (MARE; bottom row) for restricted indices appear correlated with uncertainty of the original index and the proportion of a population affected by the restriction. For a given species, shrinking the survey grid (blue), rather than extrapolating (orange), lowers uncertainty (blue dots almost always have lower CV ratio than orange in the top row plots) but can also reduce accuracy (increases MARE; blue dots sometimes higher than orange in bottom row plots). A positive correlation between CV ratio and CV of the Status quo index (top left plot) suggest that already uncertain indices become more uncertain when restricted, but that there isn't a tight relationship between status quo uncertainty and MARE (bottom left). The higher the proportion of a species abundance/biomass found in the restricted area, the more uncertain (CV ratios much greater than 1) a restricted index is relative to status quo (top right)."}
+include_graphics(here("figs/explore-hbll-cv.pdf"))
+```
+
+```{r qcs-plots, out.width="0.9\\textwidth", fig.cap="For the Queen Charlotte Sound synoptic trawl survey, the patterns are similar to those found for the HBLL survey, except that shrinking the survey grid seems to have the increase uncertainty when a lower proportion of a species abundance/biomass is found in the restricted area, but that doing so acts in the usual way to increase precision when a higher proportion of a species abundance/biomass is found in the restricted area. REMOVE, OR MOVE TO SUPPLEMENT?"}
+include_graphics(here("figs/explore-qcs-cv.pdf"))
+```
+
+
+```{r mare-by-cv-ratio, out.width="\\textwidth", fig.cap="..."}
+include_graphics(here("figs/explore-all-mare-by-cv-ratio.pdf"))
+```
+
+
+```{r slopes, out.width="\\textwidth", fig.cap="The direction of bias, as estimated by the slope of relative error (RE) through time, is related to change in the proportion of a species' abundance or biomass inside the restricted areas. Most surveys tended to have a positive trend in RE (restricted survey indices estimating higher abundance than the status quo) if the proportion inside restricted areas was declining (top left quadrant) or a negative trend in RE (restricted survey indices estimating a trend toward lower abundance than the status quo) when the proportion inside restricted areas was declining (bottom right quadrant)."}
+include_graphics(here("figs/explore-all-slopes.pdf"))
+```
 
 
 \clearpage
@@ -174,19 +186,19 @@ include_graphics(here("figs/explore-all-slopes.pdf"))
 
 # Supplemental Materials
 
-```{r, out.width="\\textwidth", fig.cap="SYN HS indices calculated from a geostatistical model."}
+```{r indices-hs, out.width="\\textwidth", fig.cap="SYN HS indices calculated from a geostatistical model."}
 include_graphics(here("figs/index-hs-geo-restricted.pdf"))
 ```
 
-```{r, out.width="\\textwidth", fig.cap="SYN QCS indices calculated from a geostatistical model."}
+```{r indices-qcs, out.width="\\textwidth", fig.cap="SYN QCS indices calculated from a geostatistical model."}
 include_graphics(here("figs/index-qcs-geo-restricted.pdf"))
 ```
 
-```{r, out.width="\\textwidth", fig.cap="SYN WCHG indices calculated from a geostatistical model."}
+```{r indices-wchg, out.width="\\textwidth", fig.cap="SYN WCHG indices calculated from a geostatistical model."}
 include_graphics(here("figs/index-wchg-geo-restricted.pdf"))
 ```
 
-```{r, out.width="\\textwidth", fig.cap="HBLL N indices calculated from a geostatistical model."}
+```{r indices-hbll, out.width="\\textwidth", fig.cap="HBLL N indices calculated from a geostatistical model."}
 include_graphics(here("figs/index-hbll-geo-restricted.pdf"))
 ```
 
