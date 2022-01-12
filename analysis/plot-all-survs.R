@@ -1,10 +1,11 @@
 # make plots that combine surveys
 
 library(tidyverse)
+library(egg)
 theme_set(ggsidekick::theme_sleek())
 
 include_mpa <- TRUE
-include_mpa <- FALSE
+# include_mpa <- FALSE
 
 y1 <- readRDS(file = "data-generated/index-hbll-geo-clean.rds") %>%
   mutate(est = est/10000, lwr = lwr/10000, upr = upr/10000)
@@ -34,10 +35,10 @@ syn_highlights <- c(
     "North Pacific Spiny Dogfish",
     # "Big Skate",
     "Sandpaper Skate",#
-    "Longnose Skate",#HS
+    # "Longnose Skate",#HS
     # "Spotted Ratfish",
 
-    "Pacific Cod",
+    # "Pacific Cod",
     "Walleye Pollock",#
     # "Pacific Hake",
     "Sablefish",
@@ -47,12 +48,12 @@ syn_highlights <- c(
     # "Canary Rockfish",
     # "Copper Rockfish",
     # "Greenstriped Rockfish",#HS
-    "Quillback Rockfish",
+    # "Quillback Rockfish",
     "Redbanded Rockfish",#HS
     # # "Redstripe Rockfish",
     # "Rosethorn Rockfish",
     # "Rougheye/Blackspotted Rockfish Complex",#HBLL
-    # "Silvergray Rockfish",
+    # "Silvergray Rockfish", # an interesting one
     "Yelloweye Rockfish",
     # "Yellowtail Rockfish",
     # "Shortspine Thornyhead",
@@ -86,8 +87,8 @@ if (!include_mpa) index <- index %>% filter(type != "MPA only")
   library(RColorBrewer)
   brewer.pal(4, "Set2")
 
-  if (include_mpa) colour_pal <- c("gray60", "#FC8D62", "#8DA0CB", "gray80")
-  if (!include_mpa) colour_pal <- c("gray60", "#FC8D62", "#8DA0CB")
+  if (include_mpa) colour_pal <- c("gray50", "#FC8D62", "#8DA0CB", "gray80")
+  if (!include_mpa) colour_pal <- c("gray50", "#FC8D62", "#8DA0CB")
   if (include_mpa) line_pal <- c("dotted", "solid", "solid", "solid")
   if (!include_mpa) line_pal <- c("dotted", "solid", "solid")
 
@@ -97,7 +98,7 @@ if (!include_mpa) index <- index %>% filter(type != "MPA only")
     ggplot(aes(year, est, ymin = lwr, ymax = upr,
                colour = type_label, fill = type_label, linetype = type_label)) +
     geom_line(lwd = 0.6) +
-    geom_ribbon(alpha = 0.2, colour = NA) +
+    geom_ribbon(alpha = 0.1, colour = NA) +
     labs(x = "Year", colour = "Type", fill = "Type", linetype = "Type") +
     scale_colour_manual(values = colour_pal) +
     scale_fill_manual(values = colour_pal) +
@@ -118,7 +119,7 @@ if (!include_mpa) index <- index %>% filter(type != "MPA only")
     ggplot(aes(year, est, ymin = lwr, ymax = upr,
                colour = type_label, fill = type_label, linetype = type_label)) +
     geom_line(lwd = 0.6) +
-    geom_ribbon(alpha = 0.2, colour = NA) +
+    geom_ribbon(alpha = 0.1, colour = NA) +
     labs(x = "Year", colour = " ", fill = " ", linetype = " ") +
     scale_colour_manual(values = colour_pal) +
     scale_fill_manual(values = colour_pal) +
@@ -128,14 +129,14 @@ if (!include_mpa) index <- index %>% filter(type != "MPA only")
     ylab("Relative biomass") +
     ggtitle("") +
     theme(legend.justification=c(0,1), legend.position=c(-0.28,1.085), legend.direction = "horizontal",
-      strip.text.y = element_text(size = 7, angle = 0, hjust = 0),
+      strip.text.y = element_text(size = 9, angle = 0, hjust = 0),
           axis.title.y = element_blank(),
           axis.title.x = element_text(hjust = 0.2))
 
   g1 + g2 + patchwork::plot_layout(widths = c(1,2))
 
 if (include_mpa) ggsave("figs/index-geo-restricted-highlights.pdf", width = 6.5, height = 8)
-if (!include_mpa) ggsave("figs/index-geo-restricted-highlights-noMPA.pdf", width = 6.5, height = 8)
+if (!include_mpa) ggsave("figs/index-geo-restricted-highlights-noMPA.pdf", width = 7, height = 8)
 
   x <- index %>%
     group_by(species_common_name, survey_abbrev, type) %>%
@@ -164,23 +165,226 @@ if (!include_mpa) ggsave("figs/index-geo-restricted-highlights-noMPA.pdf", width
     filter(species_common_name %in% syn_highlights) %>%
     mutate(species_common_name = factor(species_common_name, levels = syn_highlights)) %>%
     ggplot(aes(year, re, colour = restr_clean)) +
-    geom_hline(yintercept = 0, lty = 2) +
-    geom_line(size = 0.8, alpha =0.8) +
+    geom_hline(yintercept = 0, lty = 2, alpha = 0.5) +
+    geom_line(size = 0.84, alpha = 0.9) +
     # scale_color_brewer(palette = "Set2") +
     scale_colour_manual(values = c("#FC8D62", "#8DA0CB"), label=c("Extrapolated", "Shrunk")) +
     ylab("Relative error") + xlab("Year") +
-    facet_grid(species_common_name~survey_abbrev, scales = "free") +
-    scale_y_continuous(breaks = waiver(), n.breaks = 4) +
     # scale_y_continuous(trans = "S_sqrt", breaks = c(-0.5,-0.1,0, 0.1, 0.5)) +
-    # coord_cartesian(ylim = c(-0.35, 0.4)) +
+    # coord_cartesian() + #ylim = c(-0.35, 0.4)
     labs(colour = "") +
     ggtitle("") +
     theme(legend.justification=c(0.5,1), legend.position=c(0.5,1.065), legend.direction = "horizontal",
           # legend.position = "top", legend.justification=c(0.5,1),
-          strip.text.y = element_text(size = 7, angle = 0, hjust = 0))
-  g
+          strip.text.y = element_text(size = 9, angle = 0, hjust = 0))
 
-  ggsave("figs/index-geo-restricted-re-highlights.pdf", width = 5.75, height = 8)
+  (g <- g +
+      scale_y_continuous(breaks = waiver(), n.breaks = 5) +
+      facet_grid(species_common_name~survey_abbrev, scales = "free"))
+
+  ggsave("figs/index-geo-restricted-re-highlights.pdf", width = 6.75, height = 8)
+
+  (g <- g +
+    scale_y_continuous(breaks = waiver(), n.breaks = 3) +
+    facet_grid(species_common_name~survey_abbrev, scales = "free_x"))
+
+  ggsave("figs/index-geo-restricted-re-highlights-fixed.pdf", width = 6.75, height = 8)
+
+
+  # exploratory cv ratio and slope plots
+
+  # combine all surveys
+  cvdata1 <- readRDS("data-generated/hbll-cv-w-lm-slopes.rds")
+  cvdata2 <- readRDS("data-generated/syn-cv-w-lm-slopes.rds")
+
+  glimpse(cvdata1)
+  glimpse(cvdata2)
+
+  cvdata <- bind_rows(cvdata1, cvdata2)
+
+  plot_scatter <- function(dat, x, y) {
+    ggplot(dat, aes_string(x, y,
+                           colour = "restr_clean",
+                           group = "species_common_name")) +
+      geom_line(colour = "gray95") +
+      ggrepel::geom_text_repel(data = filter(dat, `Restriction type` == "re_restr"),
+                               aes(label = species_common_name),
+                               colour = "darkgray",
+                               force = 3, direction = "y", max.overlaps = 2,
+                               min.segment.length = 10, size = 2) +
+      geom_point() +
+      theme(legend.position = "none", legend.title = element_blank()) +
+      scale_colour_manual(values = c("#FC8D62", "#8DA0CB"), label=c("Extrapolated", "Shrunk"))
+    # scale_color_brewer(palette = "Set2")
+  }
+
+  cvdata2 <- cvdata
+  cvdata2[cvdata2$cv_ratio > 1.5 , ]$cv_ratio <- 1.5
+
+  (g <- plot_scatter(cvdata2, "cv_ratio", "mare") +
+      xlab("CV Ratio") +
+      ylab("MARE") +
+      guides(shape = "none") +
+      facet_wrap(~survey_abbrev,
+                 ncol = 2,
+                 # cols = vars(survey_abbrev),
+                 # switch = "y",
+                 scales = "free_x") +
+      theme(legend.position = c(0.12,0.96),
+            strip.placement = "outside"))
+
+  g <- tag_facet(g, hjust = -0.5, vjust = 2, fontface = 1)
+  # g
+  ggsave("figs/explore-all-mare-by-cv-ratio.pdf", width = 7, height = 7)
+
+
+  #### fig 1
+  # cv_ratio = precision - shrunk reduces loss of precision
+  # mare = accuracy of mean - uncertain becomes more uncertain
+
+  d <- cvdata %>%
+    tidyr::pivot_longer(c("cv_ratio", "mare"), names_to = "Response", values_to = "cv_index") %>%
+    ungroup() %>%
+    filter(cv_index < 1.6) %>%
+    mutate(Response = factor(Response, labels = c("CV Ratio", "MARE")))
+
+  # plots of just HBLL
+  d2 <- filter(d, survey_abbrev == "HBLL OUT N")
+
+  (g1 <- plot_scatter(d2, "cv_orig", "cv_index") +
+      xlab("CV of 'Status quo' index") +
+      guides(shape = "none") +
+      facet_grid(rows=vars(Response),
+                 # cols = vars(survey_abbrev),
+                 switch = "y",
+                 scales = "free_y") +
+      theme(axis.title.y = element_blank(),
+            legend.position = c(0.2,0.93),
+            strip.placement = "outside"))
+
+  (g2 <- plot_scatter(d2, "prop_mpa", "cv_index") +
+      xlab("Biomass proportion inside MPAs") +
+      guides(shape = "none") +
+      facet_wrap(~Response, strip.position = "top", nrow = 2, scales = "free_y") +
+      theme(strip.placement = "outside", strip.text.x = element_blank(),
+            plot.margin = unit(c(0,0,0,0), "cm"),
+            axis.title.y = element_blank(),
+            axis.text.y = element_blank(),
+            axis.ticks.y = element_blank()))
+
+  g1 <- tag_facet(g1, tag_pool = c("a","c"), hjust = -0.5, vjust = 2, fontface = 1)
+  g2 <- tag_facet(g2, tag_pool = c("b","d"), hjust = -0.5, vjust = 2, fontface = 1)
+
+  g1 + g2 + patchwork::plot_layout(nrow = 1)
+
+  ggsave("figs/explore-hbll-cv.pdf", width = 7, height = 7)
+
+  # plots of just QCS
+  d3 <- filter(d, survey_abbrev == "SYN QCS")
+
+  (g1 <- plot_scatter(d3, "cv_orig", "cv_index") +
+      xlab("CV of 'Status quo' index") +
+      guides(shape = "none") +
+      facet_grid(rows=vars(Response),
+                 # cols = vars(survey_abbrev),
+                 switch = "y",
+                 scales = "free_y") +
+      theme(axis.title.y = element_blank(),
+            # legend.position = c(0.2,0.95),
+            strip.placement = "outside"))
+
+  (g2 <- plot_scatter(d3, "prop_mpa", "cv_index") +
+      xlab("Biomass proportion inside MPAs") +
+      guides(shape = "none") +
+      facet_wrap(~Response, strip.position = "top", nrow = 2, scales = "free_y") +
+      theme(strip.placement = "outside", strip.text.x = element_blank(),
+            plot.margin = unit(c(0,0,0,0), "cm"),
+            legend.position = c(0.25,0.97),
+            axis.title.y = element_blank(),
+            axis.text.y = element_blank(),
+            axis.ticks.y = element_blank()))
+
+  g1 <- tag_facet(g1, tag_pool = c("a","c"), hjust = -0.5, vjust = 2, fontface = 1)
+  g2 <- tag_facet(g2, tag_pool = c("b","d"), hjust = -0.5, vjust = 2, fontface = 1)
+
+  g1 + g2 + patchwork::plot_layout(nrow = 1)
+
+  ggsave("figs/explore-qcs-cv.pdf", width = 7, height = 7)
+
+
+
+  # plot all surveys at once for appendix
+  if(length(unique(d$survey_abbrev))> 3){
+
+    (g <- plot_scatter(d, "prop_mpa", "cv_index") +
+       xlab("Biomass proportion inside MPAs") +
+       guides(shape = "none") +
+       facet_grid(rows=vars(Response),
+                  cols = vars(survey_abbrev),
+                  switch = "y",
+                  scales = "free_y") +
+       theme(axis.title.y = element_blank(),
+             legend.position = c(0.1,0.95),
+             strip.placement = "outside"))
+
+    (g <- tag_facet(g, fontface = 1))
+
+    ggsave("figs/explore-all-cv-by-mpa.pdf", width = 10, height = 5.5)
+
+    (g0 <- plot_scatter(d, "cv_orig", "cv_index") +
+        xlab("CV of 'Status quo' index") +
+        guides(shape = "none") +
+        facet_grid(rows=vars(Response),
+                   cols = vars(survey_abbrev),
+                   switch = "y",
+                   scales = "free_y") +
+        theme(axis.title.y = element_blank(),
+              legend.position = c(0.1,0.95),
+              strip.placement = "outside"))
+    (g0 <- tag_facet(g0, fontface = 1))
+    ggsave("figs/explore-all-cv-by-cv.pdf", width = 10, height = 5.5)
+
+  }
+
+
+  # fig 2
+  # good - once you get a slope of prop mpa overtime it predicts a given bias
+  # bottomright = increasing hiding sp, so negative bias over time - fishing?, by chance = local climate velocity
+  # topleft = increasing species, so positive bias
+  # - what is ultimately expected to happen for species target for protection in mpas
+
+  d_mare <- filter(d, Response == "MARE")
+  (g <- plot_scatter(d_mare, "slope_mpa", "slope_re/100") +
+      facet_wrap(~survey_abbrev,
+                 # rows = vars(survey_abbrev), # switch = "y",
+                 scales = "free") +
+      ylab("Change in RE per decade") +
+      xlab("Change in proportion of biomass inside MPAs") +
+      geom_hline(yintercept = 0, colour = "gray80") +
+      geom_vline(xintercept = 0, colour = "gray70"))
+
+  ggsave("figs/explore-all-slopes.pdf", width = 7, height = 7)
+
+  (g <- plot_scatter(d_mare, "prop_mpa", "abs(slope_re/100)") +
+      ylab("Absolute change in RE per decade") +
+      xlab("Proportion of biomass inside MPAs") +
+      facet_wrap(~survey_abbrev,# rows = vars(survey_abbrev), # switch = "y",
+                 scales = "free") + theme(legend.position = c(0.08,0.96)))
+  ggsave("figs/explore-abs-slope.pdf", width = 7, height = 7)
+
+
+  ### benefits of interpolation
+
+  d <- cvdata %>% group_by(species_common_name, survey_abbrev) %>% mutate(
+    temp_bias_interp_ratio = abs(slope_re[restr_clean == "Same survey domain"])/abs(slope_re[restr_clean == "Shrunk survey domain"]),
+    cv_interp_ratio = (cv_mean[restr_clean == "Same survey domain"])/(cv_mean[restr_clean == "Shrunk survey domain"]),
+    mare_interp_ratio = (mare[restr_clean == "Same survey domain"])/(mare[restr_clean == "Shrunk survey domain"])
+  )
+
+  median(d$temp_bias_interp_ratio)
+  median(d$cv_interp_ratio)
+  median(d$mare_interp_ratio)
+
 
 
 # supplements
