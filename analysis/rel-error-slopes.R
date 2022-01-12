@@ -5,8 +5,10 @@ library(sdmTMB)
 theme_set(ggsidekick::theme_sleek())
 options(dplyr.summarise.inform = FALSE)
 
+# Globals to set ------------------------------
 # survey <- "HBLL"
 survey <- "SYN"
+# ---------------------------------------------
 
 
 # for now using delta-gamma?

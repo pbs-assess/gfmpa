@@ -20,7 +20,6 @@ include_mpa <- FALSE
 # library(RColorBrewer)
 # brewer.pal(4, "Set2")
 restricted_cols <- c("#FC8D62", "#8DA0CB")
-
 if (include_mpa) colour_pal <- c("gray50", restricted_cols, "gray80")
 if (!include_mpa) colour_pal <- c("gray50", restricted_cols)
 if (include_mpa) line_pal <- c("dotted", "solid", "solid", "solid")
@@ -39,14 +38,16 @@ filter(y, orig_cv > 1)
 filter(y, orig_cv <= 1)
 index <- filter(y, orig_cv < 1)
 
+index$species_common_name <- stringr::str_to_title(index$species_common_name)
+if (!include_mpa) index <- index %>% filter(type != "MPA only")
+
+
+# choose labels for each index type ----
+restricted_labels <- c("Extrapolated", "Shrunk")
 index$type_label <- index$type
 index[index$type == "Restricted",]$type_label <- "Extrapolated"
 index[index$type == "Restricted and shrunk",]$type_label <- "Shrunk"
 index$type_label <- factor(index$type_label, levels = c("Status quo", "Extrapolated", "Shrunk", "MPA only"))
-
-index$species_common_name <- stringr::str_to_title(index$species_common_name)
-
-if (!include_mpa) index <- index %>% filter(type != "MPA only")
 
 
 # select species to highlight in figures 1 and 2 ----
@@ -189,7 +190,7 @@ if (!include_mpa) ggsave("figs/index-geo-restricted-highlights-noMPA.pdf", width
     geom_hline(yintercept = 0, lty = 2, alpha = 0.5) +
     geom_line(size = 0.84, alpha = 0.9) +
     # scale_color_brewer(palette = "Set2") +
-    scale_colour_manual(values = c("#FC8D62", "#8DA0CB"), label=c("Extrapolated", "Shrunk")) +
+    scale_colour_manual(values = restricted_cols, label= ) +
     ylab("Relative error") + xlab("Year") +
     # scale_y_continuous(trans = "S_sqrt", breaks = c(-0.5,-0.1,0, 0.1, 0.5)) +
     # coord_cartesian() + #ylim = c(-0.35, 0.4)
@@ -212,9 +213,8 @@ if (!include_mpa) ggsave("figs/index-geo-restricted-highlights-noMPA.pdf", width
   ggsave("figs/index-geo-restricted-re-highlights-fixed.pdf", width = 6.75, height = 8)
 
 
-# exploratory cv ratio and slope plots ----
 
-  # combine precision, accuracy and bias data from all surveys
+# combine precision, accuracy and bias data from all surveys ----
   cvdata1 <- readRDS("data-generated/hbll-cv-w-lm-slopes.rds")
   cvdata2 <- readRDS("data-generated/syn-cv-w-lm-slopes.rds")
 
@@ -222,7 +222,14 @@ if (!include_mpa) ggsave("figs/index-geo-restricted-highlights-noMPA.pdf", width
   # glimpse(cvdata2)
   cvdata <- bind_rows(cvdata1, cvdata2)
 
-  # function for scatterplots
+  d <- cvdata %>%
+    tidyr::pivot_longer(c("cv_ratio", "mare"), names_to = "Response", values_to = "cv_index") %>%
+    ungroup() %>%
+    filter(cv_index < 1.6) %>%
+    mutate(Response = factor(Response, labels = c("CV Ratio", "MARE")))
+
+
+# function for scatterplots ----
   plot_scatter <- function(dat, x, y) {
     ggplot(dat, aes_string(x, y,
                            colour = "restr_clean",
@@ -235,15 +242,9 @@ if (!include_mpa) ggsave("figs/index-geo-restricted-highlights-noMPA.pdf", width
                                min.segment.length = 10, size = 2) +
       geom_point() +
       theme(legend.position = "none", legend.title = element_blank()) +
-      scale_colour_manual(values = restricted_cols, label=c("Extrapolated", "Shrunk"))
-    # scale_color_brewer(palette = "Set2")
+      scale_colour_manual(values = restricted_cols, label=restricted_labels)
   }
 
-  d <- cvdata %>%
-    tidyr::pivot_longer(c("cv_ratio", "mare"), names_to = "Response", values_to = "cv_index") %>%
-    ungroup() %>%
-    filter(cv_index < 1.6) %>%
-    mutate(Response = factor(Response, labels = c("CV Ratio", "MARE")))
 
 # FIGURE 3: HBLL - CV ratio and MARE by status quo CV and prop MPA ----
 
@@ -473,7 +474,7 @@ if (!include_mpa) ggsave("figs/index-geo-restricted-highlights-noMPA.pdf", width
     geom_hline(yintercept = 0, lty = 2) +
     geom_line(size = 0.8, alpha =0.8) +
     # scale_color_brewer(palette = "Set2") +
-    scale_colour_manual(values = c("#FC8D62", "#8DA0CB"), label=c("Extrapolated", "Shrunk")) +
+    scale_colour_manual(values = restricted_cols, label=restricted_labels) +
     ylab("Relative error") + xlab("Year") +
     facet_wrap(~species_common_name, scales = "free_y", ncol = 5) +
     # scale_y_continuous(trans = "S_sqrt", breaks = c(-0.5,-0.1,0, 0.1, 0.5)) +
@@ -487,7 +488,7 @@ if (!include_mpa) ggsave("figs/index-geo-restricted-highlights-noMPA.pdf", width
     geom_hline(yintercept = 0, lty = 2) +
     geom_line(size = 0.8, alpha =0.8) +
     # scale_color_brewer(palette = "Set2") +
-    scale_colour_manual(values = c("#FC8D62", "#8DA0CB"), label=c("Extrapolated", "Shrunk")) +
+    scale_colour_manual(values = restricted_cols, label=restricted_labels) +
     ylab("Relative error") + xlab("Year") +
     facet_wrap(~species_common_name, scales = "free_y", ncol = 5) +
     labs(colour = "")
@@ -499,7 +500,7 @@ if (!include_mpa) ggsave("figs/index-geo-restricted-highlights-noMPA.pdf", width
     geom_hline(yintercept = 0, lty = 2) +
     geom_line(size = 0.8, alpha =0.8) +
     # scale_color_brewer(palette = "Set2") +
-    scale_colour_manual(values = c("#FC8D62", "#8DA0CB"), label=c("Extrapolated", "Shrunk")) +
+    scale_colour_manual(values = restricted_cols, label=restricted_labels) +
     ylab("Relative error") + xlab("Year") +
     facet_wrap(~species_common_name, scales = "free_y", ncol = 5) +
     labs(colour = "")
@@ -511,7 +512,7 @@ if (!include_mpa) ggsave("figs/index-geo-restricted-highlights-noMPA.pdf", width
     geom_hline(yintercept = 0, lty = 2) +
     geom_line(size = 0.8, alpha =0.8) +
     # scale_color_brewer(palette = "Set2") +
-    scale_colour_manual(values = c("#FC8D62", "#8DA0CB"), label=c("Extrapolated", "Shrunk")) +
+    scale_colour_manual(values = restricted_cols, label=restricted_labels) +
     ylab("Relative error") + xlab("Year") +
     facet_wrap(~species_common_name, scales = "free_y", ncol = 5) +
     labs(colour = "")
@@ -551,7 +552,7 @@ if (!include_mpa) ggsave("figs/index-geo-restricted-highlights-noMPA.pdf", width
     xlab("") +
     ylab("Ratio of index CV (restricted/status quo)") +
     labs(colour = " ") +
-    scale_colour_manual(values = c("#FC8D62", "#8DA0CB"), label=c("Extrapolated", "Shrunk")) +
+    scale_colour_manual(values = restricted_cols, label=restricted_labels) +
     theme(legend.position = "top", panel.grid.major.y = element_line(colour = "grey90"))+
     facet_wrap(~survey_abbrev, ncol = 4, scales = "free_x")
   g
@@ -572,7 +573,7 @@ if (!include_mpa) ggsave("figs/index-geo-restricted-highlights-noMPA.pdf", width
     ylab("Median absolute relative error (MARE) of restricted index compared to status quo") +
     labs(colour = "") +
     coord_flip() + scale_y_continuous(breaks = waiver(), n.breaks = 4) +
-    scale_colour_manual(values = c("#FC8D62", "#8DA0CB"), label=c("Extrapolated", "Shrunk")) +
+    scale_colour_manual(values = restricted_cols, label=restricted_labels) +
     theme(legend.position = "top", panel.grid.major.y = element_line(colour = "grey90")) +
     # guides(colour = guide_legend(nrow = 2L))+
     facet_wrap(~survey_abbrev, ncol = 4)
