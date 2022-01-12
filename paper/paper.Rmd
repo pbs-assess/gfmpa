@@ -1,7 +1,9 @@
 ---
 title: "Impacts of the exclusion of scientific surveys from closed areas on population indices, stock assessment, and conservation"
 author: "|
-  Authors$^1$^[Corresponding author: email@dfo-mpo.gc.ca], Other authors\n| $^1$Pacific Biological Station Fisheries and Oceans Canada, \n| Nanaimo, BC, Canada\n|
+  Sean C. Anderson$^1$^[Corresponding author: sean.anderson@dfo-mpo.gc.ca],
+  Philina A. English$^1$,
+  Other authors\n| $^1$Pacific Biological Station Fisheries and Oceans Canada, \n| Nanaimo, BC, Canada\n|
   $^2$Other addresses\n"
 output:
     bookdown::pdf_document2:
@@ -110,7 +112,7 @@ All index estimates were first scaled to their geometric mean across years.
 
 - MARE: median absolute relative error; this is the median absolute relative error, here taken across years. This represents the typical magnitude of relative error you would expect for any year.
 
-- Change in RE over time: To assess bias, we calculated the slope of a linear regression of annual RE by year and report it in units of proportional change by decade. 
+- Change in RE over time: to assess bias, we calculated the slope of a linear regression of annual RE by year and report it in units of proportional change by decade. 
 
 # Results
 

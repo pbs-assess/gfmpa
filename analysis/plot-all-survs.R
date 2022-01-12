@@ -363,6 +363,7 @@ if (!include_mpa) ggsave("figs/index-geo-restricted-highlights-noMPA.pdf", width
       geom_hline(yintercept = 0, colour = "gray80") +
       geom_vline(xintercept = 0, colour = "gray70"))
 
+  (g <- tag_facet(g, hjust = -0.5, vjust = 2, fontface = 1))
   ggsave("figs/explore-all-slopes.pdf", width = 7, height = 7)
 
   (g <- plot_scatter(d_mare, "prop_mpa", "abs(slope_re/100)") +
@@ -550,5 +551,7 @@ if (!include_mpa) ggsave("figs/index-geo-restricted-highlights-noMPA.pdf", width
     scale_colour_manual(values = c("#FC8D62", "#8DA0CB"), label=c("Extrapolated", "Shrunk")) +
     theme(legend.position = "top", panel.grid.major.y = element_line(colour = "grey90"))+
     facet_wrap(~survey_abbrev, ncol = 4, scales = "free_x")
-  g
+
+  # (g <- tag_facet_outside(g, fontface = 1))
+
   ggsave("figs/index-geo-cv-ratio-dotplot.pdf", width = 9, height = 9)
