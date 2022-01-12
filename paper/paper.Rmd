@@ -93,16 +93,17 @@ Analytical design-based approaches and other non-geostatistical model-based appr
 <!-- ### Model-based indices can be applied to when restrictions are in place in two ways: -->
 ### Model-based indices when restrictions are in place can be renerated two ways:
 
-1. Restricted and extrapolated (`extrapolated`): Remove historical observations that would be part of closed areas with restrictions on the survey gear type; do not shrink the survey domain. In other words, continue extrapolating into the no-longer-surveyed area.
+1. Restricted and extrapolated ("extrapolated"): Remove historical observations that would be part of closed areas with restrictions on the survey gear type; do not shrink the survey domain. In other words, continue extrapolating into the no-longer-surveyed area.
 
-2. Restricted and shrunk (`shrunk`): Same as restricted, but also "shrink" the survey domain by removing survey grid cells that overlap with the closed areas.
+2. Restricted and shrunk ("shrunk"): Same as restricted, but also "shrink" the survey domain by removing survey grid cells that overlap with the closed areas.
 
 
 ### Measures of precision, bias, and accuracy:
 
 In all cases, comparing restricted estimates to the estimates from the full historical survey set.
 
-- CV: the coefficient of variation of the index value in each year; this represents a standardized measure of imprecision on the estimate.
+- CV: the coefficient of variation is calculated from the SE on the index value in each year and represents a standardized measure of imprecision on the estimate. <!-- Should we include the formula? sqrt(exp(se^2) - 1) -->
+Here we assess CV as a mean across years for the status quo index, or as the average ratio between a restricted index and the status quo.
 
 - RE: relative error; $(\hat{\theta}_t - \theta_t) / \theta_t$, where $\hat{\theta}_t$ represents the index estimate from the restricted model in year $t$ and $\theta$ represents the index estimate from the full survey set. 
 All index estimates were first scaled to their geometric mean across years. 
@@ -113,14 +114,24 @@ All index estimates were first scaled to their geometric mean across years.
 
 # Results
 
-The effect of restrictions on survey indicies depends on the variability and certainty in the status quo index, as well as the proportion of the species' population occurs inside the restricted areas (Figures \@ref(fig:indices) for highlights, and \@ref(fig:indices-hs), \@ref(fig:indices-qcs), \@ref(fig:indices-wchg), \@ref(fig:indices-hbll) for all species-survey combinations with converged models).
+The effect of restrictions on survey indices depends on the CV of status quo index, as well as the proportion of the species' population occurs inside the restricted areas (Figures \@ref(fig:indices) for highlights, and \@ref(fig:indices-hs), \@ref(fig:indices-qcs), \@ref(fig:indices-wchg), \@ref(fig:indices-hbll) for all species-survey combinations with converged models).
 Extrapolation can either over or underestimate the index for a given survey in a given year (solid orange line vs. dotted grey line in Figure \@ref(fig:indices)). 
 Shrinking the survey index to exclude restricted areas consistently lowers the total index to a degree proportional to the species' average abundance within the restricted areas, but otherwise parallels the extrapolated index (blue line vs. orange line in Figure \@ref(fig:indices)).
-CV ratios greater than 1 represent reduced precision of index estimates relative to the status quo index; the shrunk index loses less precision (has lower CV ratios) than the extrapolated index (blue dots lower than orange ones in Figures \@ref(fig:hbll-plots)a-b and \@ref(fig:qcs-plots)a-b). 
-However, this increase in precision does not improve accuracy (reduce MARE; \@ref(fig:mare-by-cv-ratio)).
 
-If a larger portion of the species' population occurs inside the restricted areas, than  imprecision (uncertainty) tends to be higher (Figures \@ref(fig:hbll-plots)b and \@ref(fig:qcs-plots)b), and the relative error (MARE) between restricted indices and the status quo tends to be larger (Figures \@ref(fig:hbll-plots)d and \@ref(fig:qcs-plots)d).
 
+Accuracy as measured by RE for these restricted indices fluctuates from year to year (Figures \@ref(fig:re) for highlights, and \@ref(fig:re-hs), \@ref(fig:re-qcs), \@ref(fig:re-wchg), \@ref(fig:re-hbll) and overall (calculated as MARE) tended to be higher when the status quo CV was higher (bottom row of Figure \@ref(fig:cv-by-cv)).
+
+CV ratios greater than 1 indicate reduced precision of restricted index estimates relative to the status quo, but the differences between types of restriction tend to be small relative to the variation between years (Figure \@ref(fig:cv-dotplot). 
+However, the shrunk index tended to show less loss in precision (had lower CV ratios) than the extrapolated index (blue dots lower than orange ones in Figures \@ref(fig:hbll-plots)a-b and \@ref(fig:qcs-plots)a-b), although this increased precision did not improve accuracy (reduce MARE; Figure \@ref(fig:mare-by-cv-ratio)).
+
+If a larger portion of the species' population occurs inside the restricted areas, than  imprecision (uncertainty) tends to be higher (Figures \@ref(fig:cv-by-mpa) (top row), \@ref(fig:hbll-plots)b and \@ref(fig:qcs-plots)b), and the relative error (MARE) between restricted indices and the status quo tends to be larger (Figures \@ref(fig:cv-by-mpa) (bottom row), \@ref(fig:hbll-plots)d and \@ref(fig:qcs-plots)d).
+
+Change through time in the proportion of a species' abundance that is hidden inside restricted areas tends to predict the direction of bias in the restricted indices (Figure \@ref(fig:slopes)).
+If restrictions work as hoped, the proportion of a species occurring inside the MPAs will initially increase over time, which would be expected to cause the restricted indices to underestimate the true overall species abundance resulting in a negative trend in RE (lower right quadrant of Figure \@ref(fig:slopes)). 
+This can be thought of as increasing hiding of abundance inside unsurveyed MPAs. <!-- Probably a point better made in discussion? -->
+Because these restrictions are not actually in place yet, patterns like that for HBLL Walleye Pollock (Figure \@ref(fig:slopes)a), where RE has increased by 20% in a decade while the proportion inside the MPAs has gone up 60%, have occurred due to a combination of chance, relatively high status quo index CV, and low abundance inside MPAs (Figure \@ref(fig:hbll-plots)). 
+Species that are increasing very rapidly outside restricted areas will tend to result in a positive trend in RE (e.g., SYN QCS Sablefish; see Figures \@ref(fig:indices) and \@ref(fig:re)) and a decrease in the proportion of abundance hidden inside the restricted areas (top right quadrant of Figure \@ref(fig:slopes)). 
+In theory, a positive trend in RE with declining proportion inside the MPAs would also result where occupancy inside the restricted area reached a carrying capacity, but still facilitated increased recruitment to surrounding areas. <!-- discussion point? -->
 
 <!-- #### fig 1 -->
 <!-- # cv_ratio = precision - shrunk reduces loss of precision -->
@@ -140,20 +151,19 @@ If a larger portion of the species' population occurs inside the restricted area
 
 # Figures
 
-(ref:indices) Survey indices calculated from a geostatistical model for a selection of species (ordered by taxonomic group) and with a range of relative abundances and uncertainty regarding their population trajectories. <!--Grey lines are the original (status quo) index based on all the survey samples. The dotted line represents the whole survey area while the solid line is the estimate within the the proposed restricted areas (MPAs). --> The dotted grey line is the index for the whole survey grid based on all the survey samples---the `status quo` index. Coloured solid lines represent indices based on survey samples outside the proposed restricted areas. The `extrapolated` index estimates the relative abundance for the same total area as the `status quo` index but without any samples from inside the restricted areas. The `shrunk` index only estimates the relative abundance for unrestricted parts of the survey grid. Shaded areas indicate the 95% CIs.
+(ref:indices) Survey indices calculated from a geostatistical model for a selection of species (ordered by taxonomic group) and with a range of relative abundances and uncertainty regarding their population trajectories. <!--Grey lines are the original (status quo) index based on all the survey samples. The dotted line represents the whole survey area while the solid line is the estimate within the the proposed restricted areas (MPAs). --> The dotted grey line is the index for the whole survey grid based on all the survey samples---the "status quo" index. Coloured solid lines represent indices based on survey samples outside the proposed restricted areas. The "extrapolated" index estimates the relative abundance for the same total area as the `status quo` index but without any samples from inside the restricted areas. The "shrunk" index only estimates the relative abundance for unrestricted parts of the survey grid. Shaded areas indicate the 95% CIs.
 
 ```{r indices, out.width="1\\textwidth", fig.cap="(ref:indices)"}
 # include_graphics(here("figs/index-geo-restricted-highlights.pdf")) # could include an MPA only index
 include_graphics(here("figs/index-geo-restricted-highlights-noMPA.pdf"))
 ```
 
-```{r re-trend, out.width="1\\textwidth", fig.cap="Relative error by year for the same selection of species. Relative error is calculated as the difference between the restricted index estimate (either extrapotated or shrunk) and the status quo index as a proportion of the total status quo index in that year. "}
+```{r re, out.width="1\\textwidth", fig.cap="Relative error by year for the same selection of species. Relative error is calculated as the difference between the restricted index estimate (either extrapotated or shrunk) and the status quo index as a proportion of the total status quo index in that year. "}
 # include_graphics(here("figs/index-geo-restricted-re-highlights.pdf"))
 include_graphics(here("figs/index-geo-restricted-re-highlights-fixed.pdf"))# scale y axis the same across sp
 ```
 
-
-```{r hbll-plots, out.width="0.9\\textwidth", fig.cap="For the HBLL survey, the uncertainty (precision) as measured by smaller ratios of the CV for restricted to status quo indices (top row), and accuracy in the form of median absolute relative error (MARE; bottom row) for restricted indices appear correlated with uncertainty of the original index and the proportion of a population affected by the restriction. For a given species, shrinking the survey grid (blue), rather than extrapolating (orange), lowers uncertainty (blue dots almost always have lower CV ratio than orange in the top row plots) but can also reduce accuracy (increases MARE; blue dots sometimes higher than orange in bottom row plots). A positive correlation between CV ratio and CV of the Status quo index (top left plot) suggest that already uncertain indices become more uncertain when restricted, but that there isn't a tight relationship between status quo uncertainty and MARE (bottom left). The higher the proportion of a species abundance/biomass found in the restricted area, the more uncertain (CV ratios much greater than 1) a restricted index is relative to status quo (top right)."}
+```{r hbll-plots, out.width="0.9\\textwidth", fig.cap="For the HBLL survey, the uncertainty (precision) as measured by smaller ratios of the CV for restricted to status quo indices (top row), and accuracy in the form of median absolute relative error (MARE; bottom row) for restricted indices appear correlated with uncertainty of the original index and the proportion of a population affected by the restriction. For a given species, shrinking the survey grid (blue), rather than extrapolating (orange), lowers uncertainty (blue dots almost always have lower CV ratio than orange in the top row plots) but can also reduce accuracy (increases MARE; blue dots sometimes higher than orange in bottom row plots). A positive correlation between CV ratio and CV of the Status quo index (top left plot) suggest that already uncertain indices become more uncertain when restricted, but that there isn't a tight relationship between status quo uncertainty and MARE (bottom left). The higher the proportion of a species abundance/biomass found in the restricted area, the more uncertain (CV ratios much greater than 1) a restricted index is relative to status quo (top right). Faint grey lines link the two types of restricted indices for each species. Only peripheral species are labeled."}
 include_graphics(here("figs/explore-hbll-cv.pdf"))
 ```
 
@@ -161,13 +171,12 @@ include_graphics(here("figs/explore-hbll-cv.pdf"))
 include_graphics(here("figs/explore-qcs-cv.pdf"))
 ```
 
-
-```{r mare-by-cv-ratio, out.width="\\textwidth", fig.cap="MOVE TO SUPPLEMENT? Note the CV ratio for SYN QCS survey Yellowmouth Rockfish is actually > 2."}
+```{r mare-by-cv-ratio, out.width="\\textwidth", fig.cap="Median absolute relative error compared to the ratio of the restricted to status quo index CV. Faint grey lines link the two types of restricted indices for each species. Only peripheral  species are labeled. Note the CV ratio for SYN QCS survey Yellowmouth Rockfish is actually > 2. MOVE TO SUPPLEMENT? "}
 include_graphics(here("figs/explore-all-mare-by-cv-ratio.pdf"))
 ```
 
 
-```{r slopes, out.width="\\textwidth", fig.cap="The direction of bias, as estimated by the slope of relative error (RE) through time, is related to change in the proportion of a species' abundance or biomass inside the restricted areas. Most surveys tended to have a positive trend in RE (restricted survey indices estimating higher abundance than the status quo) if the proportion inside restricted areas was declining (top left quadrant) or a negative trend in RE (restricted survey indices estimating a trend toward lower abundance than the status quo) when the proportion inside restricted areas was declining (bottom right quadrant)."}
+```{r slopes, out.width="\\textwidth", fig.cap="The direction of bias, as estimated by the slope of relative error (RE) through time, is related to change in the proportion of a species' abundance or biomass inside the restricted areas. Most surveys tended to have a positive trend in RE (restricted survey indices estimating higher abundance than the status quo) if the proportion inside restricted areas was declining (top left quadrant) or a negative trend in RE (restricted survey indices estimating a trend toward lower abundance than the status quo) when the proportion inside restricted areas was declining (bottom right quadrant). Faint grey lines link the two types of restricted indices for each species. Only peripheral species are labeled."}
 include_graphics(here("figs/explore-all-slopes.pdf"))
 ```
 
@@ -186,7 +195,9 @@ include_graphics(here("figs/explore-all-slopes.pdf"))
 
 # Supplemental Materials
 
-```{r indices-hs, out.width="\\textwidth", fig.cap="SYN HS indices calculated from a geostatistical model."}
+(ref:indices-hs) SYN HS indices calculated from a geostatistical model. The solid grey line is the status quo model's estimate for within the the proposed restricted areas only (`MPA only`). All other indices are the same as in Figure \@ref(fig:indices).
+
+```{r indices-hs, out.width="\\textwidth", fig.cap="(ref:indices-hs)"}
 include_graphics(here("figs/index-hs-geo-restricted.pdf"))
 ```
 
@@ -202,35 +213,35 @@ include_graphics(here("figs/index-wchg-geo-restricted.pdf"))
 include_graphics(here("figs/index-hbll-geo-restricted.pdf"))
 ```
 
-```{r, out.width="\\textwidth", fig.cap="SYN HS: relative error over years and across species."}
+```{r re-hs, out.width="\\textwidth", fig.cap="SYN HS: relative error over years and across species."}
 include_graphics(here("figs/index-hs-geo-restricted-re.pdf"))
 ```
 
-```{r, out.width="\\textwidth", fig.cap="SYN QCS: relative error over years and across species."}
+```{r re-qcs, out.width="\\textwidth", fig.cap="SYN QCS: relative error over years and across species."}
 include_graphics(here("figs/index-qcs-geo-restricted-re.pdf"))
 ```
 
-```{r, out.width="\\textwidth", fig.cap="SYN WCHG: relative error over years and across species."}
+```{r re-wchg, out.width="\\textwidth", fig.cap="SYN WCHG: relative error over years and across species."}
 include_graphics(here("figs/index-wchg-geo-restricted-re.pdf"))
 ```
 
-```{r, out.width="\\textwidth", fig.cap="HBLL N: relative error over years and across species."}
+```{r re-hbll, out.width="\\textwidth", fig.cap="HBLL N: relative error over years and across species."}
 include_graphics(here("figs/index-hbll-geo-restricted-re.pdf"))
 ```
 
-```{r, out.width="\\textwidth", fig.cap="Plots of the relationship between measures of relative error of restricted indices to status quo (top row: CV ratio; bottom row: MARE) and the average proportion of a species biomass (or abundance for HBLL) that is estimated to occur inside the MPAs."}
-include_graphics(here("figs/explore-all-cv-by-mpa.pdf"))
-```
-
-```{r, out.width="\\textwidth", fig.cap="Plots of the relationship between measures of relative error of restricted indices to status quo (top row: CV ratio; bottom row: MARE) with the CV of the status quo index."}
+```{r cv-by-cv, out.width="\\textwidth", fig.cap="Plots of the relationship between measures of relative error of restricted indices to status quo (top row: CV ratio; bottom row: MARE) with the CV of the status quo index."}
 include_graphics(here("figs/explore-all-cv-by-cv.pdf"))
 ```
 
-```{r, out.width="\\textwidth", fig.cap="Ratio of the restricted to the original (status quo) index CV. Dots represent the mean CV ratio and line segments represent the lower and upper ratios across years."}
+```{r cv-dotplot, out.width="\\textwidth", fig.cap="Ratio of the restricted to the original (status quo) index CV. Dots represent the mean CV ratio and line segments represent the lower and upper ratios across years. Note that SYN QCS Yellowmouth Rockfish extrapolated index CV ratio is > 2."}
 include_graphics(here("figs/index-geo-cv-ratio-dotplot.pdf"))
 ```
 
-```{r, out.width="\\textwidth", fig.cap="Median absolute relative error across years."}
+```{r cv-by-mpa, out.width="\\textwidth", fig.cap="Plots of the relationship between measures of relative error of restricted indices to status quo (top row: CV ratio; bottom row: MARE) and the average proportion of a species biomass (or abundance for HBLL) that is estimated to occur inside the MPAs."}
+include_graphics(here("figs/explore-all-cv-by-mpa.pdf"))
+```
+
+```{r mare-dotplot, out.width="\\textwidth", fig.cap="Median absolute relative error across years. NOT REFERED TO IN TEXT. MAYBE NOT NEEDED?"}
 include_graphics(here("figs/index-geo-mare-dotplot.pdf"))
 ```
 
