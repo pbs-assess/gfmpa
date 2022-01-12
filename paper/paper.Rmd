@@ -117,7 +117,7 @@ The effect of restrictions on survey indicies depends on the variability and cer
 Extrapolation can either over or underestimate the index for a given survey in a given year (solid orange line vs. dotted grey line in Figure \@ref(fig:indices)). 
 Shrinking the survey index to exclude restricted areas consistently lowers the total index to a degree proportional to the species' average abundance within the restricted areas, but otherwise parallels the extrapolated index (blue line vs. orange line in Figure \@ref(fig:indices)).
 CV ratios greater than 1 represent reduced precision of index estimates relative to the status quo index; the shrunk index loses less precision (has lower CV ratios) than the extrapolated index (blue dots lower than orange ones in Figures \@ref(fig:hbll-plots)a-b and \@ref(fig:qcs-plots)a-b). 
-However, this increase in precision has little 
+However, this increase in precision does not improve accuracy (reduce MARE; \@ref(fig:mare-by-cv-ratio)).
 
 If a larger portion of the species' population occurs inside the restricted areas, than  imprecision (uncertainty) tends to be higher (Figures \@ref(fig:hbll-plots)b and \@ref(fig:qcs-plots)b), and the relative error (MARE) between restricted indices and the status quo tends to be larger (Figures \@ref(fig:hbll-plots)d and \@ref(fig:qcs-plots)d).
 
@@ -162,7 +162,7 @@ include_graphics(here("figs/explore-qcs-cv.pdf"))
 ```
 
 
-```{r mare-by-cv-ratio, out.width="\\textwidth", fig.cap="..."}
+```{r mare-by-cv-ratio, out.width="\\textwidth", fig.cap="MOVE TO SUPPLEMENT? Note the CV ratio for SYN QCS survey Yellowmouth Rockfish is actually > 2."}
 include_graphics(here("figs/explore-all-mare-by-cv-ratio.pdf"))
 ```
 
@@ -190,7 +190,7 @@ include_graphics(here("figs/explore-all-slopes.pdf"))
 include_graphics(here("figs/index-hs-geo-restricted.pdf"))
 ```
 
-```{r indices-qcs, out.width="\\textwidth", fig.cap="SYN QCS indices calculated from a geostatistical model."}
+```{r indices-qcs, out.width="\\textwidth", fig.cap="SYN QCS indices calculated from a geostatistical model. Note that CI on Yellowmouth Rockfish extrapolated index is truncated."}
 include_graphics(here("figs/index-qcs-geo-restricted.pdf"))
 ```
 

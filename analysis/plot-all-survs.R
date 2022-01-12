@@ -402,9 +402,16 @@ if (!include_mpa) ggsave("figs/index-geo-restricted-highlights-noMPA.pdf", width
   ggsave("figs/index-hbll-geo-restricted.pdf", width = 12, height = 8)
 
   g <- index %>% filter(survey_abbrev == "SYN QCS") %>%
-    ggplot(aes(year, est, ymin = lwr, ymax = upr, colour = type_label, fill = type_label, linetype = type_label)) +
+    # CI on exrapolated Yellowmouth index blows up,
+    # truncating here to see uncertainty on other indices
+    mutate(upr = ifelse(
+      species_common_name == "Yellowmouth Rockfish"&upr>10000, 10000, upr
+      )) %>%
+    ggplot(aes(year, est, ymin = lwr, ymax = upr,
+               colour = type_label, fill = type_label, linetype = type_label)) +
     geom_line(lwd = 0.9) +
     geom_ribbon(alpha = 0.2, colour = NA) +
+    coord_cartesian() +
     labs(x = "Year", colour = "Index type", fill = "Index type", linetype = "Index type") +
     scale_colour_manual(values = colour_pal) +
     scale_fill_manual(values = colour_pal) +
