@@ -75,26 +75,55 @@ do_sdmTMB_fit <- function(surv_dat, cutoff, pred_grid,
       year_seq = year-min(surv_dat$year)
     )
 
-    m <- try({
-      sdmTMB(response ~ 1 + year_seq + MPA + year_seq:MPA,
-        data = surv_dat,
-        family = family,
-        time = "year",
-        mesh = mesh,
-        ...
-      )
-    })
-  } else{
-    m <- try({
-      sdmTMB(response ~ 0 + as.factor(year),
-        data = surv_dat,
-        family = family,
-        time = "year",
-        mesh = mesh,
-        ...
-      )
-    })
+    if(family == "nbinom2"){
+      m <- try({
+        sdmTMB(response ~ 1 + year_seq + MPA + year_seq:MPA,
+               offset = log(hooks), ### check variable name
+               data = surv_dat,
+               family = sdmTMB::nbinom2(link = "log"),
+               time = "year",
+               mesh = mesh,
+               ...
+        )
+      })
+    } else {
+      m <- try({
+        sdmTMB(response ~ 1 + year_seq + MPA + year_seq:MPA,
+          data = surv_dat,
+          family = family,
+          time = "year",
+          mesh = mesh,
+          ...
+        )
+      })
+    }
+
+  } else {
+
+    if(family == "nbinom2"){
+      m <- try({
+        sdmTMB(response ~ 0 + as.factor(year),
+               offset = log(hooks), ### check variable name
+               data = surv_dat,
+               family = sdmTMB::nbinom2(link = "log"),
+               time = "year",
+               mesh = mesh,
+               ...
+        )
+      })
+    } else {
+      m <- try({
+        sdmTMB(response ~ 0 + as.factor(year),
+          data = surv_dat,
+          family = family,
+          time = "year",
+          mesh = mesh,
+          ...
+        )
+      })
+    }
   }
+
 
   if (class(m)[[1]] == "try-error") return(NULL)
   if (max(m$gradients) > 0.01) {
@@ -164,6 +193,31 @@ fit_geo_model <- function(surv_dat, pred_grid,
     ind <- bind_rows(ind, ind2)
     }
   } else {
+
+    if (family == "nbinom2") {
+      surv_dat$response <- surv_dat$count
+      pred <- do_sdmTMB_fit(surv_dat, MPA_trend = MPA_trend,
+                            cutoff = cutoff, family = "nbinom2",
+                            pred_grid = pred_grid, return_model = return_model, ...)
+
+      if (return_model) return(pred)
+      if (is.null(pred)) return(null_df)
+
+      #TODO: need to figure out backend area swept conversion...
+      ind <- get_index_sims(pred, area = rep(4, nrow(pred))) # 2 x 2 km
+      ind$region <- "all"
+
+      if(length(unique(pred_grid$restricted))>1){
+        mpa_only <- pred[pred_grid$restricted, ]
+        attr(mpa_only, "time") <- "year"
+        ind2 <- get_index_sims(mpa_only, area = rep(4, nrow(mpa_only)))
+        ind2$region <- "mpa"
+        ind <- bind_rows(ind, ind2)
+      }
+    }
+
+    } else {
+
     surv_dat$present <- ifelse(surv_dat$density > 0, 1, 0)
     surv_dat$response <- surv_dat$present
     surv_dat_pos <- dplyr::filter(surv_dat, density > 0)
