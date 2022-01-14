@@ -14,10 +14,11 @@ options(dplyr.summarise.inform = FALSE)
 source("analysis/functions.R")
 
 # Globals to set ------------------------------
-# survey <- "HBLL"
-survey <- "SYN"
-family <- "binomial-gamma"
+survey <- "HBLL"
+# survey <- "SYN"
+# family <- "binomial-gamma"
 # family <- "tweedie"
+family <- "nbinom2"
 # ---------------------------------------------
 
 if (survey == "HBLL") {
