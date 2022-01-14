@@ -80,7 +80,7 @@ do_sdmTMB_fit <- function(surv_dat, cutoff, pred_grid,
     )
 
     if (family == "nbinom2") {
-      surv_dat$offset <- log(surv_dat$hooks) # FIXME: check variable name
+      surv_dat$offset <- log(surv_dat$hook_count)
       m <- try({
         sdmTMB(response ~ 1 + year_seq + MPA + year_seq:MPA + offset,
           data = surv_dat,
@@ -103,7 +103,7 @@ do_sdmTMB_fit <- function(surv_dat, cutoff, pred_grid,
     }
   } else {
     if (family == "nbinom2") {
-      surv_dat$offset <- log(surv_dat$hooks) # FIXME: check variable name
+      surv_dat$offset <- log(surv_dat$hook_count)
       m <- try({
         sdmTMB(response ~ 0 + as.factor(year) + offset,
           data = surv_dat,
@@ -210,7 +210,7 @@ fit_geo_model <- function(surv_dat, pred_grid,
   }
 
   if (family == "nbinom2") {
-    surv_dat$response <- surv_dat$count
+    surv_dat$response <- surv_dat$catch_count
     pred <- do_sdmTMB_fit(surv_dat,
       MPA_trend = MPA_trend,
       cutoff = cutoff, family = "nbinom2",
