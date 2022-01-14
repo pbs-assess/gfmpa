@@ -143,6 +143,9 @@ do_sdmTMB_fit <- function(surv_dat, cutoff, pred_grid,
   }
   set.seed(1)
   pred <- try({
+    if (family == "nbinom2") {
+      pred_grid$offset <- log(median(surv_dat$hook_count))
+    }
     predict(m, newdata = pred_grid, xy_cols = c("X", "Y"), sims = 300L)
   })
   if (class(pred)[[1]] == "try-error") {
@@ -434,8 +437,6 @@ sim_mpa_surv <- function(surv_dat, grid,
   ind_out <- get_index_sims(p_out)
 
   b3 <- tidy(m2, conf.int = T)
-
-  # browser()
 
   # # could add 4. naive GLM BACI on raw observations?
   # m3 <- mgcv::gam(observed ~ restricted * year_covariate, data = m2$data, family = tw())
