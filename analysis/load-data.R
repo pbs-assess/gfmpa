@@ -49,7 +49,11 @@ assign_restricted_tows <- function(trawl_dat) {
 if (Sys.info()[['user']] == "seananderson") {
   f <- list.files("/Volumes/Extreme-SSD/src/gfsynopsis-2021/report/data-cache/",
     full.names = TRUE)
-  synoptic_data <- furrr::future_map_dfr(seq_along(f), function(i) {
+  f <- f[!grepl("cpue", f)]
+  f <- f[!grepl("iphc", f)]
+  # synoptic_data <- furrr::future_map_dfr(seq_along(f), function(i) {
+  synoptic_data <- purrr::map_dfr(seq_along(f), function(i) {
+    cat(f[i], "\n")
     d <- readRDS(f[i])$survey_sets
     filter(d, survey_abbrev %in% c("SYN QCS", "SYN HS", "SYN WCHG")) %>%
       select(year, survey_abbrev, species_science_name, species_common_name,
@@ -122,11 +126,16 @@ assign_restricted_tows_hbll <- function(dat) {
 if (Sys.info()[['user']] == "seananderson") {
   f <- list.files("/Volumes/Extreme-SSD/src/gfsynopsis-2021/report/data-cache/",
     full.names = TRUE)
-  hbll_data <- furrr::future_map_dfr(seq_along(f), function(i) {
+  f <- f[!grepl("cpue", f)]
+  f <- f[!grepl("iphc", f)]
+  # hbll_data <- furrr::future_map_dfr(seq_along(f), function(i) {
+  hbll_data <- purrr::map_dfr(seq_along(f), function(i) {
+    cat(f[i], "\n")
     d <- readRDS(f[i])$survey_sets
     filter(d, survey_abbrev %in% c("HBLL OUT N")) %>%
       select(year, survey_abbrev, species_science_name, species_common_name,
-        density_ppkm2, latitude, longitude, grouping_code, area_km2, depth_m)
+        density_ppkm2, latitude, longitude, grouping_code, area_km2, depth_m,
+        hook_count, catch_count)
   })
   saveRDS(hbll_data, file = "data-raw/hbll-survey-data.rds")
 } else {
