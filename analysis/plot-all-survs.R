@@ -28,8 +28,13 @@ if (!include_mpa) line_pal <- c("dotted", "solid", "solid")
 
 # prep index data ----
 
-y1 <- readRDS(file = "data-generated/index-hbll-geo-clean.rds") %>%
-  mutate(est = est/10000, lwr = lwr/10000, upr = upr/10000)
+y1 <- readRDS(file = "data-generated/index-hbll-geo-clean-nbinom2.rds") %>%
+  # (x/4km left in predict function from density version)*398.6633 sets to sample each grid cell
+  # then /1000 to change counts to per 1000 fish
+  # work out to  x 0.1
+  mutate(est = est*0.1, lwr = lwr*0.1, upr = upr*0.1)
+# y1 <- readRDS(file = "data-generated/index-hbll-geo-clean-binomial-gamma.rds") %>%
+#   mutate(est = est/10000, lwr = lwr/10000, upr = upr/10000)
 y2 <- readRDS(file = "data-generated/index-syn-geo-clean.rds")
 y <- bind_rows(y1,y2)
 
@@ -215,7 +220,7 @@ if (!include_mpa) ggsave("figs/index-geo-restricted-highlights-noMPA.pdf", width
 
 
 # combine precision, accuracy and bias data from all surveys ----
-  cvdata1 <- readRDS("data-generated/hbll-cv-w-lm-slopes.rds")
+  cvdata1 <- readRDS("data-generated/hbll-cv-w-lm-slopes-nb.rds")
   cvdata2 <- readRDS("data-generated/syn-cv-w-lm-slopes.rds")
 
   # glimpse(cvdata1)
@@ -579,3 +584,8 @@ if (!include_mpa) ggsave("figs/index-geo-restricted-highlights-noMPA.pdf", width
     facet_wrap(~survey_abbrev, ncol = 4)
   g
   ggsave("figs/index-geo-mare-dotplot.pdf", width = 9, height = 8)
+
+# RAW data checks ----
+  # dat_to_fit <- readRDS("data-generated/dat_to_fit_hbll.rds")
+  # ggplot(dat_to_fit, aes(year, hook_count)) + geom_jitter(alpha = 0.1)
+  # ggplot(dat_to_fit, aes(hook_count, area_km2)) + geom_jitter(alpha = 0.1) + facet_wrap(~year)
