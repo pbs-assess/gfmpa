@@ -9,6 +9,7 @@ options(future.rng.onMisuse = "ignore")
 library(sdmTMB)
 theme_set(ggsidekick::theme_sleek())
 options(dplyr.summarise.inform = FALSE)
+dir.create("figs", showWarnings = FALSE)
 
 # source("analysis/load-data.R")
 source("analysis/functions.R")
@@ -16,9 +17,9 @@ source("analysis/functions.R")
 # Globals to set ------------------------------
 survey <- "HBLL"
 # survey <- "SYN"
-# family <- "binomial-gamma"
+family <- "binomial-gamma"
 # family <- "tweedie"
-family <- "nbinom2"
+# family <- "nbinom2"
 # ---------------------------------------------
 
 if (survey == "HBLL") {
@@ -46,12 +47,12 @@ if (!file.exists(save_file)) {
     group_by(survey_abbrev, species_common_name) %>%
     group_split() %>%
     furrr::future_map_dfr(function(.x) {
-    # purrr::map_dfr(function(.x) {
+      # purrr::map_dfr(function(.x) {
       out <- .x %>%
         fit_geo_model(pred_grid = grid, survey = survey, family = family) %>%
         mutate(type = "Status quo")
     }, .progress = TRUE)
-    # })
+  # })
 
   index_restr <- dat_to_fit %>%
     filter(!restricted) %>%
@@ -61,7 +62,7 @@ if (!file.exists(save_file)) {
       out <- .x %>%
         fit_geo_model(pred_grid = grid, survey = survey, family = family) %>%
         mutate(type = "Restricted")
-    }, .progress = TRUE) #%>% filter(region != "mpa")
+    }, .progress = TRUE) # %>% filter(region != "mpa")
 
   index_shrunk <- dat_to_fit %>%
     filter(!restricted) %>%
@@ -71,7 +72,7 @@ if (!file.exists(save_file)) {
       out <- .x %>%
         fit_geo_model(pred_grid = filter(grid, !restricted), family = family, survey = survey) %>%
         mutate(type = "Restricted and shrunk")
-    }, .progress = TRUE) #%>% filter(region != "mpa")
+    }, .progress = TRUE) # %>% filter(region != "mpa")
 
   index_all <- bind_rows(index_orig, index_restr, index_shrunk)
   saveRDS(index_all, file = save_file)
@@ -97,7 +98,8 @@ index <- index %>% mutate(cv = sqrt(exp(se^2) - 1))
     orig_converged = "Status quo" %in% type,
     restr_converged = "Restricted" %in% type,
     shrunk_converged = "Restricted and shrunk" %in% type
-  ) %>% ungroup()
+  ) %>%
+  ungroup()
 
 table(index$type)
 
@@ -133,7 +135,7 @@ if (survey == "HBLL") {
 }
 if (survey == "SYN") {
   g <- g +
-    facet_grid(species_common_name~survey_abbrev, scales = "free_y") +
+    facet_grid(species_common_name ~ survey_abbrev, scales = "free_y") +
     ylab("Relative biomass")
 }
 
@@ -171,8 +173,9 @@ if (survey == "SYN") {
     labs(x = "Year", colour = "Type", fill = "Type") +
     scale_color_brewer(palette = "Set2") +
     scale_fill_brewer(palette = "Set2") +
-    facet_grid(species_common_name~survey_abbrev, scales = "free_y") +
-    ylab("Relative biomass") +     theme(strip.text.y = element_text(size = 7))
+    facet_grid(species_common_name ~ survey_abbrev, scales = "free_y") +
+    ylab("Relative biomass") +
+    theme(strip.text.y = element_text(size = 7))
   ggsave("figs/index-syn-geo-restricted-highlight2.pdf", width = 8, height = 15)
 }
 
@@ -187,7 +190,8 @@ x <- index %>%
 
 x_long <- x %>%
   tidyr::pivot_longer(starts_with("cv"),
-    names_to = "Restriction type", values_to = "CV ratio")
+    names_to = "Restriction type", values_to = "CV ratio"
+  )
 
 # x_long %>%
 #   ggplot(aes(`CV ratio`)) +
@@ -257,16 +261,16 @@ x_long <- x %>%
 g <- ggplot(x_long, aes(year, re, colour = restr_clean)) +
   geom_line() +
   geom_hline(yintercept = 0, lty = 2) +
-    scale_color_brewer(palette = "Set2") +
-  ylab("Relative error") + xlab("Year") +
+  scale_color_brewer(palette = "Set2") +
+  ylab("Relative error") +
+  xlab("Year") +
   labs(colour = "Survey domain treatment")
 
 if (survey == "HBLL") {
   g <- g + facet_wrap(~species_common_name, scales = "free_y", ncol = 5)
 }
 if (survey == "SYN") {
-  g <- g + facet_grid(species_common_name~survey_abbrev, scales = "free_y") +     theme(strip.text.y = element_text(size = 7))
-
+  g <- g + facet_grid(species_common_name ~ survey_abbrev, scales = "free_y") + theme(strip.text.y = element_text(size = 7))
 }
 
 if (survey == "HBLL") ggsave("figs/index-hbll-geo-restricted-re.pdf", width = 12, height = 8)
@@ -274,17 +278,18 @@ if (survey == "SYN") ggsave("figs/index-syn-geo-restricted-re.pdf", width = 9, h
 
 # focus on some
 if (survey == "SYN") {
-  g <-  x_long %>%
+  g <- x_long %>%
     filter(species_common_name %in% syn_highlights) %>%
     ggplot(aes(year, re, colour = restr_clean)) +
     geom_line() +
     geom_hline(yintercept = 0, lty = 2) +
-    facet_grid(species_common_name~survey_abbrev, scales = "free_y") +
+    facet_grid(species_common_name ~ survey_abbrev, scales = "free_y") +
     scale_color_brewer(palette = "Set2") +
-    ylab("Relative error") + xlab("Year") +
+    ylab("Relative error") +
+    xlab("Year") +
     labs(colour = "Survey domain treatment") +
     theme(strip.text.y = element_text(size = 7))
- ggsave("figs/index-syn-geo-restricted-re-highlights.pdf", width = 8, height = 15)
+  ggsave("figs/index-syn-geo-restricted-re-highlights.pdf", width = 8, height = 15)
 }
 
 g <- x_long %>%
