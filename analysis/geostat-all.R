@@ -9,6 +9,7 @@ options(future.rng.onMisuse = "ignore")
 library(sdmTMB)
 theme_set(ggsidekick::theme_sleek())
 options(dplyr.summarise.inform = FALSE)
+dir.create("figs", showWarnings = FALSE)
 
 # source("analysis/load-data.R")
 source("analysis/functions.R")
@@ -16,9 +17,9 @@ source("analysis/functions.R")
 # Globals to set ------------------------------
 survey <- "HBLL"
 # survey <- "SYN"
-# family <- "binomial-gamma"
+family <- "binomial-gamma"
 # family <- "tweedie"
-family <- "nbinom2"
+# family <- "nbinom2"
 # ---------------------------------------------
 
 if (survey == "HBLL") {
