@@ -79,6 +79,7 @@ If scientific surveys are excluded from MPAs, there are a number of possible con
 <!-- # Paragraph 5: -->
 Here, we...
 
+
 # Methods
 
 ### The survey indices can be calculated in at least two ways:
@@ -88,17 +89,17 @@ Here, we...
 2. Model-based bootstrap: Fit a geostatistical spatiotemporal model to the observed data, predict on the full survey grid, sum the predicted biomass/abundance for the full survey domain. 
 We will use this index as our `status quo`.
 <!-- This model can also be used to predict an index for any portion of the full survey domain, for example, just the closed areas given us an index for within the proposed closed areas (`MPA only`). -->
-
-Analytical design-based approaches and other non-geostatistical model-based approaches also exist.
-
-Details of geostatistical spatiotemporal models for each survey type:
-
-The hard bottom long-line (HBLL) survey counts the number of individual fish caught for a given number of hooks (median = 450).
-<!-- This hook count can be transformed into densities using the average hook spacing (0.0024384 km) and an estimate of the catch radius (0.009144 km). -->
+The hard bottom long-line (HBLL) survey measures the number of individual fish caught for a given number of hooks (median = 450).
+<!-- This hook count can be transformed into densities using the average hook spacing (0.0024384 km) and an estimate of the catch radius (0.009144 km) times 2 to cover both sides of the set line. -->
 This data was fit with log hook count included as on offset and a negative bionomial type 2 (`nbinom2`) distribution.
 Synoptic trawl surveys (SYN) collect total biomass per area swept giving an estimate of biomass density for each species.
 This data was fit with a Tweedie distribution to account for positive continuous values that also contain zeros. 
 Both model types include an intercept for each year, independent and identically distributed (IID) spatiotemporal random fields, and a fixed spatial random field (IF THIS IS THE PACKAGE DEFAULT?).
+
+Analytical design-based approaches and other non-geostatistical model-based approaches also exist.
+
+
+
 
 <!-- ### Model-based indices can be applied to when restrictions are in place in two ways: -->
 ### Model-based indices when restrictions are in place can be renerated two ways:
@@ -254,8 +255,4 @@ include_graphics(here("figs/explore-all-cv-by-mpa.pdf"))
 ```{r mare-dotplot, out.width="\\textwidth", fig.cap="Median absolute relative error across years. NOT REFERED TO IN TEXT. MAYBE NOT NEEDED?"}
 include_graphics(here("figs/index-geo-mare-dotplot.pdf"))
 ```
-
-
-
-
 
