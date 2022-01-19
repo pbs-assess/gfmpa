@@ -6,12 +6,12 @@ theme_set(ggsidekick::theme_sleek())
 options(dplyr.summarise.inform = FALSE)
 
 # Globals to set ------------------------------
-# survey <- "HBLL"
-survey <- "SYN"
+survey <- "HBLL"
+# survey <- "SYN"
 # ---------------------------------------------
 
 # for now using delta-gamma?
-if (survey == "HBLL") y <- readRDS(file = "data-generated/index-hbll-geo-clean.rds")
+if (survey == "HBLL") y <- readRDS(file = "data-generated/index-hbll-geo-clean-nbinom2.rds")
 if (survey == "SYN") y <- readRDS(file = "data-generated/index-syn-geo-clean.rds")
 
 # keep only species with original cv <= 1
@@ -237,7 +237,7 @@ cvdata <- left_join(cvratio2, mare2) %>%
   left_join(., cvraw) %>%
   left_join(., prop_mpa)
 
-if (survey == "HBLL") saveRDS(cvdata, "data-generated/hbll-cv-w-lm-slopes.rds")
+if (survey == "HBLL") saveRDS(cvdata, "data-generated/hbll-cv-w-lm-slopes-nb.rds")
 if (survey == "SYN") saveRDS(cvdata, "data-generated/syn-cv-w-lm-slopes.rds")
 
 

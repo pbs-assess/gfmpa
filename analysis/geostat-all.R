@@ -111,7 +111,7 @@ y <- index %>%
   group_by(survey_abbrev, species_common_name) %>%
   mutate(orig_cv = max(cv[type == "Status quo"]))
 
-if (survey == "HBLL") saveRDS(y, file = "data-generated/index-hbll-geo-clean.rds")
+if (survey == "HBLL") saveRDS(y, file = paste0("data-generated/index-hbll-geo-clean-", family, ".rds"))
 if (survey == "SYN") saveRDS(y, file = "data-generated/index-syn-geo-clean.rds")
 
 mean(y$orig_cv < 1)
@@ -139,7 +139,7 @@ if (survey == "SYN") {
     ylab("Relative biomass")
 }
 
-if (survey == "HBLL") ggsave("figs/index-hbll-geo-restricted.pdf", width = 12, height = 8)
+if (survey == "HBLL") ggsave(paste0("figs/index-hbll-geo-restricted-",family,".pdf"), width = 12, height = 8)
 if (survey == "SYN") ggsave("figs/index-syn-geo-restricted.pdf", width = 9, height = 60, limitsize = FALSE)
 
 

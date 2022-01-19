@@ -228,12 +228,19 @@ fit_geo_model <- function(surv_dat, pred_grid,
     }
 
     # TODO: need to figure out backend area swept conversion...
+    # median(hook_count) = 450
+    # hook spacing = 0.0024384 km
+    # assumed catch radius = 0.009144 km
+    # 450 * 0.0024384 * 0.009144 * 2 = 0.020067
+    # 4km2/0.020067 km2 = 199 it would take samples of 450 hooks to sweep whole grid cell
+    # ind <- get_index_sims(pred, area = rep(199, nrow(pred))) # 2 x 2 km
     ind <- get_index_sims(pred, area = rep(4, nrow(pred))) # 2 x 2 km
     ind$region <- "all"
 
     if (length(unique(pred_grid$restricted)) > 1) {
       mpa_only <- pred[pred_grid$restricted, ]
       attr(mpa_only, "time") <- "year"
+      # ind2 <- get_index_sims(mpa_only, area = rep(199, nrow(mpa_only)))
       ind2 <- get_index_sims(mpa_only, area = rep(4, nrow(mpa_only)))
       ind2$region <- "mpa"
       ind <- bind_rows(ind, ind2)
