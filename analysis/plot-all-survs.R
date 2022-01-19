@@ -29,10 +29,10 @@ if (!include_mpa) line_pal <- c("dotted", "solid", "solid")
 # prep index data ----
 
 y1 <- readRDS(file = "data-generated/index-hbll-geo-clean-nbinom2.rds") %>%
-  # (x/4km left in predict function from density version)*398.6633 sets to sample each grid cell
+  # (x/4km left in predict function from density version)*199 sets to sample each grid cell
   # then /1000 to change counts to per 1000 fish
-  # work out to  x 0.1
-  mutate(est = est*0.1, lwr = lwr*0.1, upr = upr*0.1)
+  # work out to  x 0.2
+  mutate(est = est*0.2, lwr = lwr*0.2, upr = upr*0.2)
 # y1 <- readRDS(file = "data-generated/index-hbll-geo-clean-binomial-gamma.rds") %>%
 #   mutate(est = est/10000, lwr = lwr/10000, upr = upr/10000)
 y2 <- readRDS(file = "data-generated/index-syn-geo-clean.rds")
