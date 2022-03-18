@@ -164,6 +164,14 @@ In theory, a positive trend in RE with declining proportion inside the MPAs woul
 
 (ref:indices) Survey indices calculated from a geostatistical model for a selection of species (ordered by taxonomic group) and with a range of relative abundances and uncertainty regarding their population trajectories. <!--Grey lines are the original (status quo) index based on all the survey samples. The dotted line represents the whole survey area while the solid line is the estimate within the the proposed restricted areas (MPAs). --> The dotted grey line is the index for the whole survey grid based on all the survey samples---the "status quo" index. Coloured solid lines represent indices based on survey samples outside the proposed restricted areas. The "extrapolated" index estimates the relative abundance for the same total area as the `status quo` index but without any samples from inside the restricted areas. The "shrunk" index only estimates the relative abundance for unrestricted parts of the survey grid. Shaded areas indicate the 95% CIs.
 
+```{r map-hbll, out.width="0.7\\textwidth", fig.cap="(ref:map-hbll)"}
+include_graphics(here("figs/hbll-grid.png"))
+```
+
+```{r map-trawl, out.width="0.7\\textwidth", fig.cap="(ref:map-trawl)"}
+include_graphics(here("figs/trawl-grid.png"))
+```
+
 ```{r indices, out.width="1\\textwidth", fig.cap="(ref:indices)"}
 # include_graphics(here("figs/index-geo-restricted-highlights.pdf")) # could include an MPA only index
 include_graphics(here("figs/index-geo-restricted-highlights-noMPA.pdf"))
