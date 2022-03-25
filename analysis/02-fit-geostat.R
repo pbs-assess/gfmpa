@@ -4,7 +4,7 @@ library(sf)
 library(future)
 is_rstudio <- !is.na(Sys.getenv("RSTUDIO", unset = NA))
 is_unix <- .Platform$OS.type == "unix"
-if (!is_rstudio && is_unix) plan(multicore, workers = 5L) else plan(multisession, workers = 5L)
+if (!is_rstudio && is_unix) plan(multicore, workers = 6L) else plan(multisession, workers = 6L)
 options(future.rng.onMisuse = "ignore")
 library(sdmTMB)
 theme_set(ggsidekick::theme_sleek())

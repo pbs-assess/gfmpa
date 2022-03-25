@@ -1,8 +1,10 @@
 #!/bin/bash
 
-Rscript analysis/01-load-data.R
+# Rscript analysis/01-load-data.R
 
 cd data-generated;rm index-*
+cd ..
+
 # Rscript analysis/02-fit-geostat.R 'SYN' 'tweedie'
 Rscript analysis/02-fit-geostat.R 'SYN' 'binomial_gamma'
 # Rscript analysis/02-fit-geostat.R 'HBLL' 'tweedie'

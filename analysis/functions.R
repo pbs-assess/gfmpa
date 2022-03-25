@@ -101,6 +101,7 @@ do_sdmTMB_fit <- function(surv_dat, cutoff, pred_grid,
 
   if (family$family == "binomial") {
     surv_dat$response <- ifelse(surv_dat$response > 0, 1, 0)
+    formula <- response ~ 0 + as.factor(year)
   }
 
   m <- try({
