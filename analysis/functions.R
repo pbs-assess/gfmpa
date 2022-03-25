@@ -67,71 +67,59 @@ shrink_a_survey <- function(grid_dat, restriction_dat, plot = FALSE) {
 }
 
 do_sdmTMB_fit <- function(surv_dat, cutoff, pred_grid,
-                          MPA_trend = MPA_trend,
-                          family = sdmTMB::tweedie(link = "log"), return_model = FALSE, ...) {
-  mesh <- make_mesh(surv_dat, c("X", "Y"), cutoff = cutoff)
-  # plot(mesh)
-  # mesh$mesh$n
+                          MPA_trend,
+                          # formula = response ~ 0 + as.factor(year) + offset,
+                          family = sdmTMB::tweedie(link = "log"),
+                          return_model = FALSE,
+                          ...) {
+  if ("hook_count" %in% names(surv_dat)) {
+    survey_type <- "HBLL"
+  } else {
+    survey_type <- "SYN"
+  }
+  mesh <- make_mesh(surv_dat, xy_cols = c("X", "Y"), cutoff = cutoff)
+
   if (MPA_trend) {
     surv_dat <- surv_dat %>% mutate(
-      MPA = case_when(restricted == FALSE ~ 0, restricted == TRUE ~ 1),
+      MPA = as.integer(restricted),
       year_seq = year - min(surv_dat$year)
     )
-
-    if (family == "nbinom2") {
-      surv_dat$offset <- log(surv_dat$hook_count)
-      m <- try({
-        sdmTMB(response ~ 1 + year_seq + MPA + year_seq:MPA + offset,
-          data = surv_dat,
-          family = sdmTMB::nbinom2(link = "log"),
-          time = "year",
-          mesh = mesh,
-          ...
-        )
-      })
-    } else {
-      m <- try({
-        sdmTMB(response ~ 1 + year_seq + MPA + year_seq:MPA,
-          data = surv_dat,
-          family = family,
-          time = "year",
-          mesh = mesh,
-          ...
-        )
-      })
-    }
+    formula <- response ~ 1 + year_seq + MPA + year_seq:MPA + offset
   } else {
-    if (family == "nbinom2") {
-      surv_dat$offset <- log(surv_dat$hook_count)
-      m <- try({
-        sdmTMB(response ~ 0 + as.factor(year) + offset,
-          data = surv_dat,
-          family = sdmTMB::nbinom2(link = "log"),
-          time = "year",
-          mesh = mesh,
-          ...
-        )
-      })
-    } else {
-      m <- try({
-        sdmTMB(response ~ 0 + as.factor(year),
-          data = surv_dat,
-          family = family,
-          time = "year",
-          mesh = mesh,
-          ...
-        )
-      })
-    }
+    formula <- response ~ 0 + as.factor(year) + offset
   }
 
+  if (survey_type == "HBLL") {
+    surv_dat$offset <- log(surv_dat$hook_count)
+    surv_dat$response <- surv_dat$catch_count
+  } else if (survey_type == "SYN") {
+    surv_dat$offset <- log(surv_dat$tow_length_m * surv_dat$doorspread_m)
+    surv_dat$response <- surv_dat$catch_weight * 1000
+  } else {
+    stop("Survey type not found", call. = FALSE)
+  }
+
+  if (family$family == "binomial") {
+    surv_dat$response <- ifelse(surv_dat$response > 0, 1, 0)
+  }
+
+  m <- try({
+    sdmTMB(
+      formula = formula,
+      data = surv_dat,
+      family = family,
+      time = "year",
+      mesh = mesh,
+      ...
+    )
+  })
 
   if (class(m)[[1]] == "try-error") {
     return(NULL)
   }
   if (max(m$gradients) > 0.01) {
     m <- try({
-      run_extra_optimization(m, newton_loops = 1L, nlminb_loops = 0L)
+      run_extra_optimization(m, newton_loops = 1L, nlminb_loops = 1L)
     })
   }
   if (return_model) {
@@ -140,12 +128,11 @@ do_sdmTMB_fit <- function(surv_dat, cutoff, pred_grid,
   if (class(m)[[1]] == "try-error" || max(m$gradients) > 0.01) {
     return(NULL)
   }
+
   set.seed(1)
   pred <- try({
-    if (family == "nbinom2") {
-      pred_grid$offset <- log(median(surv_dat$hook_count))
-    }
-    predict(m, newdata = pred_grid, xy_cols = c("X", "Y"), sims = 300L)
+    pred_grid$offset <- 0 # i.e., log(1) unit area
+    predict(m, newdata = pred_grid, sims = 1000L)
   })
   if (class(pred)[[1]] == "try-error") {
     return(NULL)
@@ -153,31 +140,21 @@ do_sdmTMB_fit <- function(surv_dat, cutoff, pred_grid,
   pred
 }
 
+binomial_gamma <- function() {
+  list(family = "binomial-gamma")
+}
 fit_geo_model <- function(surv_dat, pred_grid,
                           MPA_trend = FALSE,
                           shrink_survey = FALSE,
                           survey = c("HBLL", "SYN"),
-                          family = c("tweedie", "binomial-gamma", "nbinom2"),
+                          family = c(tweedie(), binomial_gamma(), nbinom2()),
                           return_model = FALSE, ...) {
   survey <- match.arg(survey)
-  family <- match.arg(family)
 
-  utm_zone9 <- 3156
-  # coords <- surv_dat %>%
-  #   sf::st_as_sf(crs = 4326, coords = c("longitude", "latitude")) %>%
-  #   sf::st_transform(utm_zone9) %>%
-  #   sf::st_coordinates() %>%
-  #   as.data.frame()
-  # coords$X <- coords$X / 1000
-  # coords$Y <- coords$Y / 1000
-  # surv_dat <- dplyr::bind_cols(surv_dat, coords)
+  pred_grid <- dplyr::filter(pred_grid, survey_abbrev == surv_dat$survey_abbrev[1])
+  pred_grid <- dplyr::filter(pred_grid, year %in% unique(surv_dat$year))
 
-  if (survey == "HBLL") surv_dat$density <- surv_dat$density_ppkm2
-  if (survey == "SYN") surv_dat$density <- surv_dat$density_kgpm2 * 1000 # tonnes/km2 for computational reasons
-
-  pred_grid <- filter(pred_grid, survey_abbrev == surv_dat$survey_abbrev[1])
-  pred_grid <- filter(pred_grid, year %in% unique(surv_dat$year))
-  cutoff <- if (survey == "HBLL") 10 else 15
+  cutoff <- if (survey == "HBLL") 10 else 10
 
   null_df <- data.frame(
     species_common_name = surv_dat$species_common_name[1],
@@ -185,103 +162,68 @@ fit_geo_model <- function(surv_dat, pred_grid,
     stringsAsFactors = FALSE
   )
 
-  if (family == "tweedie") {
-    surv_dat$response <- surv_dat$density
-    pred <- do_sdmTMB_fit(surv_dat,
+  if (family$family != "binomial-gamma") {
+    pred <- do_sdmTMB_fit(
+      surv_dat,
       MPA_trend = MPA_trend,
-      cutoff = cutoff, family = tweedie(),
-      pred_grid = pred_grid, return_model = return_model, ...
+      cutoff = cutoff,
+      family = family,
+      pred_grid = pred_grid,
+      return_model = return_model,
+      ...
     )
-
     if (return_model) {
       return(pred)
     }
     if (is.null(pred)) {
       return(null_df)
     }
-    ind <- get_index_sims(pred, area = rep(4, nrow(pred))) # 2 x 2 km
-    ind$region <- "all"
+  } else { # delta-gamma
 
-    if (length(unique(pred_grid$restricted)) > 1) {
-      mpa_only <- pred[pred_grid$restricted, ]
-      attr(mpa_only, "time") <- "year"
-      ind2 <- get_index_sims(mpa_only, area = rep(4, nrow(mpa_only)))
-      ind2$region <- "mpa"
-      ind <- bind_rows(ind, ind2)
+    if (survey == "HBLL") {
+      surv_dat_pos <- dplyr::filter(surv_dat, catch_count > 0)
+    } else {
+      surv_dat_pos <- dplyr::filter(surv_dat, catch_weight > 0)
     }
-  }
-
-  if (family == "nbinom2") {
-    surv_dat$response <- surv_dat$catch_count
-    pred <- do_sdmTMB_fit(surv_dat,
+    # in case 'pos' is missing some:
+    pred_grid_pos <- dplyr::filter(pred_grid, year %in% unique(surv_dat_pos$year))
+    if (!all(unique(pred_grid$year) %in% pred_grid$year)) {
+      return(null_df)
+    }
+    pred_pos <- do_sdmTMB_fit(
+      surv_dat_pos,
       MPA_trend = MPA_trend,
-      cutoff = cutoff, family = "nbinom2",
-      pred_grid = pred_grid, return_model = return_model, ...
+      cutoff = cutoff,
+      family = Gamma(link = "log"),
+      pred_grid = pred_grid,
+      return_model = return_model,
+      ...
     )
-
-    if (return_model) {
-      return(pred)
-    }
-    if (is.null(pred)) {
-      return(null_df)
-    }
-
-    # TODO: need to figure out backend area swept conversion...
-    # median(hook_count) = 450
-    # hook spacing = 0.0024384 km
-    # assumed catch radius = 0.009144 km
-    # 450 * 0.0024384 * 0.009144 * 2 = 0.020067
-    # 4km2/0.020067 km2 = 199 it would take samples of 450 hooks to sweep whole grid cell
-    # ind <- get_index_sims(pred, area = rep(199, nrow(pred))) # 2 x 2 km
-    ind <- get_index_sims(pred, area = rep(4, nrow(pred))) # 2 x 2 km
-    ind$region <- "all"
-
-    if (length(unique(pred_grid$restricted)) > 1) {
-      mpa_only <- pred[pred_grid$restricted, ]
-      attr(mpa_only, "time") <- "year"
-      # ind2 <- get_index_sims(mpa_only, area = rep(199, nrow(mpa_only)))
-      ind2 <- get_index_sims(mpa_only, area = rep(4, nrow(mpa_only)))
-      ind2$region <- "mpa"
-      ind <- bind_rows(ind, ind2)
-    }
-  }
-  if (family == "binomial-gamma") {
-    surv_dat$present <- ifelse(surv_dat$density > 0, 1, 0)
-    surv_dat$response <- surv_dat$present
-    surv_dat_pos <- dplyr::filter(surv_dat, density > 0)
-    surv_dat_pos$response <- surv_dat_pos$density
-    pred_grid <- dplyr::filter(pred_grid, year %in% unique(surv_dat_pos$year)) # in case 'pos' is missing some
-    pred_bin <- do_sdmTMB_fit(surv_dat,
-      MPA_trend = MPA_trend, cutoff = cutoff, family = binomial(),
-      pred_grid = pred_grid, return_model = return_model, ...
+    pred_bin <- do_sdmTMB_fit(
+      surv_dat,
+      MPA_trend = MPA_trend,
+      cutoff = cutoff,
+      family = binomial(link = "logit"),
+      pred_grid = pred_grid,
+      return_model = return_model,
+      ...
     )
-
-    pred_bin_mpa <- do_sdmTMB_fit(surv_dat,
-      MPA_trend = MPA_trend, cutoff = cutoff, family = binomial(),
-      pred_grid = pred_grid, return_model = return_model, ...
-    )
-
-    if (is.null(pred_bin)) {
-      return(null_df)
-    }
-    pred_pos <- do_sdmTMB_fit(surv_dat_pos,
-      MPA_trend = MPA_trend, cutoff = cutoff,
-      family = Gamma(link = "log"), pred_grid = pred_grid, return_model = return_model, ...
-    )
-    if (is.null(pred_pos)) {
+    if (is.null(pred_bin) || is.null(pred_pos)) {
       return(null_df)
     }
     if (return_model) list(bin = pred_bin, pos = pred_pos)
-    pred_combined <- log(plogis(pred_bin) * exp(pred_pos))
-    ind <- get_index_sims(pred_combined, area = rep(4, nrow(pred_combined)))
-    ind$region <- "all"
-    if (length(unique(pred_grid$restricted)) > 1) {
-      mpa_only <- pred_combined[pred_grid$restricted, ]
-      attr(mpa_only, "time") <- "year"
-      ind2 <- get_index_sims(mpa_only, area = rep(4, nrow(mpa_only)))
-      ind2$region <- "mpa"
-      ind <- bind_rows(ind, ind2)
-    }
+    pred <- log(plogis(pred_bin) * exp(pred_pos))
+  }
+
+  ind <- get_index_sims(pred, area = rep(4, nrow(pred))) # 2 x 2 km
+  ind$region <- "all"
+
+  if (length(unique(pred_grid$restricted)) > 1) {
+    mpa_only <- pred[pred_grid$restricted, , drop = FALSE]
+    attr(mpa_only, "time") <- "year"
+    ind2 <- get_index_sims(mpa_only, area = rep(4, nrow(mpa_only)))
+    ind2$region <- "mpa"
+    ind <- dplyr::bind_rows(ind, ind2)
   }
 
   ind$species_common_name <- surv_dat$species_common_name[1]

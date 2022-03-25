@@ -53,7 +53,7 @@ if (Sys.info()[['user']] == "seananderson") {
     d <- readRDS(f[i])$survey_sets
     filter(d, survey_abbrev %in% c("SYN QCS", "SYN HS", "SYN WCHG")) %>%
       select(year, survey_abbrev, species_science_name, species_common_name,
-        density_kgpm2, latitude, longitude, grouping_code, area_km2, depth_m)
+        density_kgpm2, catch_weight, doorspread_m, tow_length_m, latitude, longitude, grouping_code, area_km2, depth_m)
   })
   saveRDS(synoptic_data, file = "data-raw/syn-survey-data.rds")
 } else {
@@ -148,8 +148,6 @@ nrow(tokeep)
 dat_to_fit <- left_join(tokeep, dat, by = c("species_common_name", "survey_abbrev"))
 
 saveRDS(dat_to_fit, file = "data-generated/dat_to_fit_hbll.rds")
-
-plan(sequential)
 
 dat_to_fit <- readRDS("data-generated/dat_to_fit_hbll.rds")
 hbll_grid <- gfplot::hbll_n_grid$grid
