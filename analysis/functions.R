@@ -46,7 +46,6 @@ expand_prediction_grid <- function(grid, years) {
   nd
 }
 
-
 shrink_a_survey <- function(grid_dat, restriction_dat, plot = FALSE) {
   orig <- grid_dat
   grid_dat <- grid_dat %>% sf::st_transform(sf::st_crs(restriction_dat))
@@ -370,7 +369,6 @@ sim_mpa_surv <- function(surv_dat, grid,
     mesh = m$spde,
     family = sdmTMB::tweedie(link = "log"),
     time = "year",
-
     # rho = 2 * plogis(m$model$par[['ar1_phi']]) - 1, # TODO!?
     rho = NULL,
     sigma_O = b$estimate[b$term == "sigma_O"],
@@ -379,7 +377,7 @@ sim_mpa_surv <- function(surv_dat, grid,
     tweedie_p = b$estimate[b$term == "tweedie_p"],
     range = b$estimate[b$term == "range"],
     fixed_re = list(omega_s = omega_s, epsilon_st = NULL, zeta_s = NULL),
-    # (Intercept), restrictedTRUE, year_covariate, restrictedTRUE:year_covariate
+    # (Intercept), depth_scaled, depth_scaled2, restrictedTRUE, year_covariate, restrictedTRUE:year_covariate
     B = c(
       mean(b[grep("year", b$term), "estimate"]),
       b[b$term == "depth_scaled", "estimate"],

@@ -1,7 +1,8 @@
 library(dplyr)
+library(ggplot2)
 library(sf)
-library(future)
-plan(multisession)
+# library(future)
+# plan(multisession)
 
 dir.create("data-generated", showWarnings = FALSE)
 dir.create("figs", showWarnings = FALSE)
@@ -14,11 +15,6 @@ trawl_removed <- dplyr::filter(x, hu_co_demersalfishing_bottomtrawling_d %in% c(
 saveRDS(trawl_removed, file = "data-generated/demersalfishing_bottomtrawling_X.rds")
 # plot(trawl_removed["hu_co_demersalfishing_bottomtrawling_d"])
 
-# aleut <- readRDS(f[grep("aleut", f)])$survey_sets
-# aleut <- filter(aleut, survey_abbrev == "SYN HS", year == 2015)
-# aleut <- assign_restricted_tows(aleut)
-# ggplot(aleut, aes(longitude, latitude, size = density_kgpm2, colour = restricted)) + geom_point()
-
 assign_restricted_tows <- function(trawl_dat) {
   orig <- trawl_dat
   trawl_dat <- trawl_dat %>%
@@ -27,10 +23,6 @@ assign_restricted_tows <- function(trawl_dat) {
   intersected <- sf::st_intersects(trawl_dat, trawl_removed)
   remain <- which(lengths(intersected) == 0)
   lost <- which(lengths(intersected) > 0)
-  # remain_df <- pcod[remain,]
-  # lost_df <- pcod[lost,]
-  # plot(pcod$X, pcod$Y, col = "black")
-  # points(lost_df$X, lost_df$Y, col = "red")
   trawl_dat$restricted <- lengths(intersected) > 0
   trawl_dat <- as.data.frame(trawl_dat) %>% select(-geometry)
   trawl_dat$longitude <- orig$longitude
@@ -46,12 +38,16 @@ assign_restricted_tows <- function(trawl_dat) {
   trawl_dat %>% as_tibble()
 }
 
+# aleut <- readRDS(f[grep("aleut", f)])$survey_sets
+# aleut <- filter(aleut, survey_abbrev == "SYN HS", year == 2015)
+# aleut <- assign_restricted_tows(aleut)
+# ggplot(aleut, aes(longitude, latitude, size = density_kgpm2, colour = restricted)) + geom_point()
+
 if (Sys.info()[['user']] == "seananderson") {
-  f <- list.files("/Volumes/Extreme-SSD/src/gfsynopsis-2021/report/data-cache/",
+  f <- list.files("~/src/gfsynopsis-2021/report/data-cache/",
     full.names = TRUE)
   f <- f[!grepl("cpue", f)]
   f <- f[!grepl("iphc", f)]
-  # synoptic_data <- furrr::future_map_dfr(seq_along(f), function(i) {
   synoptic_data <- purrr::map_dfr(seq_along(f), function(i) {
     cat(f[i], "\n")
     d <- readRDS(f[i])$survey_sets
@@ -98,10 +94,6 @@ assign_restricted_tows_hbll <- function(dat) {
   intersected <- sf::st_intersects(dat, ll_removed)
   remain <- which(lengths(intersected) == 0)
   lost <- which(lengths(intersected) > 0)
-  # remain_df <- pcod[remain,]
-  # lost_df <- pcod[lost,]
-  # plot(pcod$X, pcod$Y, col = "black")
-  # points(lost_df$X, lost_df$Y, col = "red")
   dat$restricted <- lengths(intersected) > 0
   dat <- as.data.frame(dat) %>% select(-geometry)
   dat$longitude <- orig$longitude
@@ -117,18 +109,16 @@ assign_restricted_tows_hbll <- function(dat) {
   dat %>% as_tibble()
 }
 
-# library(ggplot2)
 # aleut <- readRDS(f[grep("aleut", f)])$survey_sets
 # aleut <- filter(aleut, survey_abbrev == "HBLL OUT N", year == 2015)
 # aleut <- assign_restricted_tows_hbll(aleut)
 # ggplot(aleut, aes(longitude, latitude, size = density_ppkm2, colour = restricted)) + geom_point()
 
 if (Sys.info()[['user']] == "seananderson") {
-  f <- list.files("/Volumes/Extreme-SSD/src/gfsynopsis-2021/report/data-cache/",
+  f <- list.files("~/src/gfsynopsis-2021/report/data-cache/",
     full.names = TRUE)
   f <- f[!grepl("cpue", f)]
   f <- f[!grepl("iphc", f)]
-  # hbll_data <- furrr::future_map_dfr(seq_along(f), function(i) {
   hbll_data <- purrr::map_dfr(seq_along(f), function(i) {
     cat(f[i], "\n")
     d <- readRDS(f[i])$survey_sets
