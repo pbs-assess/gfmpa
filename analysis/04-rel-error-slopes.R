@@ -6,13 +6,19 @@ theme_set(ggsidekick::theme_sleek())
 options(dplyr.summarise.inform = FALSE)
 
 # Globals to set ------------------------------
-survey <- "HBLL"
+# survey <- "HBLL"
 # survey <- "SYN"
+
+args <- commandArgs(trailingOnly = TRUE)
+if (length(args) == 0L)
+  stop("This script is meant to be run from the command line.", call. = FALSE)
+survey <- args[[1]]
+
 # ---------------------------------------------
 
 # for now using delta-gamma?
-if (survey == "HBLL") y <- readRDS(file = "data-generated/index-hbll-geo-clean-nbinom2.rds")
-if (survey == "SYN") y <- readRDS(file = "data-generated/index-syn-geo-clean.rds")
+if (survey == "HBLL") y <- readRDS(file = "data-generated/index-hbll-geo-clean-binomial_gamma.rds")
+if (survey == "SYN") y <- readRDS(file = "data-generated/index-syn-geo-clean-binomial_gamma.rds")
 
 # keep only species with original cv <= 1
 mean(y$orig_cv < 1)
@@ -237,7 +243,7 @@ cvdata <- left_join(cvratio2, mare2) %>%
   left_join(., cvraw) %>%
   left_join(., prop_mpa)
 
-if (survey == "HBLL") saveRDS(cvdata, "data-generated/hbll-cv-w-lm-slopes-nb.rds")
+if (survey == "HBLL") saveRDS(cvdata, "data-generated/hbll-cv-w-lm-slopes.rds")
 if (survey == "SYN") saveRDS(cvdata, "data-generated/syn-cv-w-lm-slopes.rds")
 
 
@@ -248,3 +254,4 @@ if (survey == "SYN") saveRDS(cvdata, "data-generated/syn-cv-w-lm-slopes.rds")
 # (g <- ggplot(d) + geom_point(aes_string("cv_orig", "temp_bias_interp_ratio"))+ geom_hline(yintercept = 1))
 # (g <- ggplot(d) + geom_point(aes_string("cv_orig", "cv_interp_ratio"))+ geom_hline(yintercept = 1))
 # (g <- ggplot(d) + geom_point(aes_string("cv_orig", "mare_interp_ratio"))+ geom_hline(yintercept = 1))
+

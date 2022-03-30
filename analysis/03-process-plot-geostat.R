@@ -1,8 +1,17 @@
+library(dplyr)
+library(ggplot2)
+theme_set(ggsidekick::theme_sleek())
+options(dplyr.summarise.inform = FALSE)
+dir.create("figs", showWarnings = FALSE)
+
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) == 0L)
   stop("This script is meant to be run from the command line.", call. = FALSE)
 survey <- args[[1]]
 fam <- args[[2]]
+
+# survey <- "HBLL"
+# fam <- "binomial_gamma"
 
 cat("survey: ", survey, "\n")
 cat("family: ", fam, "\n")

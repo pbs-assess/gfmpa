@@ -194,4 +194,4 @@ y <- index %>%
   mutate(orig_cv = max(cv[type == "Status quo"]))
 
 if (survey == "HBLL") saveRDS(y, file = paste0("data-generated/index-hbll-geo-clean-", fam, ".rds"))
-if (survey == "SYN") saveRDS(y, file = "data-generated/index-syn-geo-clean-", fam, ".rds")
+if (survey == "SYN") saveRDS(y, file = paste0("data-generated/index-syn-geo-clean-", fam, ".rds"))
