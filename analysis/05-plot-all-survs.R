@@ -73,90 +73,145 @@ index$type_label <- factor(index$type_label, levels = c("Status quo", "Extrapola
 
 # then I manual selected ones with interesting patterns in the scatterplots
 syn_highlights <- c(
-  "North Pacific Spiny Dogfish",
+  # "North Pacific Spiny Dogfish",
   # "Big Skate",
-  "Sandpaper Skate", #
+  # "Sandpaper Skate", #
   # "Longnose Skate",#HS
-  # "Spotted Ratfish",
-
+  "Spotted Ratfish",
   # "Pacific Cod",
   "Walleye Pollock", #
   # "Pacific Hake",
-  "Sablefish",
+  # "Sablefish",
   # "Lingcod",
   # "Blackbelly Eelpout",
-
-  # "Canary Rockfish",
-  # "Copper Rockfish",
+  "Bocaccio",
+  "Canary Rockfish",
   # "Greenstriped Rockfish",#HS
-  # "Quillback Rockfish",
-  "Redbanded Rockfish", # HS
+  # "Redbanded Rockfish", # HS
   # # "Redstripe Rockfish",
   # "Rosethorn Rockfish",
   # "Rougheye/Blackspotted Rockfish Complex",#HBLL
   # "Silvergray Rockfish", # an interesting one
-  "Yelloweye Rockfish",
   # "Yellowtail Rockfish",
   # "Shortspine Thornyhead",
-
+  "Widow Rockfish",
   "Arrowtooth Flounder", #
-  # "Curlfin Sole",# QCS
+  "Curlfin Sole",# QCS
   # "Dover Sole",
   # "English Sole",
-  "Flathead Sole"
+  "Flathead Sole",
   # "Pacific Halibut",
   # "Rex Sole",
   # "Slender Sole",
-  # "Southern Rock Sole"
+  "Southern Rock Sole"
+)
+
+hbll_highlights <- c(
+  "North Pacific Spiny Dogfish",
+  "Big Skate",
+  # "Sandpaper Skate", #
+  "Longnose Skate",#HS
+  # "Spotted Ratfish",
+  # "Pacific Cod",
+  # "Walleye Pollock", #
+  # "Pacific Hake",
+  # "Sablefish",
+  "Lingcod",
+  # "Blackbelly Eelpout",
+  # "Canary Rockfish",
+  "China Rockfish",
+  # "Greenstriped Rockfish",#HS
+  "Quillback Rockfish",
+  # "Redbanded Rockfish", # HS
+  # # "Redstripe Rockfish",
+  # "Rosethorn Rockfish",
+  # "Rougheye/Blackspotted Rockfish Complex",#HBLL
+  # "Silvergray Rockfish",
+  "Tiger Rockfish" # an interesting one
+  # "Yelloweye Rockfish"
+  # "Yellowtail Rockfish",
+  # "Shortspine Thornyhead"
 )
 
 # FIGURE 1: indices ----
 
 # split out HBLL to give it a different Y axis scale than the SYN surveys
 i1 <- index %>%
-  filter(species_common_name %in% syn_highlights) %>%
-  mutate(species_common_name = factor(species_common_name, levels = syn_highlights)) %>%
+  filter(species_common_name %in% hbll_highlights) %>%
+  mutate(species_common_name = factor(species_common_name, levels = hbll_highlights)) %>%
   filter((survey_abbrev == "HBLL OUT N"))
 i2 <- index %>%
   filter(species_common_name %in% syn_highlights) %>%
   mutate(species_common_name = factor(species_common_name, levels = syn_highlights)) %>%
-  filter(!(survey_abbrev == "HBLL OUT N"))
+  filter((survey_abbrev == "SYN QCS"))
 
-spp <- as.data.frame(syn_highlights) %>% rename(species_common_name = syn_highlights)
-i <- left_join(spp, i1) %>% mutate(survey_abbrev = "HBLL OUT N")
+# spp <- as.data.frame(syn_highlights) %>% rename(species_common_name = syn_highlights)
+# i <- left_join(spp, i1) %>% mutate(survey_abbrev = "HBLL OUT N")
+#
+# g1 <- i %>%
+#   filter(species_common_name %in% syn_highlights) %>%
+#   mutate(species_common_name = factor(species_common_name, levels = syn_highlights)) %>%
+#   ggplot(aes(year, est,
+#     ymin = lwr, ymax = upr,
+#     colour = type_label, fill = type_label, linetype = type_label
+#   )) +
+#   geom_line(lwd = 0.6) +
+#   geom_ribbon(alpha = 0.1, colour = NA) +
+#   labs(x = "Year", colour = "Type", fill = "Type", linetype = "Type") +
+#   scale_colour_manual(values = colour_pal) +
+#   scale_fill_manual(values = colour_pal) +
+#   scale_linetype_manual(values = line_pal) +
+#   xlim(2005, 2020) +
+#   facet_grid(species_common_name ~ survey_abbrev, scales = "free_y") +
+#   scale_y_continuous(breaks = waiver(), n.breaks = 4) +
+#   ggtitle("Index type:   ") +
+#   ylab("Relative abundance in 1000s (HBLL) or biomass in tonnes (SYN)") +
+#   theme(
+#     plot.title = element_text(hjust = 0.9),
+#     strip.text.y = element_blank(),
+#     axis.title.x = element_blank(),
+#     legend.position = "none"
+#   )
+#
+# g2 <- i2 %>%
+# filter(survey_abbrev != "SYN WCHG") %>%
+# filter(species_common_name %in% syn_highlights) %>%
+# mutate(species_common_name = factor(species_common_name, levels = syn_highlights)) %>%
+#   ggplot(aes(year, est,
+#     ymin = lwr, ymax = upr,
+#     colour = type_label, fill = type_label, linetype = type_label
+#   )) +
+#   geom_line(lwd = 0.6) +
+#   geom_ribbon(alpha = 0.1, colour = NA) +
+#   labs(x = "Year", colour = " ", fill = " ", linetype = " ") +
+#   scale_colour_manual(values = colour_pal) +
+#   scale_fill_manual(values = colour_pal) +
+#   scale_linetype_manual(values = line_pal) +
+#   facet_grid(species_common_name ~ survey_abbrev, scales = "free_y") +
+#   scale_y_continuous(breaks = waiver(), n.breaks = 3) +
+#   ylab("Relative biomass") +
+#   ggtitle("") +
+#   theme(
+#     legend.justification = c(0, 1), legend.position = c(-0.28, 1.085), legend.direction = "horizontal",
+#     strip.text.y = element_text(size = 9, angle = 0, hjust = 0),
+#     axis.title.y = element_blank(),
+#     axis.title.x = element_text(hjust = 0.2)
+#   )
+#
+# g1 + g2 + patchwork::plot_layout(widths = c(1, 2))
 
-g1 <- i %>%
-  filter(species_common_name %in% syn_highlights) %>%
-  mutate(species_common_name = factor(species_common_name, levels = syn_highlights)) %>%
+i3 <- bind_rows(i1,i2)%>% ungroup() %>% mutate(
+  which_survey = ifelse(survey_abbrev== "HBLL OUT N", "HBLL", "SYN QCS"),
+  # spp_survey = paste0(species_common_name, " (", which_survey, ")"),
+  spp_survey = paste0(species_common_name),
+  spp_survey1 = forcats::fct_reorder(spp_survey, orig_cv))
+  # spp_survey1 = forcats::fct_reorder(spp_survey, year, max))
+glimpse(i3)
+
+g <- i3  %>%
   ggplot(aes(year, est,
-    ymin = lwr, ymax = upr,
-    colour = type_label, fill = type_label, linetype = type_label
-  )) +
-  geom_line(lwd = 0.6) +
-  geom_ribbon(alpha = 0.1, colour = NA) +
-  labs(x = "Year", colour = "Type", fill = "Type", linetype = "Type") +
-  scale_colour_manual(values = colour_pal) +
-  scale_fill_manual(values = colour_pal) +
-  scale_linetype_manual(values = line_pal) +
-  xlim(2005, 2020) +
-  facet_grid(species_common_name ~ survey_abbrev, scales = "free_y") +
-  scale_y_continuous(breaks = waiver(), n.breaks = 4) +
-  ggtitle("Index type:   ") +
-  ylab("Relative abundance in 1000s (HBLL) or biomass in tonnes (SYN)") +
-  theme(
-    plot.title = element_text(hjust = 0.9),
-    strip.text.y = element_blank(),
-    axis.title.x = element_blank(),
-    legend.position = "none"
-  )
-
-g2 <- i2 %>%
-  filter(survey_abbrev != "SYN WCHG") %>%
-  filter(species_common_name %in% syn_highlights) %>%
-  mutate(species_common_name = factor(species_common_name, levels = syn_highlights)) %>%
-  ggplot(aes(year, est,
-    ymin = lwr, ymax = upr,
-    colour = type_label, fill = type_label, linetype = type_label
+             ymin = lwr, ymax = upr,
+             colour = type_label, fill = type_label, linetype = type_label
   )) +
   geom_line(lwd = 0.6) +
   geom_ribbon(alpha = 0.1, colour = NA) +
@@ -164,21 +219,19 @@ g2 <- i2 %>%
   scale_colour_manual(values = colour_pal) +
   scale_fill_manual(values = colour_pal) +
   scale_linetype_manual(values = line_pal) +
-  facet_grid(species_common_name ~ survey_abbrev, scales = "free_y") +
-  scale_y_continuous(breaks = waiver(), n.breaks = 3) +
-  ylab("Relative biomass") +
-  ggtitle("") +
-  theme(
-    legend.justification = c(0, 1), legend.position = c(-0.28, 1.085), legend.direction = "horizontal",
-    strip.text.y = element_text(size = 9, angle = 0, hjust = 0),
-    axis.title.y = element_blank(),
-    axis.title.x = element_text(hjust = 0.2)
-  )
-
-g1 + g2 + patchwork::plot_layout(widths = c(1, 2))
+  facet_wrap(~spp_survey, scales = "free_y", ncol = 4) +
+  # scale_y_continuous(breaks = waiver(), n.breaks = 3) +
+  ylab("Relative abundance in 1000s (HBLL) or biomass in tonnes (SYN)") +
+  ggtitle("Index type:   ") +
+  theme( legend.justification = c(0, 1), legend.position = c(0.1, 1.095),
+        # legend.position = "top",
+        legend.direction = "horizontal")
+g
 
 if (include_mpa) ggsave("figs/index-geo-restricted-highlights.pdf", width = 6.5, height = 8)
-if (!include_mpa) ggsave("figs/index-geo-restricted-highlights-noMPA.pdf", width = 7, height = 8)
+if (!include_mpa) ggsave("figs/index-geo-restricted-highlights-noMPA.pdf", width = 9.5, height = 7)
+
+
 
 
 # FIGURE 2: RE through time ----
@@ -214,7 +267,7 @@ g <- x_long %>%
   geom_hline(yintercept = 0, lty = 2, alpha = 0.5) +
   geom_line(size = 0.84, alpha = 0.9) +
   # scale_color_brewer(palette = "Set2") +
-  scale_colour_manual(values = restricted_cols, label = ) +
+  scale_colour_manual(values = restricted_cols) +
   ylab("Relative error") +
   xlab("Year") +
   # scale_y_continuous(trans = "S_sqrt", breaks = c(-0.5,-0.1,0, 0.1, 0.5)) +
@@ -473,9 +526,9 @@ g <- index %>%
   scale_fill_manual(values = colour_pal) +
   scale_linetype_manual(values = line_pal) +
   ylab("Relative abundance in 1000s") +
-  facet_wrap(~species_common_name, scales = "free_y", ncol = 5)
+  facet_wrap(~species_common_name, scales = "free_y", ncol = 4)
 g
-ggsave("figs/index-hbll-geo-restricted.pdf", width = 12, height = 8)
+ggsave("figs/index-hbll-geo-restricted.pdf", width = 10, height = 8)
 
 g <- index %>%
   filter(survey_abbrev == "SYN QCS") %>%
@@ -501,9 +554,9 @@ g <- index %>%
   scale_fill_manual(values = colour_pal) +
   scale_linetype_manual(values = line_pal) +
   ylab("Relative biomass in tonnes") +
-  facet_wrap(~species_common_name, scales = "free_y", ncol = 5)
+  facet_wrap(~species_common_name, scales = "free_y", ncol = 4)
 g
-ggsave("figs/index-qcs-geo-restricted.pdf", width = 12, height = 13, limitsize = FALSE)
+ggsave("figs/index-qcs-geo-restricted.pdf", width = 10, height = 11, limitsize = FALSE)
 
 g <- index %>%
   filter(survey_abbrev == "SYN HS") %>%
@@ -515,9 +568,9 @@ g <- index %>%
   scale_fill_manual(values = colour_pal) +
   scale_linetype_manual(values = line_pal) +
   ylab("Relative biomass in tonnes") +
-  facet_wrap(~species_common_name, scales = "free_y", ncol = 5)
+  facet_wrap(~species_common_name, scales = "free_y", ncol = 4)
 g
-ggsave("figs/index-hs-geo-restricted.pdf", width = 12, height = 13, limitsize = FALSE)
+ggsave("figs/index-hs-geo-restricted.pdf", width = 10, height = 9, limitsize = FALSE)
 
 g <- index %>%
   filter(survey_abbrev == "SYN WCHG") %>%
@@ -529,9 +582,9 @@ g <- index %>%
   scale_fill_manual(values = colour_pal) +
   scale_linetype_manual(values = line_pal) +
   ylab("Relative biomass in tonnes") +
-  facet_wrap(~species_common_name, scales = "free_y", ncol = 5)
+  facet_wrap(~species_common_name, scales = "free_y", ncol = 4)
 g
-ggsave("figs/index-wchg-geo-restricted.pdf", width = 12, height = 5, limitsize = FALSE)
+ggsave("figs/index-wchg-geo-restricted.pdf", width = 10, height = 6, limitsize = FALSE)
 
 
 # RE PLOTS for each survey ----
@@ -666,4 +719,62 @@ ggsave("figs/index-geo-mare-dotplot.pdf", width = 9, height = 8)
 # dat_to_fit <- readRDS("data-generated/dat_to_fit_hbll.rds")
 # ggplot(dat_to_fit, aes(year, hook_count)) + geom_jitter(alpha = 0.1)
 # ggplot(dat_to_fit, aes(hook_count, area_km2)) + geom_jitter(alpha = 0.1) + facet_wrap(~year)
+
+
+dd1 <- cv_long %>%
+  group_by(survey_abbrev, species_common_name, `Restriction type`) %>%
+  summarise(lwr = min(`CV ratio`), upr = max(`CV ratio`), est = mean(`CV ratio`)) %>%
+  ungroup() %>%
+  group_by(species_common_name) %>%
+  mutate(
+    # est_avg = mean(est, na.rm = TRUE),
+         measure = "CV ratio (precision)") %>%
+  left_join(lu_cv)
+
+dd2 <-  x_long %>%
+  group_by(survey_abbrev, species_common_name, `Restriction type`) %>%
+  summarise(lwr = min(abs(re)), upr = max(abs(re)), est = median(abs(re))) %>%
+  mutate(
+    est_avg = mean(est, na.rm = TRUE),
+    measure = "MARE (accuracy)")
+
+# TODO: there is currently no uncertainty on the slope
+# if needed will need to save se from model and modify below
+dd3 <- d %>%
+  group_by(survey_abbrev, species_common_name, `Restriction type`) %>%
+  summarise(
+    #lwr = min(slope_re), upr = max(slope_re),
+            est = median((slope_re))) %>%
+  mutate(
+    # est_avg = mean(est, na.rm = TRUE),
+    measure = "RE trend (bias)") %>%
+  select(
+    survey_abbrev, species_common_name, `Restriction type`,
+    # lwr, upr,
+    est, measure
+    )
+
+dd <- bind_rows(dd2, dd3)%>%
+  left_join(lu) %>% bind_rows(dd1)
+
+g <- dd %>% filter(!survey_abbrev %in% c("SYN HS", "SYN WCHG")) %>%
+  ggplot(aes(
+    forcats::fct_reorder(stringr::str_to_title(species_common_name), -est_avg, mean, na.rm = TRUE),
+    est, ymin = lwr, ymax = upr,
+             colour = as.factor(restr_clean)
+  )) +
+  # geom_hline(yintercept = 0, lty = 2, col = "grey60") +
+  geom_pointrange(position = position_dodge(width = 0.75), size = 0.35) +
+  xlab("") +
+  ylab("") +
+  labs(colour = "") +
+  coord_flip() +
+  scale_y_continuous(breaks = waiver(), n.breaks = 4) +
+  scale_colour_manual(values = restricted_cols, label = restricted_labels) +
+  theme(
+    legend.position = "top", panel.grid.major.y = element_line(colour = "grey90"),
+    strip.placement = "outside") +
+  facet_grid(survey_abbrev~measure, scales = "free", switch="x")
+g
+ggsave("figs/index-geo-combind-dotplot.pdf", width = 9, height = 8)
 
