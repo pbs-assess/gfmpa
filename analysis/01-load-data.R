@@ -123,13 +123,29 @@ if (Sys.info()[['user']] == "seananderson") {
     cat(f[i], "\n")
     d <- readRDS(f[i])$survey_sets
     filter(d, survey_abbrev %in% c("HBLL OUT N")) %>%
-      select(year, survey_abbrev, species_science_name, species_common_name,
+      select(year, fishing_event_id, survey_abbrev, species_science_name, species_common_name,
         density_ppkm2, latitude, longitude, grouping_code, area_km2, depth_m,
         hook_count, catch_count)
   })
   saveRDS(hbll_data, file = "data-raw/hbll-survey-data.rds")
 } else {
+  if (Sys.info()[['user']] == "dfomac") {
+  f <- list.files("~/github/dfo/gfsynopsis/report/data-cache/",
+                  full.names = TRUE)
+  f <- f[!grepl("cpue", f)]
+  f <- f[!grepl("iphc", f)]
+  hbll_data <- purrr::map_dfr(seq_along(f), function(i) {
+    cat(f[i], "\n")
+    d <- readRDS(f[i])$survey_sets
+    filter(d, survey_abbrev %in% c("HBLL OUT N")) %>%
+      select(year, fishing_event_id, survey_abbrev, species_science_name, species_common_name,
+             density_ppkm2, latitude, longitude, grouping_code, area_km2, depth_m,
+             hook_count, catch_count)
+  })
+  saveRDS(hbll_data, file = "data-raw/hbll-survey-data.rds")
+  } else {
   hbll_data <- readRDS("data-raw/hbll-survey-data.rds")
+  }
 }
 
 dat <- assign_restricted_tows_hbll(hbll_data)
@@ -148,6 +164,8 @@ nrow(tokeep)
 dat_to_fit <- left_join(tokeep, dat, by = c("species_common_name", "survey_abbrev"))
 
 saveRDS(dat_to_fit, file = "data-generated/dat_to_fit_hbll.rds")
+
+
 
 dat_to_fit <- readRDS("data-generated/dat_to_fit_hbll.rds")
 hbll_grid <- gfplot::hbll_n_grid$grid

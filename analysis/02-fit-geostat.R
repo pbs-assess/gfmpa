@@ -20,8 +20,8 @@ if (length(args) == 0L)
 survey <- args[[1]]
 fam <- args[[2]]
 
-# survey <- "HBLL"
-# fam <- "binomial_gamma"
+survey <- "HBLL"
+fam <- "binomial_gamma"
 
 if (fam == "tweedie") {
   family = tweedie()
@@ -46,6 +46,20 @@ cat("family: ", family$family, "\n")
 
 if (survey == "HBLL") {
   dat_to_fit <- readRDS("data-generated/dat_to_fit_hbll.rds")
+  hooks <- readRDS("data-raw/HBLLOUTN-hooks.rds") %>%
+    mutate(count_animals = count_target_species + count_non_target_species) %>%
+    select(year, fishing_event_id, count_animals,
+           count_bait_only, count_empty_hooks, count_bent_broken)
+  dat_to_fit <- left_join(dat_to_fit, hooks) %>%
+    mutate(total_hooks = count_animals + count_bait_only + count_empty_hooks - count_bent_broken) %>%
+    mutate(count_bait_only = replace(count_bait_only, which(count_bait_only == 0), 1)) %>%
+    mutate(prop_bait_hooks = count_bait_only / total_hooks) %>%
+    mutate(hook_adjust_factor = -log(prop_bait_hooks) / (1 - prop_bait_hooks),
+           missing_hooks = hook_count - total_hooks,
+           adjusted_hooks = hook_count/hook_adjust_factor,
+           adjusted_hooks2 = total_hooks/hook_adjust_factor
+           )
+
   grid <- readRDS("data-generated/hbll-n-grid-w-restr.rds")
   grid$survey_abbrev <- "HBLL OUT N"
 
