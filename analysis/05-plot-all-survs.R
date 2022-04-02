@@ -310,22 +310,27 @@ d <- cvdata %>%
 
 
 # function for scatterplots ----
-plot_scatter <- function(dat, x, y) {
-  ggplot(dat, aes_string(x, y,
+plot_scatter <- function(dat, x, y, spp = TRUE) {
+
+  g <- ggplot(dat, aes_string(x, y,
     colour = "restr_clean",
     group = "species_common_name"
   )) +
     geom_line(colour = "gray95") +
-    ggrepel::geom_text_repel(
-      data = filter(dat, `Restriction type` == "re_restr"),
-      aes(label = species_common_name),
-      colour = "darkgray",
-      force = 2, direction = "y", max.overlaps = 2,
-      min.segment.length = 10, size = 2
-    ) +
     geom_point() +
     theme(legend.position = "none", legend.title = element_blank()) +
     scale_colour_manual(values = restricted_cols, label = restricted_labels)
+# browser()
+  if(spp){
+    g <- g + ggrepel::geom_text_repel(
+        data = filter(dat, `Restriction type` == "re_restr"),
+        aes(label = species_common_name),
+        colour = "darkgray",
+        force = 2, direction = "y", max.overlaps = 4,
+        min.segment.length = 10, size = 2
+      )
+  }
+g
 }
 
 
@@ -409,7 +414,7 @@ ggsave("figs/explore-qcs-cv.pdf", width = 7, height = 7)
 # CV ratio and MARE by status quo CV for all surveys at once for appendix ----
 if (length(unique(d$survey_abbrev)) > 3) { # makes sure all surveys
 
-  (g0 <- plot_scatter(d, "cv_orig", "cv_index") +
+  (g0 <- plot_scatter(d, "cv_orig", "cv_index", spp=FALSE) +
     xlab("CV of 'Status quo' index") +
     guides(shape = "none") +
     facet_grid(
@@ -420,16 +425,16 @@ if (length(unique(d$survey_abbrev)) > 3) { # makes sure all surveys
     ) +
     theme(
       axis.title.y = element_blank(),
-      legend.position = c(0.1, 0.95),
+      # legend.position = c(0.1, 0.95),
       strip.placement = "outside"
     ))
   (g0 <- tag_facet(g0, fontface = 1))
 
-  ggsave("figs/explore-all-cv-by-cv.pdf", width = 10, height = 5.5)
+  ggsave("figs/explore-all-cv-by-cv.pdf", width = 6, height = 3)
 
 
   # CV ratio and MARE by prop MPA for all surveys at once for appendix ----
-  (g <- plot_scatter(d, "prop_mpa", "cv_index") +
+  (g <- plot_scatter(d, "prop_mpa", "cv_index", spp=FALSE) +
     xlab("Biomass proportion inside MPAs") +
     guides(shape = "none") +
     facet_grid(
@@ -440,12 +445,12 @@ if (length(unique(d$survey_abbrev)) > 3) { # makes sure all surveys
     ) +
     theme(
       axis.title.y = element_blank(),
-      legend.position = c(0.1, 0.95),
+      # legend.position = c(0.1, 0.95),
       strip.placement = "outside"
     ))
   (g <- tag_facet(g, fontface = 1))
 
-  ggsave("figs/explore-all-cv-by-mpa.pdf", width = 10, height = 5.5)
+  ggsave("figs/explore-all-cv-by-mpa.pdf", width = 6, height = 3)
 }
 
 
@@ -489,7 +494,7 @@ d_mare <- filter(d, Response == "MARE")
   theme(legend.position = c(0.37, 0.95)))
 (g <- tag_facet(g, hjust = -0.5, vjust = 2, fontface = 1))
 
-ggsave("figs/explore-all-slopes.pdf", width = 7, height = 7)
+ggsave("figs/explore-all-slopes.pdf", width = 8, height = 8)
 
 (g <- plot_scatter(d_mare, "prop_mpa", "abs(slope_re/100)") +
   ylab("Absolute change in RE per decade") +
