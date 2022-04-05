@@ -3,9 +3,11 @@
 # each with globals set for each survey separately
 # currently using the "binomial-gamma" model type for both surveys
 # for this script the only global is whether to include the mpa index in figure 1
+# devtools::install_github("eliocamp/tagger")
 
 library(tidyverse)
 library(egg)
+library(tagger) # egg didn't work for the dotplot
 library(patchwork)
 theme_set(ggsidekick::theme_sleek())
 library(methods)
@@ -50,7 +52,7 @@ filter(y, orig_cv <= 1)
 index <- filter(y, orig_cv < 1)
 
 index$species_common_name <- stringr::str_to_title(index$species_common_name)
-index <- mutate(index, gsub("Rougheye/Blackspotted Rockfish Complex", "Rougheye Rockfish", species_common_name))
+index <- mutate(index, species_common_name = gsub("Rougheye/Blackspotted Rockfish Complex", "Rougheye/Blackspotted Rockfish", species_common_name))
 
 if (!include_mpa) index <- index %>% filter(type != "MPA only")
 
@@ -222,14 +224,16 @@ g <- i3  %>%
   facet_wrap(~spp_survey, scales = "free_y", ncol = 4) +
   # scale_y_continuous(breaks = waiver(), n.breaks = 3) +
   ylab("Relative abundance in 1000s (HBLL) or biomass in tonnes (SYN)") +
-  ggtitle("Index type:   ") +
-  theme( legend.justification = c(0, 1), legend.position = c(0.1, 1.095),
-        # legend.position = "top",
-        legend.direction = "horizontal")
+  labs(x = "Year", colour = "Index type", fill = "Index type", linetype = "Index type") +
+  # ggtitle("Index type:   ") +
+  theme(
+    # legend.justification = c(0, 1), legend.position = c(0.1, 1.095), legend.direction = "horizontal"
+    legend.position = "top",axis.text.y = element_text(size = 8)
+        )
 g
 
 if (include_mpa) ggsave("figs/index-geo-restricted-highlights.pdf", width = 6.5, height = 8)
-if (!include_mpa) ggsave("figs/index-geo-restricted-highlights-noMPA.pdf", width = 9.5, height = 7)
+if (!include_mpa) ggsave("figs/index-geo-restricted-highlights-noMPA.pdf", width = 8, height = 7)
 
 
 
@@ -301,6 +305,8 @@ cvdata2 <- readRDS("data-generated/syn-cv-w-lm-slopes.rds")
 # glimpse(cvdata1)
 # glimpse(cvdata2)
 cvdata <- bind_rows(cvdata1, cvdata2)
+cvdata <- mutate(cvdata, species_common_name = gsub("Rougheye/Blackspotted Rockfish Complex", "Rougheye/Blackspotted Rockfish", species_common_name))
+
 
 d <- cvdata %>%
   tidyr::pivot_longer(c("cv_ratio", "mare"), names_to = "Response", values_to = "cv_index") %>%
@@ -531,9 +537,10 @@ g <- index %>%
   scale_fill_manual(values = colour_pal) +
   scale_linetype_manual(values = line_pal) +
   ylab("Relative abundance in 1000s") +
-  facet_wrap(~species_common_name, scales = "free_y", ncol = 4)
+  facet_wrap(~species_common_name, scales = "free_y", ncol = 4) +
+  theme(legend.position = "top")
 g
-ggsave("figs/index-hbll-geo-restricted.pdf", width = 10, height = 8)
+ggsave("figs/index-hbll-geo-restricted.pdf", width = 9, height = 8)
 
 g <- index %>%
   filter(survey_abbrev == "SYN QCS") %>%
@@ -559,9 +566,10 @@ g <- index %>%
   scale_fill_manual(values = colour_pal) +
   scale_linetype_manual(values = line_pal) +
   ylab("Relative biomass in tonnes") +
-  facet_wrap(~species_common_name, scales = "free_y", ncol = 4)
+  facet_wrap(~species_common_name, scales = "free_y", ncol = 4)+
+  theme(legend.position = "top",axis.text.y = element_text(size = 7))
 g
-ggsave("figs/index-qcs-geo-restricted.pdf", width = 10, height = 11, limitsize = FALSE)
+ggsave("figs/index-qcs-geo-restricted.pdf", width = 9.1, height = 11, limitsize = FALSE)
 
 g <- index %>%
   filter(survey_abbrev == "SYN HS") %>%
@@ -573,9 +581,10 @@ g <- index %>%
   scale_fill_manual(values = colour_pal) +
   scale_linetype_manual(values = line_pal) +
   ylab("Relative biomass in tonnes") +
-  facet_wrap(~species_common_name, scales = "free_y", ncol = 4)
+  facet_wrap(~species_common_name, scales = "free_y", ncol = 4)+
+  theme(legend.position = "top",axis.text.y = element_text(size = 7))
 g
-ggsave("figs/index-hs-geo-restricted.pdf", width = 10, height = 9, limitsize = FALSE)
+ggsave("figs/index-hs-geo-restricted.pdf", width = 9, height = 9, limitsize = FALSE)
 
 g <- index %>%
   filter(survey_abbrev == "SYN WCHG") %>%
@@ -587,9 +596,10 @@ g <- index %>%
   scale_fill_manual(values = colour_pal) +
   scale_linetype_manual(values = line_pal) +
   ylab("Relative biomass in tonnes") +
-  facet_wrap(~species_common_name, scales = "free_y", ncol = 4)
+  facet_wrap(~species_common_name, scales = "free_y", ncol = 4)+
+  theme(legend.position = "top",axis.text.y = element_text(size = 7))
 g
-ggsave("figs/index-wchg-geo-restricted.pdf", width = 10, height = 6, limitsize = FALSE)
+ggsave("figs/index-wchg-geo-restricted.pdf", width = 9.2, height = 6, limitsize = FALSE)
 
 
 # RE PLOTS for each survey ----
@@ -699,6 +709,53 @@ g
 ggsave("figs/index-geo-cv-ratio-dotplot.pdf", width = 8.5, height = 6)
 
 
+# CV percent change dotplot ----
+cv2 <- index %>%
+  group_by(species_common_name, survey_abbrev, year) %>%
+  summarise(
+    cv_change_restr = round((cv[type == "Restricted"]-cv[type == "Status quo"]) /
+      cv[type == "Status quo"], 2),
+    cv_change_shrunk = round((cv[type == "Restricted and shrunk"]-cv[type == "Status quo"]) /
+      cv[type == "Status quo"], 2)
+  )
+cv_long2 <- cv2 %>%
+  tidyr::pivot_longer(starts_with("cv"),
+                      names_to = "Restriction type", values_to = "CV change"
+  )
+cv_long2 %>%
+  group_by(`Restriction type`, survey_abbrev) %>%
+  summarise(mean_ratio = mean(`CV change`)) %>%
+  knitr::kable(digits = 2)
+lu_cv2 <- tibble(
+  "Restriction type" = c("cv_change_restr", "cv_change_shrunk"),
+  restr_clean = c("Same survey domain", "Shrunk survey domain")
+)
+g <- cv_long2 %>%
+  group_by(survey_abbrev, species_common_name, `Restriction type`) %>%
+  summarise(lwr = min(`CV change`), upr = max(`CV change`), est = mean(`CV change`)) %>%
+  ungroup() %>%
+  group_by(species_common_name) %>%
+  mutate(est_avg = mean(est, na.rm = TRUE)) %>%
+  left_join(lu_cv2) %>%
+  ggplot(aes(forcats::fct_reorder(stringr::str_to_title(species_common_name), -est_avg), est,
+             colour = restr_clean, ymin = lwr, ymax = upr
+  )) +
+  geom_hline(yintercept = 0, lty = 2, col = "grey60") +
+  geom_pointrange(position = position_dodge(width = 0.75), size = 0.35) +
+  coord_flip() +
+  # scale_y_continuous(trans = "log") +
+  xlab("") +
+  ylab("% change in CV with restriction") +
+  labs(colour = " ") +
+  scale_colour_manual(values = restricted_cols, label = restricted_labels) +
+  theme(legend.position = "top", panel.grid.major.y = element_line(colour = "grey90")) +
+  facet_wrap(~survey_abbrev, ncol = 4, scales = "free_x")
+g
+# (g <- tag_facet_outside(g, fontface = 1))
+
+ggsave("figs/index-geo-cv-change-dotplot.pdf", width = 8.5, height = 6)
+
+
 # MARE dotplot ----
 g <- x_long %>% # first created for FIG 2
   group_by(survey_abbrev, species_common_name, `Restriction type`) %>%
@@ -725,7 +782,6 @@ ggsave("figs/index-geo-mare-dotplot.pdf", width = 9, height = 8)
 # ggplot(dat_to_fit, aes(year, hook_count)) + geom_jitter(alpha = 0.1)
 # ggplot(dat_to_fit, aes(hook_count, area_km2)) + geom_jitter(alpha = 0.1) + facet_wrap(~year)
 
-
 dd1 <- cv_long %>%
   group_by(survey_abbrev, species_common_name, `Restriction type`) %>%
   summarise(lwr = min(`CV ratio`), upr = max(`CV ratio`), est = mean(`CV ratio`)) %>%
@@ -733,34 +789,47 @@ dd1 <- cv_long %>%
   group_by(species_common_name) %>%
   mutate(
     # est_avg = mean(est, na.rm = TRUE),
-         measure = "CV ratio (precision)") %>%
+         measure = "CV ratio (lost precision)") %>%
   left_join(lu_cv)
+
+dd1b <- cv_long2 %>%
+  group_by(survey_abbrev, species_common_name, `Restriction type`) %>%
+  summarise(lwr = quantile(`CV change`, 0.025), upr = quantile(`CV change`, 0.975), est = mean(`CV change`)) %>%
+  ungroup() %>%
+  group_by(species_common_name) %>%
+  mutate(
+    est_avg = mean(est, na.rm = TRUE),
+    measure = "CV (precision loss)") %>%
+  left_join(lu_cv2)
 
 dd2 <-  x_long %>%
   group_by(survey_abbrev, species_common_name, `Restriction type`) %>%
-  summarise(lwr = min(abs(re)), upr = max(abs(re)), est = median(abs(re))) %>%
+  summarise(lwr = quantile(abs(re), 0.025), upr = quantile(abs(re), 0.975), est = median(abs(re))) %>%
   mutate(
     est_avg = mean(est, na.rm = TRUE),
-    measure = "MARE (accuracy)")
+    measure = "MARE (accuracy loss)")
 
-# TODO: there is currently no uncertainty on the slope
-# if needed will need to save se from model and modify below
 dd3 <- d %>%
   group_by(survey_abbrev, species_common_name, `Restriction type`) %>%
   summarise(
-    #lwr = min(slope_re), upr = max(slope_re),
-            est = median((slope_re))) %>%
+    lwr = (median(slope_re)-1.98*mean(se_slope_re))/1,
+    upr = (median(slope_re)+1.98*mean(se_slope_re))/1,
+    est = median((slope_re))/1) %>%
   mutate(
-    # est_avg = mean(est, na.rm = TRUE),
+    est_avg = mean(abs(est), na.rm = TRUE)/1,
     measure = "RE trend (bias)") %>%
   select(
     survey_abbrev, species_common_name, `Restriction type`,
-    # lwr, upr,
+    lwr, upr,
+    est_avg,
     est, measure
     )
 
 dd <- bind_rows(dd2, dd3)%>%
-  left_join(lu) %>% bind_rows(dd1)
+  left_join(lu) %>% bind_rows(
+    # dd1
+    dd1b
+    )
 
 g <- dd %>% filter(!survey_abbrev %in% c("SYN HS", "SYN WCHG")) %>%
   ggplot(aes(
@@ -768,18 +837,24 @@ g <- dd %>% filter(!survey_abbrev %in% c("SYN HS", "SYN WCHG")) %>%
     est, ymin = lwr, ymax = upr,
              colour = as.factor(restr_clean)
   )) +
-  # geom_hline(yintercept = 0, lty = 2, col = "grey60") +
+  geom_hline(yintercept = 0, lty = 2, col = "grey60") +
   geom_pointrange(position = position_dodge(width = 0.75), size = 0.35) +
-  xlab("") +
-  ylab("") +
-  labs(colour = "") +
+  # xlab("") +
+  # ylab("") +
   coord_flip() +
   scale_y_continuous(breaks = waiver(), n.breaks = 4) +
   scale_colour_manual(values = restricted_cols, label = restricted_labels) +
+  labs(x = "", y = "", colour = "Index type", fill = "Index type", linetype = "Index type") +
   theme(
+    strip.text = element_text(colour = "black"),
     legend.position = "top", panel.grid.major.y = element_line(colour = "grey90"),
     strip.placement = "outside") +
-  facet_grid(survey_abbrev~measure, scales = "free", switch="x")
+  facet_grid(survey_abbrev~measure, scales = "free",
+             space="free_y", switch="x")
 g
-ggsave("figs/index-geo-combind-dotplot.pdf", width = 9, height = 8)
+# not sure why but egg didn't work here
+# devtools::install_github("eliocamp/tagger")
+(g <- g + tagger::tag_facets(tag_prefix = "(", position = list(x = 0.1, y = 0.96)))
+
+ggsave("figs/index-geo-combind-dotplot.pdf", width = 7.6, height = 8)
 
