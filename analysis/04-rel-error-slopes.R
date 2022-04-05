@@ -127,7 +127,7 @@ mare2 <- mare %>%
 re_long <- re_long %>%
   mutate(
     decade = (year - 2012) / 10,
-    re100 = re * 100,
+    re100 = re,
     spp_by_survey = paste(species_common_name, survey_abbrev)
   )
 
@@ -226,6 +226,10 @@ for (i in seq_along(spp)) {
       slope_re = c(
         tryCatch(m1$coefficients[["decade"]], error = function(err) NA),
         tryCatch(m2$coefficients[["decade"]], error = function(err) NA)
+      ),
+      se_slope_re = c(
+        tryCatch(summary(m1)$coefficients[2,2], error = function(err) NA),
+        tryCatch(summary(m2)$coefficients[2,2], error = function(err) NA)
       ),
       slope_mpa = c(
         tryCatch(m3$coefficients[["decade"]], error = function(err) NA),
