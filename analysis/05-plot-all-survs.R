@@ -848,7 +848,7 @@ g <- dd %>% filter(!survey_abbrev %in% c("SYN HS", "SYN WCHG")) %>%
   # xlab("") +
   # ylab("") +
   coord_flip() +
-  scale_y_continuous(breaks = waiver(), n.breaks = 4) +
+  scale_y_continuous(breaks = waiver(), n.breaks = 4, expand = c(0,0)) +
   scale_colour_manual(values = restricted_cols, label = restricted_labels) +
   labs(x = "", y = "", colour = "Index type", fill = "Index type", linetype = "Index type") +
   theme(
