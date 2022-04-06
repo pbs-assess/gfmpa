@@ -325,7 +325,7 @@ d[d$Response == "CV Ratio",]$cv_index <- d[d$Response == "CV Ratio",]$cv_index -
 d[d$Response == "RE trend",]$cv_index <- abs(d[d$Response == "RE trend",]$cv_index)
 
 # update labels
-d$Response <- factor(d$Response, labels = c("CV Ratio - 1", "MARE", "| trend |"))
+d$Response <- factor(d$Response, labels = c("CV Ratio - 1", "MARE", "| RE trend |"))
 
 
 # function for scatterplots ----
@@ -505,55 +505,55 @@ if (length(unique(d$survey_abbrev)) > 3) { # makes sure all surveys
 }
 
 
-# # MARE by CV ratio ----
-#
-# cvdata2 <- cvdata
-# cvdata2[cvdata2$cv_ratio > 1.5, ]$cv_ratio <- 1.5
-#
-# cvdata2$cv_ratio <- cvdata2$cv_ratio - 1
-#
-# (g <- plot_scatter(cvdata2, "cv_ratio", "mare") +
-#   xlab("CV ratio - 1") +
-#   ylab("MARE") +
-#   guides(shape = "none") +
-#   facet_wrap(~survey_abbrev,
-#     ncol = 2,
-#     # cols = vars(survey_abbrev),
-#     # switch = "y",
-#     scales = "free_x"
-#   ) +
-#   theme(
-#     legend.position = c(0.12, 0.96),
-#     strip.placement = "outside"
-#   ))
-#
-# g <- tag_facet(g, hjust = -0.5, vjust = 2, fontface = 1)
-# # g
-# ggsave("figs/explore-all-mare-by-cv-ratio.pdf", width = 7, height = 7)
-#
+# MARE by CV ratio ----
+
+cvdata2 <- cvdata
+cvdata2[cvdata2$cv_ratio > 1.5, ]$cv_ratio <- 1.5
+
+cvdata2$cv_ratio <- cvdata2$cv_ratio - 1
+
+(g <- plot_scatter(cvdata2, "cv_ratio", "mare") +
+  xlab("CV ratio - 1") +
+  ylab("MARE") +
+  guides(shape = "none") +
+  facet_wrap(~survey_abbrev,
+    ncol = 2,
+    # cols = vars(survey_abbrev),
+    # switch = "y",
+    scales = "free_x"
+  ) +
+  theme(
+    legend.position = c(0.12, 0.96),
+    strip.placement = "outside"
+  ))
+
+g <- tag_facet(g, hjust = -0.5, vjust = 2, fontface = 1)
+# g
+ggsave("figs/explore-all-mare-by-cv-ratio.pdf", width = 7, height = 7)
+
 
 # FIGURE 6: slopes ----
-
-(g <- plot_scatter(cvdata, "slope_mpa", "slope_re") +
-  facet_wrap(~survey_abbrev,
-    scales = "free"
-  ) +
-  ylab("Change in RE per decade") +
-  xlab("Change in proportion of biomass inside MPAs") +
-  geom_hline(yintercept = 0, colour = "gray80") +
-  geom_vline(xintercept = 0, colour = "gray70") +
-  theme(legend.position = c(0.37, 0.95)))
-(g <- tag_facet(g, hjust = -0.5, vjust = 2, fontface = 1))
-
-ggsave("figs/explore-all-slopes.pdf", width = 8, height = 8)
-
-(g <- plot_scatter(cvdata, "prop_mpa", "abs(slope_re)") +
-  ylab("Absolute change in RE per decade") +
-  xlab("Proportion of biomass inside MPAs") +
-  facet_wrap(~survey_abbrev,
-    scales = "free"
-  ) + theme(legend.position = c(0.08, 0.96)))
-ggsave("figs/explore-abs-slope.pdf", width = 7, height = 7)
+#
+# (g <- plot_scatter(cvdata, "slope_mpa", "slope_re") +
+#   facet_wrap(~survey_abbrev,
+#     scales = "free"
+#   ) +
+#   ylab("Change in RE per decade") +
+#   xlab("Change in proportion of biomass inside MPAs") +
+#   geom_hline(yintercept = 0, colour = "gray80") +
+#   geom_vline(xintercept = 0, colour = "gray70") +
+#   theme(legend.position = c(0.37, 0.95)))
+# (g <- tag_facet(g, hjust = -0.5, vjust = 2, fontface = 1))
+#
+# ggsave("figs/explore-all-slopes.pdf", width = 8, height = 8)
+#
+# (g <- plot_scatter(cvdata, "prop_mpa", "abs(slope_re)") +
+#   ylab("Absolute change in RE per decade") +
+#   xlab("Proportion of biomass inside MPAs") +
+#   facet_wrap(~survey_abbrev,
+#     scales = "free"
+#   ) + theme(legend.position = c(0.08, 0.96)))
+# ggsave("figs/explore-abs-slope.pdf", width = 7, height = 7)
 
 
 d_shrunk2 <- filter(cvdata, `Restriction type` == "re_shrunk")
