@@ -228,9 +228,13 @@ g <- i3  %>%
   # ggtitle("Index type:   ") +
   theme(
     # legend.justification = c(0, 1), legend.position = c(0.1, 1.095), legend.direction = "horizontal"
+    strip.text = element_text(colour = "black"),
     legend.position = "top",axis.text.y = element_text(size = 8)
         )
 g
+
+
+(g <- g + tagger::tag_facets(tag_prefix = "(", position = list(x = 0.1, y = 0.87)))
 
 if (include_mpa) ggsave("figs/index-geo-restricted-highlights.pdf", width = 6.5, height = 8)
 if (!include_mpa) ggsave("figs/index-geo-restricted-highlights-noMPA.pdf", width = 8, height = 7)
@@ -799,7 +803,7 @@ dd1b <- cv_long2 %>%
   group_by(species_common_name) %>%
   mutate(
     est_avg = mean(est, na.rm = TRUE),
-    measure = "CV (precision loss)") %>%
+    measure = "CV ratio - 1 (precision loss)") %>%
   left_join(lu_cv2)
 
 dd2 <-  x_long %>%
@@ -856,5 +860,5 @@ g
 # devtools::install_github("eliocamp/tagger")
 (g <- g + tagger::tag_facets(tag_prefix = "(", position = list(x = 0.1, y = 0.96)))
 
-ggsave("figs/index-geo-combind-dotplot.pdf", width = 7.6, height = 8)
+ggsave("figs/index-geo-combind-dotplot.pdf", width = 7.8, height = 8)
 
