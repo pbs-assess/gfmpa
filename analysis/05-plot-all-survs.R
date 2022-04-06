@@ -808,7 +808,9 @@ dd1b <- cv_long2 %>%
 
 dd2 <-  x_long %>%
   group_by(survey_abbrev, species_common_name, `Restriction type`) %>%
-  summarise(lwr = quantile(abs(re), 0.025), upr = quantile(abs(re), 0.975), est = median(abs(re))) %>%
+  summarise(lwr = quantile(abs(re), 0.025),
+            upr = ifelse(quantile(abs(re), 0.975) > 0.5, 0.5, quantile(abs(re), 0.975)),
+            est = median(abs(re))) %>%
   mutate(
     est_avg = mean(est, na.rm = TRUE),
     measure = "MARE (accuracy loss)")
