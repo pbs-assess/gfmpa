@@ -700,12 +700,13 @@ g <- x_long %>%
   scale_colour_manual(values = restricted_cols, label = restricted_labels) +
   ylab("Relative error") +
   xlab("Year") +
-  facet_wrap(~species_common_name, scales = "free_y", ncol = 5) +
+  facet_wrap(~species_common_name, scales = "free_y", ncol = 4) +
   # scale_y_continuous(trans = "S_sqrt", breaks = c(-0.5,-0.1,0, 0.1, 0.5)) +
   # coord_cartesian(ylim = c(-0.35, 0.4)) +
-  labs(colour = "")
+  labs(colour = "")+
+  theme(legend.position = "top",axis.text.y = element_text(size = 7))
 g
-ggsave("figs/index-hbll-geo-restricted-re.pdf", width = 12, height = 8)
+ggsave("figs/index-hbll-geo-restricted-re.pdf", width = 9, height = 8)
 
 g <- x_long %>%
   filter(survey_abbrev == "SYN QCS") %>%
@@ -716,10 +717,11 @@ g <- x_long %>%
   scale_colour_manual(values = restricted_cols, label = restricted_labels) +
   ylab("Relative error") +
   xlab("Year") +
-  facet_wrap(~species_common_name, scales = "free_y", ncol = 5) +
-  labs(colour = "")
+  facet_wrap(~species_common_name, scales = "free_y", ncol = 4) +
+  labs(colour = "")+
+  theme(legend.position = "top",axis.text.y = element_text(size = 7))
 g
-ggsave("figs/index-qcs-geo-restricted-re.pdf", width = 12, height = 13)
+ggsave("figs/index-qcs-geo-restricted-re.pdf", width = 9.1, height = 11, limitsize = FALSE)
 
 g <- x_long %>%
   filter(survey_abbrev == "SYN HS") %>%
@@ -730,10 +732,11 @@ g <- x_long %>%
   scale_colour_manual(values = restricted_cols, label = restricted_labels) +
   ylab("Relative error") +
   xlab("Year") +
-  facet_wrap(~species_common_name, scales = "free_y", ncol = 5) +
-  labs(colour = "")
+  facet_wrap(~species_common_name, scales = "free_y", ncol = 4) +
+  labs(colour = "")+
+  theme(legend.position = "top",axis.text.y = element_text(size = 7))
 g
-ggsave("figs/index-hs-geo-restricted-re.pdf", width = 12, height = 13)
+ggsave("figs/index-hs-geo-restricted-re.pdf", width = 9, height = 9, limitsize = FALSE)
 
 g <- x_long %>%
   filter(survey_abbrev == "SYN WCHG") %>%
@@ -744,10 +747,11 @@ g <- x_long %>%
   scale_colour_manual(values = restricted_cols, label = restricted_labels) +
   ylab("Relative error") +
   xlab("Year") +
-  facet_wrap(~species_common_name, scales = "free_y", ncol = 5) +
-  labs(colour = "")
+  facet_wrap(~species_common_name, scales = "free_y", ncol = 4) +
+  labs(colour = "")+
+  theme(legend.position = "top",axis.text.y = element_text(size = 7))
 g
-ggsave("figs/index-wchg-geo-restricted-re.pdf", width = 12, height = 5)
+ggsave("figs/index-wchg-geo-restricted-re.pdf", width = 9.2, height = 6, limitsize = FALSE)
 
 
 # CV ratio dotplot ----
