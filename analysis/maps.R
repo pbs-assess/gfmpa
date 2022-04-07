@@ -153,17 +153,29 @@ all_rest <- filter(all, restricted)
 dat_rest <- filter(dat, restricted)
 dat_hbll_rest <- filter(dat_hbll, restricted)
 
-# .pal <- RColorBrewer::brewer.pal(5, "Set1")[c(2, 3, 5, 4)]
-# .pal <- RColorBrewer::brewer.pal(5, "Set1")[c(1:4)]
-.pal <- RColorBrewer::brewer.pal(5, "Set1")[c(2, 3, 5, 4)]
-# .pal <- viridisLite::viridis(4)
-# .pal <- RColorBrewer::brewer.pal(4, "Paired")
-
 dat_hbll <- mutate(dat_hbll, survey_abbrev = "HBLL OUT N")
 
-r_col <- "#B2182B"
+# r_col <- "#B2182B"
+r_col <- "black"
 
-g <- all %>%
+# .pal <- RColorBrewer::brewer.pal(5, "Set1")[c(2, 3, 5, 4)]
+# .pal <- RColorBrewer::brewer.pal(5, "Set1")[c(1:4)]
+# .pal <- RColorBrewer::brewer.pal(5, "Set1")[c(2, 3, 5, 4)]
+.pal <- RColorBrewer::brewer.pal(5, "Dark2")[c(2, 3, 5, 4)]
+# .pal <- RColorBrewer::brewer.pal(4, "Paired")
+
+# .pal <- viridisLite::mako(4, begin = 0.3, end = 0.95)
+# .pal <- viridisLite::plasma(4, begin = 0.2, end = 0.85)
+# .pal <- c(
+#   # "#648FFF",
+#           "#785EF0",
+#           "#DC267F",
+#           "#FE6100", "#FFB000")
+.pal <- viridisLite::viridis(4, begin = 0, end = 0.95)
+names(.pal) <- c("SYN HS", "SYN QCS", "HBLL OUT N", "SYN WCHG")
+# names(.pal) <- c("SYN QCS",  "HBLL OUT N", "SYN WCHG","SYN HS")
+
+(g <- all %>%
   ggplot() +
   geom_tile(aes(X, Y, fill = survey_abbrev), alpha = 0.45, width=2, height=2) +
   geom_tile(aes(X, Y), alpha = 0.45, width=2, height=2, data = all_rest, fill = r_col) +
@@ -182,7 +194,7 @@ g <- all %>%
   scale_colour_manual("Survey", values = .pal) +
   coord_fixed(xlim = c(180, 590), ylim = c(5640, 6050)) +
   gfplot::theme_pbs() + theme(legend.position=c(0.15,0.15)) +
-  xlab("Easting (km)") + ylab("Northing (km)")
+  xlab("Easting (km)") + ylab("Northing (km)"))
 
 ggsave("figs/restricted-grid.png", width = 6, height = 6)
 

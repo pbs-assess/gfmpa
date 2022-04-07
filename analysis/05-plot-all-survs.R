@@ -34,6 +34,9 @@ if (!include_mpa) colour_pal <- c("gray50", restricted_cols)
 if (include_mpa) line_pal <- c("dotted", "solid", "solid", "solid")
 if (!include_mpa) line_pal <- c("dotted", "solid", "solid")
 
+.pal <- viridisLite::viridis(4, begin = 0, end = 0.95)
+names(.pal) <- c("SYN HS", "SYN QCS", "HBLL OUT N", "SYN WCHG")
+
 # prep index data ----
 
 y1 <- readRDS(file = "data-generated/index-hbll-geo-clean-binomial_gamma.rds") %>%
@@ -478,7 +481,6 @@ if (length(unique(d$survey_abbrev)) > 3) { # makes sure all surveys
 
 
   # CV ratio and MARE by prop MPA for all surveys at once----
-  .pal <- RColorBrewer::brewer.pal(5, "Set1")[c(2, 3, 5, 4)]
   d_shrunk <- filter(d, `Restriction type` == "re_shrunk")
   (g <- g <- ggplot(d_shrunk,
                     aes_string("prop_mpa", "cv_index", colour = "survey_abbrev")) +
@@ -501,6 +503,27 @@ if (length(unique(d$survey_abbrev)) > 3) { # makes sure all surveys
 
   # ggsave("figs/explore-all-cv-by-mpa.pdf", width = 6, height = 3)
   ggsave("figs/explore-all-cv-by-mpa2.pdf", width = 4.5, height = 5) # for 3 rows
+
+
+  (g <- g <- ggplot(d_shrunk,
+                    aes_string("cv_orig", "cv_index", colour = "survey_abbrev")) +
+      geom_point(alpha = 0.8) +
+      xlab("CV of 'Status quo' index") +
+      guides(shape = "none") +
+      scale_colour_manual(name = "Survey", values = .pal) +
+      facet_grid(
+        rows = vars(Response),
+        # cols = vars(survey_abbrev),
+        switch = "y",
+        scales = "free_y"
+      ) +
+      theme(
+        axis.title.y = element_blank(),
+        # legend.position = c(0.1, 0.95),
+        strip.placement = "outside"
+      ))
+  (g <- tag_facet(g, fontface = 1))
+  ggsave("figs/explore-all-cv-by-cv2.pdf", width = 4.5, height = 5) # for 3 rows
 
 }
 
