@@ -145,6 +145,7 @@ do_sdmTMB_fit <- function(surv_dat, cutoff, pred_grid,
 binomial_gamma <- function() {
   list(family = "binomial-gamma")
 }
+
 fit_geo_model <- function(surv_dat, pred_grid,
                           MPA_trend = FALSE,
                           shrink_survey = FALSE,
