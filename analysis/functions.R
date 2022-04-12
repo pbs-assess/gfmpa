@@ -180,7 +180,7 @@ fit_geo_model <- function(surv_dat, pred_grid,
     saveRDS(fit, file = .file_model)
   } else {
     fit <- readRDS(.file_model)
-    if (!is.null(fit)) fit$tmb_obj$retape()
+    # if (!is.null(fit)) fit$tmb_obj$retape()
   }
 
   if (is.null(fit)) {
