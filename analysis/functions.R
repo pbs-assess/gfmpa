@@ -156,10 +156,12 @@ fit_geo_model <- function(surv_dat, pred_grid,
   .sp <- gsub("/", "-", .sp)
 
   dir.create("data-generated/model-cache", showWarnings = FALSE)
-  .file <- paste0("data-generated/model-cache/model-",
+  .file <- paste0(
+    "data-generated/model-cache/model-",
     gsub(" ", "-", unique(surv_dat$survey_abbrev)), "-", .sp, "-",
     if (mpa_dat_removed) "-mpa-dat-removed-",
-    paste(family$family, collapse = "-"), ".rds")
+    paste(family$family, collapse = "-"), ".rds"
+  )
 
   if (!file.exists(.file)) {
     fit <- do_sdmTMB_fit(
