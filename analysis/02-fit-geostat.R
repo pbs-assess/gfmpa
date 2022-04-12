@@ -1,6 +1,6 @@
 library(dplyr)
 library(ggplot2)
-library(sf)
+# library(sf)
 library(future)
 is_rstudio <- !is.na(Sys.getenv("RSTUDIO", unset = NA))
 is_unix <- .Platform$OS.type == "unix"

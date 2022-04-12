@@ -156,14 +156,16 @@ fit_geo_model <- function(surv_dat, pred_grid,
   .sp <- gsub("/", "-", .sp)
 
   dir.create("data-generated/model-cache", showWarnings = FALSE)
-  .file <- paste0(
+  dir.create("data-generated/index-cache", showWarnings = FALSE)
+  .file_model <- paste0(
     "data-generated/model-cache/model-",
     gsub(" ", "-", unique(surv_dat$survey_abbrev)), "-", .sp, "-",
     if (mpa_dat_removed) "-mpa-dat-removed-",
     paste(family$family, collapse = "-"), ".rds"
   )
+  .file_ind <- gsub("model", "index", .file_model)
 
-  if (!file.exists(.file)) {
+  if (!file.exists(.file_model)) {
     fit <- do_sdmTMB_fit(
       surv_dat,
       MPA_trend = MPA_trend,
@@ -173,46 +175,60 @@ fit_geo_model <- function(surv_dat, pred_grid,
       return_model = return_model,
       ...
     )
-    saveRDS(fit, file = .file)
+    saveRDS(fit, file = .file_model)
   } else {
-    fit <- readRDS(.file)
+    fit <- readRDS(.file_model)
     fit$tmb_obj$retape()
   }
 
   if (is.null(fit)) {
     return(null_df)
+    message("NULL model; discarding.")
   }
 
-  pred <- try({
-    predict(fit, newdata = pred_grid, return_tmb_object = TRUE)
-  })
-
-  if (return_model) {
-    return(pred$data)
-  }
-  if (class(pred)[[1]] == "try-error") {
-    return(NULL)
+  .diag <- sdmTMB:::get_convergence_diagnostics(fit$sd_report)
+  if (max(.diag$final_grads) > 0.01 || isTRUE(.diag$bad_eig) || isFALSE(.diag$pdHess)) {
+    message("Didn't converge; discarding.")
+    return(null_df)
   }
 
-  ind <- get_index(pred, area = 4, bias_correct = TRUE) # 2 x 2 km
-  ind$region <- "all"
-  # ggplot(ind, aes(year, est, ymin = lwr, ymax = upr)) +
-  #   geom_line() + geom_ribbon(alpha = 0.2)
-
-  if (length(unique(pred_grid$restricted)) > 1) {
-    mpa_only <- pred_grid[pred_grid$restricted, , drop = FALSE]
-    pred_mpa_only <- try({
-      predict(fit, newdata = mpa_only, return_tmb_object = TRUE)
+  if (!file.exists(.file_ind)) {
+    pred <- try({
+      predict(fit, newdata = pred_grid, return_tmb_object = TRUE)
     })
-    if (class(pred)[[1]] != "try-error") {
-      ind2 <- get_index(pred_mpa_only, area = 4, bias_correct = TRUE)
-      ind2$region <- "mpa"
-      ind <- dplyr::bind_rows(ind, ind2)
-    }
-  }
 
-  ind$species_common_name <- surv_dat$species_common_name[1]
-  ind$survey_abbrev <- surv_dat$survey_abbrev[1]
+    if (return_model) {
+      return(pred$data)
+    }
+    if (class(pred)[[1]] == "try-error") {
+      return(NULL)
+      message("Error on prediction; discarding.")
+    }
+
+    ind <- get_index(pred, area = 4, bias_correct = TRUE) # 2 x 2 km
+    ind$region <- "all"
+    # ggplot(ind, aes(year, est, ymin = lwr, ymax = upr)) +
+    #   geom_line() + geom_ribbon(alpha = 0.2)
+
+    if (length(unique(pred_grid$restricted)) > 1) {
+      mpa_only <- pred_grid[pred_grid$restricted, , drop = FALSE]
+      pred_mpa_only <- try({
+        predict(fit, newdata = mpa_only, return_tmb_object = TRUE)
+      })
+      if (class(pred)[[1]] != "try-error") {
+        ind2 <- get_index(pred_mpa_only, area = 4, bias_correct = TRUE)
+        ind2$region <- "mpa"
+        ind <- dplyr::bind_rows(ind, ind2)
+      }
+    }
+
+    ind$pdHess <- .diag$pdHess
+    ind$species_common_name <- surv_dat$species_common_name[1]
+    ind$survey_abbrev <- surv_dat$survey_abbrev[1]
+    saveRDS(ind, file = .file_ind)
+  } else {
+    ind <- readRDS(.file_ind)
+  }
   ind
 }
 
