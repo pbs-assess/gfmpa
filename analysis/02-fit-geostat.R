@@ -22,12 +22,13 @@ fam <- args[[2]]
 
 # survey <- "HBLL"
 # fam <- "binomial_gamma"
+# fam <- "delta_gamma"
 
 if (fam == "tweedie") {
   family = tweedie()
 } else if (fam == "nbinom2") {
-  family = sdmTMB::nbinom2()
-} else if (fam == "binomial_gamma") {
+  family = nbinom2()
+} else if (fam == "delta_gamma") {
   family = sdmTMB::delta_gamma()
 } else {
   stop("Family not found.")
@@ -70,6 +71,7 @@ if (survey == "HBLL") {
 
   grid <- readRDS("data-generated/hbll-n-grid-w-restr.rds")
   grid$survey_abbrev <- "HBLL OUT N"
+  grid$area <- 4
 
   highlights <- c(
     "arrowtooth flounder",
