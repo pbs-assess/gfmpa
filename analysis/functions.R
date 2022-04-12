@@ -90,8 +90,8 @@ do_sdmTMB_fit <- function(surv_dat, cutoff, pred_grid,
   }
 
   if (survey_type == "HBLL") {
-    # surv_dat$offset <- log(surv_dat$hook_count)
-    surv_dat$offset <- log(surv_dat$adjusted_hooks)
+    surv_dat$offset <- log(surv_dat$hook_count)
+    # surv_dat$offset <- log(surv_dat$adjusted_hooks)
     surv_dat$response <- surv_dat$catch_count
   } else if (survey_type == "SYN") {
     surv_dat$offset <- log(surv_dat$tow_length_m * surv_dat$doorspread_m)
