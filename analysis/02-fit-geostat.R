@@ -22,13 +22,12 @@ fam <- args[[2]]
 
 # survey <- "HBLL"
 # fam <- "binomial_gamma"
-# fam <- "delta_gamma"
 
 if (fam == "tweedie") {
   family = tweedie()
 } else if (fam == "nbinom2") {
   family = nbinom2()
-} else if (fam == "delta_gamma") {
+} else if (fam == "binomial_gamma") {
   family = sdmTMB::delta_gamma()
 } else {
   stop("Family not found.")
