@@ -95,7 +95,7 @@ do_sdmTMB_fit <- function(surv_dat, cutoff, pred_grid,
     surv_dat$response <- surv_dat$catch_count
   } else if (survey_type == "SYN") {
     surv_dat$offset <- log(surv_dat$tow_length_m * surv_dat$doorspread_m)
-    surv_dat$response <- surv_dat$catch_weight * 1000
+    surv_dat$response <- surv_dat$catch_weight
   } else {
     stop("Survey type not found", call. = FALSE)
   }
@@ -154,7 +154,7 @@ fit_geo_model <- function(surv_dat, pred_grid,
 
   dir.create("data-generated/model-cache", showWarnings = FALSE)
   .file <- paste0("data-generated/model-cache/model-",
-    survey, "-",
+    gsub(" ", "-", unique(surv_dat$survey_abbrev)), "-",
     gsub(" ", "-", unique(surv_dat$species_science_name)), "-",
     if (mpa_dat_removed) "-mpa-dat-removed-",
     paste(family$family, collapse = "-"), ".rds")
@@ -192,6 +192,8 @@ fit_geo_model <- function(surv_dat, pred_grid,
 
   ind <- get_index(pred, area = 4, bias_correct = TRUE) # 2 x 2 km
   ind$region <- "all"
+  # ggplot(ind, aes(year, est, ymin = lwr, ymax = upr)) +
+  #   geom_line() + geom_ribbon(alpha = 0.2)
 
   if (length(unique(pred_grid$restricted)) > 1) {
     mpa_only <- pred_grid[pred_grid$restricted, , drop = FALSE]
