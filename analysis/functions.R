@@ -183,7 +183,7 @@ fit_geo_model <- function(surv_dat, pred_grid,
 
   if (is.null(fit)) {
     return(null_df)
-    message("NULL model; discarding.")
+    message("Didn't converge; discarding.")
   }
 
   .diag <- sdmTMB:::get_convergence_diagnostics(fit$sd_report)
