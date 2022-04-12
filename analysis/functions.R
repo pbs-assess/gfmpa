@@ -133,7 +133,7 @@ do_sdmTMB_fit <- function(surv_dat, cutoff, pred_grid,
 
 fit_geo_model <- function(surv_dat, pred_grid,
                           MPA_trend = FALSE,
-                          shrink_survey = FALSE,
+                          mpa_dat_removed = FALSE,
                           survey = c("HBLL", "SYN"),
                           family = c(sdmTMB::tweedie(), sdmTMB::delta_gamma(), sdmTMB::nbinom2()),
                           return_model = FALSE, ...) {
@@ -150,15 +150,30 @@ fit_geo_model <- function(surv_dat, pred_grid,
     stringsAsFactors = FALSE
   )
 
-  fit <- do_sdmTMB_fit(
-    surv_dat,
-    MPA_trend = MPA_trend,
-    cutoff = cutoff,
-    family = family,
-    pred_grid = pred_grid,
-    return_model = return_model,
-    ...
-  )
+  cat("Fitting", survey, unique(surv_dat$species_common_name), "\n")
+
+  dir.create("data-generated/model-cache", showWarnings = FALSE)
+  .file <- paste0("data-generated/model-cache/model-",
+    survey, "-",
+    gsub(" ", "-", unique(surv_dat$species_science_name)), "-",
+    if (mpa_dat_removed) "-mpa-dat-removed-",
+    paste(family$family, collapse = "-"), ".rds")
+
+  if (!file.exists(.file)) {
+    fit <- do_sdmTMB_fit(
+      surv_dat,
+      MPA_trend = MPA_trend,
+      cutoff = cutoff,
+      family = family,
+      pred_grid = pred_grid,
+      return_model = return_model,
+      ...
+    )
+    saveRDS(fit, file = .file)
+  } else {
+    fit <- readRDS(.file)
+    fit$tmb_obj$retape()
+  }
 
   if (is.null(fit)) {
     return(null_df)
@@ -167,6 +182,7 @@ fit_geo_model <- function(surv_dat, pred_grid,
   pred <- try({
     predict(fit, newdata = pred_grid, return_tmb_object = TRUE)
   })
+
   if (return_model) {
     return(pred$data)
   }
@@ -178,7 +194,6 @@ fit_geo_model <- function(surv_dat, pred_grid,
   ind$region <- "all"
 
   if (length(unique(pred_grid$restricted)) > 1) {
-    browser()
     mpa_only <- pred_grid[pred_grid$restricted, , drop = FALSE]
     pred_mpa_only <- try({
       predict(fit, newdata = mpa_only, return_tmb_object = TRUE)
