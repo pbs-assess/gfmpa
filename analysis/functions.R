@@ -94,7 +94,7 @@ do_sdmTMB_fit <- function(surv_dat, cutoff, pred_grid,
     # surv_dat$offset <- log(surv_dat$adjusted_hooks)
     surv_dat$response <- surv_dat$catch_count
   } else if (survey_type == "SYN") {
-    surv_dat$offset <- log(surv_dat$tow_length_m * surv_dat$doorspread_m)
+    surv_dat$offset <- log(surv_dat$tow_length_m * surv_dat$doorspread_m * 0.00001)
     surv_dat$response <- surv_dat$catch_weight
   } else {
     stop("Survey type not found", call. = FALSE)
@@ -150,7 +150,7 @@ fit_geo_model <- function(surv_dat, pred_grid,
     stringsAsFactors = FALSE
   )
 
-  cat("Fitting", survey, unique(surv_dat$species_common_name), "\n")
+  cat("Fitting", unique(surv_dat$survey_abbrev), unique(surv_dat$species_common_name), "\n")
 
   .sp <- gsub(" ", "-", unique(surv_dat$species_science_name)[1])
   .sp <- gsub("/", "-", .sp)
@@ -178,7 +178,7 @@ fit_geo_model <- function(surv_dat, pred_grid,
     saveRDS(fit, file = .file_model)
   } else {
     fit <- readRDS(.file_model)
-    fit$tmb_obj$retape()
+    if (!is.null(fit)) fit$tmb_obj$retape()
   }
 
   if (is.null(fit)) {
