@@ -4,12 +4,14 @@ library(ggplot2)
 library(future)
 is_rstudio <- !is.na(Sys.getenv("RSTUDIO", unset = NA))
 is_unix <- .Platform$OS.type == "unix"
-if (!is_rstudio && is_unix) plan(multicore, workers = 4L) else plan(multisession, workers = 4L)
+if (!is_rstudio && is_unix) plan(multicore, workers = 3L) else plan(multisession, workers = 3L)
 options(future.rng.onMisuse = "ignore")
 library(sdmTMB)
 theme_set(ggsidekick::theme_sleek())
 options(dplyr.summarise.inform = FALSE)
 dir.create("figs", showWarnings = FALSE)
+
+# plan(sequential, split = TRUE)
 
 # source("analysis/load-data.R")
 source("analysis/functions.R")
@@ -164,22 +166,26 @@ if (!file.exists(save_file)) {
     group_by(survey_abbrev, species_common_name) %>%
     group_split() %>%
     furrr::future_map_dfr(function(.x) {
+      # purrr::map_dfr(function(.x) {
       out <- .x %>%
         fit_geo_model(pred_grid = grid, survey = survey, family = family,
           mpa_dat_removed = TRUE) %>%
         mutate(type = "Restricted")
     }, .progress = TRUE) # %>% filter(region != "mpa")
+      # })
 
   index_shrunk <- dat_to_fit %>%
     filter(!restricted) %>%
     group_by(survey_abbrev, species_common_name) %>%
     group_split() %>%
     furrr::future_map_dfr(function(.x) {
+    # purrr::map_dfr(function(.x) {
       out <- .x %>%
         fit_geo_model(pred_grid = filter(grid, !restricted), family = family,
-          survey = survey, mpa_dat_removed = TRUE) %>%
+          survey = survey, mpa_dat_removed = TRUE, shrunk = TRUE) %>%
         mutate(type = "Restricted and shrunk")
-    }, .progress = TRUE) # %>% filter(region != "mpa")
+      }, .progress = TRUE) # %>% filter(region != "mpa")
+    # })
 
   index_all <- bind_rows(index_orig, index_restr, index_shrunk)
   saveRDS(index_all, file = save_file)
