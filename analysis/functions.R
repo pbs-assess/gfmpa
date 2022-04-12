@@ -133,7 +133,7 @@ do_sdmTMB_fit <- function(surv_dat, cutoff, pred_grid,
 
 fit_geo_model <- function(surv_dat, pred_grid,
                           MPA_trend = FALSE,
-                          mpa_dat_removed = FALSE,
+                          mpa_dat_removed = FALSE, shrunk = FALSE,
                           survey = c("HBLL", "SYN"),
                           family = c(sdmTMB::tweedie(), sdmTMB::delta_gamma(), sdmTMB::nbinom2()),
                           return_model = FALSE, ...) {
@@ -164,6 +164,8 @@ fit_geo_model <- function(surv_dat, pred_grid,
     paste(family$family, collapse = "-"), ".rds"
   )
   .file_ind <- gsub("model", "index", .file_model)
+  if (shrunk)
+    .file_ind <- gsub("mpa-dat-removed", "mpa-dat-removed-shrunk", .file_model)
 
   if (!file.exists(.file_model)) {
     fit <- do_sdmTMB_fit(
@@ -192,6 +194,7 @@ fit_geo_model <- function(surv_dat, pred_grid,
     return(null_df)
   }
 
+  cat("Indexing", unique(surv_dat$survey_abbrev), unique(surv_dat$species_common_name), "\n")
   if (!file.exists(.file_ind)) {
     pred <- try({
       predict(fit, newdata = pred_grid, return_tmb_object = TRUE)
