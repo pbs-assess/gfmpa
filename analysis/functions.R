@@ -90,8 +90,8 @@ do_sdmTMB_fit <- function(surv_dat, cutoff, pred_grid,
   }
 
   if (survey_type == "HBLL") {
-    # surv_dat$offset <- log(surv_dat$hook_count)
-    surv_dat$offset <- log(surv_dat$adjusted_hooks)
+    surv_dat$offset <- log(surv_dat$hook_count)
+    # surv_dat$offset <- log(surv_dat$adjusted_hooks)
     surv_dat$response <- surv_dat$catch_count
   } else if (survey_type == "SYN") {
     surv_dat$offset <- log(surv_dat$tow_length_m * surv_dat$doorspread_m)
@@ -139,7 +139,7 @@ fit_geo_model <- function(surv_dat, pred_grid,
                           MPA_trend = FALSE,
                           shrink_survey = FALSE,
                           survey = c("HBLL", "SYN"),
-                          family = c(tweedie(), delta_gamma(), nbinom2()),
+                          family = c(sdmTMB::tweedie(), sdmTMB::delta_gamma(), sdmTMB::nbinom2()),
                           return_model = FALSE, ...) {
   survey <- match.arg(survey)
 
