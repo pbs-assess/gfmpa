@@ -152,10 +152,12 @@ fit_geo_model <- function(surv_dat, pred_grid,
 
   cat("Fitting", survey, unique(surv_dat$species_common_name), "\n")
 
+  .sp <- gsub(" ", "-", unique(surv_dat$species_science_name)[1])
+  .sp <- gsub("/", "-", .sp)
+
   dir.create("data-generated/model-cache", showWarnings = FALSE)
   .file <- paste0("data-generated/model-cache/model-",
-    gsub(" ", "-", unique(surv_dat$survey_abbrev)), "-",
-    gsub(" ", "-", unique(surv_dat$species_science_name)), "-",
+    gsub(" ", "-", unique(surv_dat$survey_abbrev)), "-", .sp, "-",
     if (mpa_dat_removed) "-mpa-dat-removed-",
     paste(family$family, collapse = "-"), ".rds")
 
