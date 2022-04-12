@@ -84,9 +84,9 @@ do_sdmTMB_fit <- function(surv_dat, cutoff, pred_grid,
       MPA = as.integer(restricted),
       year_seq = year - min(surv_dat$year)
     )
-    formula <- response ~ 1 + year_seq + MPA + year_seq:MPA + offset
+    formula <- response ~ 1 + year_seq + MPA + year_seq:MPA
   } else {
-    formula <- response ~ 0 + as.factor(year) + offset
+    formula <- response ~ 0 + as.factor(year)
   }
 
   if (survey_type == "HBLL") {
@@ -100,18 +100,16 @@ do_sdmTMB_fit <- function(surv_dat, cutoff, pred_grid,
     stop("Survey type not found", call. = FALSE)
   }
 
-  if (family$family == "binomial") {
-    surv_dat$response <- ifelse(surv_dat$response > 0, 1, 0)
-    formula <- response ~ 0 + as.factor(year)
-  }
-
   m <- try({
     sdmTMB(
       formula = formula,
       data = surv_dat,
       family = family,
       time = "year",
+      # silent = F,
+      offset = surv_dat$offset,
       mesh = mesh,
+      control = sdmTMBcontrol(newton_loops = 1L),
       ...
     )
   })
@@ -130,16 +128,7 @@ do_sdmTMB_fit <- function(surv_dat, cutoff, pred_grid,
   if (class(m)[[1]] == "try-error" || max(m$gradients) > 0.01) {
     return(NULL)
   }
-
-  set.seed(1)
-  pred <- try({
-    pred_grid$offset <- 0 # i.e., log(1) unit area
-    predict(m, newdata = pred_grid, sims = 1000L)
-  })
-  if (class(pred)[[1]] == "try-error") {
-    return(NULL)
-  }
-  pred
+  m
 }
 
 fit_geo_model <- function(surv_dat, pred_grid,
@@ -161,7 +150,7 @@ fit_geo_model <- function(surv_dat, pred_grid,
     stringsAsFactors = FALSE
   )
 
-  pred <- do_sdmTMB_fit(
+  fit <- do_sdmTMB_fit(
     surv_dat,
     MPA_trend = MPA_trend,
     cutoff = cutoff,
@@ -170,22 +159,35 @@ fit_geo_model <- function(surv_dat, pred_grid,
     return_model = return_model,
     ...
   )
-  if (return_model) {
-    return(pred)
-  }
-  if (is.null(pred)) {
+
+  if (is.null(fit)) {
     return(null_df)
   }
 
-  ind <- get_index(pred, area = rep(4, nrow(pred)), bias_correct = TRUE) # 2 x 2 km
+  pred <- try({
+    predict(fit, newdata = pred_grid, return_tmb_object = TRUE)
+  })
+  if (return_model) {
+    return(pred$data)
+  }
+  if (class(pred)[[1]] == "try-error") {
+    return(NULL)
+  }
+
+  ind <- get_index(pred, area = 4, bias_correct = TRUE) # 2 x 2 km
   ind$region <- "all"
 
   if (length(unique(pred_grid$restricted)) > 1) {
-    mpa_only <- pred[pred_grid$restricted, , drop = FALSE]
-    attr(mpa_only, "time") <- "year"
-    ind2 <- get_index_sims(mpa_only, area = rep(4, nrow(mpa_only)))
-    ind2$region <- "mpa"
-    ind <- dplyr::bind_rows(ind, ind2)
+    browser()
+    mpa_only <- pred_grid[pred_grid$restricted, , drop = FALSE]
+    pred_mpa_only <- try({
+      predict(fit, newdata = mpa_only, return_tmb_object = TRUE)
+    })
+    if (class(pred)[[1]] != "try-error") {
+      ind2 <- get_index(pred_mpa_only, area = 4, bias_correct = TRUE)
+      ind2$region <- "mpa"
+      ind <- dplyr::bind_rows(ind, ind2)
+    }
   }
 
   ind$species_common_name <- surv_dat$species_common_name[1]
