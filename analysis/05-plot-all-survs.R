@@ -7,7 +7,7 @@
 
 library(tidyverse)
 library(egg)
-library(tagger) # egg didn't work for the dotplot
+library(tagger) # egg didn't work for the dotplot https://github.com/eliocamp/tagger
 library(patchwork)
 theme_set(ggsidekick::theme_sleek())
 library(methods)
