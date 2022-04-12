@@ -142,15 +142,11 @@ do_sdmTMB_fit <- function(surv_dat, cutoff, pred_grid,
   pred
 }
 
-binomial_gamma <- function() {
-  list(family = "binomial-gamma")
-}
-
 fit_geo_model <- function(surv_dat, pred_grid,
                           MPA_trend = FALSE,
                           shrink_survey = FALSE,
                           survey = c("HBLL", "SYN"),
-                          family = c(tweedie(), binomial_gamma(), nbinom2()),
+                          family = c(sdmTMB::tweedie(), sdmTMB::delta_gamma(), sdmTMB::nbinom2()),
                           return_model = FALSE, ...) {
   survey <- match.arg(survey)
 
@@ -165,60 +161,23 @@ fit_geo_model <- function(surv_dat, pred_grid,
     stringsAsFactors = FALSE
   )
 
-  if (family$family != "binomial-gamma") {
-    pred <- do_sdmTMB_fit(
-      surv_dat,
-      MPA_trend = MPA_trend,
-      cutoff = cutoff,
-      family = family,
-      pred_grid = pred_grid,
-      return_model = return_model,
-      ...
-    )
-    if (return_model) {
-      return(pred)
-    }
-    if (is.null(pred)) {
-      return(null_df)
-    }
-  } else { # delta-gamma
-
-    if (survey == "HBLL") {
-      surv_dat_pos <- dplyr::filter(surv_dat, catch_count > 0)
-    } else {
-      surv_dat_pos <- dplyr::filter(surv_dat, catch_weight > 0)
-    }
-    # in case 'pos' is missing some:
-    pred_grid_pos <- dplyr::filter(pred_grid, year %in% unique(surv_dat_pos$year))
-    if (!all(unique(pred_grid$year) %in% pred_grid$year)) {
-      return(null_df)
-    }
-    pred_pos <- do_sdmTMB_fit(
-      surv_dat_pos,
-      MPA_trend = MPA_trend,
-      cutoff = cutoff,
-      family = Gamma(link = "log"),
-      pred_grid = pred_grid,
-      return_model = return_model,
-      ...
-    )
-    pred_bin <- do_sdmTMB_fit(
-      surv_dat,
-      MPA_trend = MPA_trend,
-      cutoff = cutoff,
-      family = binomial(link = "logit"),
-      pred_grid = pred_grid,
-      return_model = return_model,
-      ...
-    )
-    if (is.null(pred_bin) || is.null(pred_pos)) {
-      return(null_df)
-    }
-    if (return_model) list(bin = pred_bin, pos = pred_pos)
-    pred <- log(plogis(pred_bin) * exp(pred_pos))
+  pred <- do_sdmTMB_fit(
+    surv_dat,
+    MPA_trend = MPA_trend,
+    cutoff = cutoff,
+    family = family,
+    pred_grid = pred_grid,
+    return_model = return_model,
+    ...
+  )
+  if (return_model) {
+    return(pred)
+  }
+  if (is.null(pred)) {
+    return(null_df)
   }
 
-  ind <- get_index_sims(pred, area = rep(4, nrow(pred))) # 2 x 2 km
+  ind <- get_index(pred, area = rep(4, nrow(pred)), bias_correct = TRUE) # 2 x 2 km
   ind$region <- "all"
 
   if (length(unique(pred_grid$restricted)) > 1) {
