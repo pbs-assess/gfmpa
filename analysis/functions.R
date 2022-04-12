@@ -165,7 +165,7 @@ fit_geo_model <- function(surv_dat, pred_grid,
   )
   .file_ind <- gsub("model", "index", .file_model)
   if (shrunk)
-    .file_ind <- gsub("mpa-dat-removed", "mpa-dat-removed-shrunk", .file_model)
+    .file_ind <- gsub("mpa-dat-removed", "mpa-dat-removed-shrunk", .file_ind)
 
   if (!file.exists(.file_model)) {
     fit <- do_sdmTMB_fit(
