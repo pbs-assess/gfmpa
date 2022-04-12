@@ -112,7 +112,10 @@ do_sdmTMB_fit <- function(surv_dat, cutoff, pred_grid,
       data = surv_dat,
       family = family,
       time = "year",
+      # silent = F,
+      offset = surv_dat$offset,
       mesh = mesh,
+      control = sdmTMBcontrol(newton_loops = 1L),
       ...
     )
   })
