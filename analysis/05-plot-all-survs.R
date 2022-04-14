@@ -557,26 +557,26 @@ ggsave("figs/explore-all-mare-by-cv-ratio.pdf", width = 7, height = 7)
 
 # FIGURE 6: slopes ----
 #
-# (g <- plot_scatter(cvdata, "slope_mpa", "slope_re") +
-#   facet_wrap(~survey_abbrev,
-#     scales = "free"
-#   ) +
-#   ylab("Change in RE per decade") +
-#   xlab("Change in proportion of biomass inside MPAs") +
-#   geom_hline(yintercept = 0, colour = "gray80") +
-#   geom_vline(xintercept = 0, colour = "gray70") +
-#   theme(legend.position = c(0.37, 0.95)))
-# (g <- tag_facet(g, hjust = -0.5, vjust = 2, fontface = 1))
-#
-# ggsave("figs/explore-all-slopes.pdf", width = 8, height = 8)
-#
-# (g <- plot_scatter(cvdata, "prop_mpa", "abs(slope_re)") +
-#   ylab("Absolute change in RE per decade") +
-#   xlab("Proportion of biomass inside MPAs") +
-#   facet_wrap(~survey_abbrev,
-#     scales = "free"
-#   ) + theme(legend.position = c(0.08, 0.96)))
-# ggsave("figs/explore-abs-slope.pdf", width = 7, height = 7)
+(g <- plot_scatter(cvdata, "slope_mpa", "slope_re") +
+  facet_wrap(~survey_abbrev,
+    scales = "free"
+  ) +
+  ylab("Change in RE per decade") +
+  xlab("Change in proportion of biomass inside MPAs") +
+  geom_hline(yintercept = 0, colour = "gray80") +
+  geom_vline(xintercept = 0, colour = "gray70") +
+  theme(legend.position = c(0.37, 0.95)))
+(g <- tag_facet(g, hjust = -0.5, vjust = 2, fontface = 1))
+
+ggsave("figs/explore-all-slopes.pdf", width = 8, height = 8)
+
+(g <- plot_scatter(cvdata, "prop_mpa", "abs(slope_re)") +
+  ylab("Absolute change in RE per decade") +
+  xlab("Proportion of biomass inside MPAs") +
+  facet_wrap(~survey_abbrev,
+    scales = "free"
+  ) + theme(legend.position = c(0.08, 0.96)))
+ggsave("figs/explore-abs-slope.pdf", width = 7, height = 7)
 
 
 d_shrunk2 <- filter(cvdata, `Restriction type` == "re_shrunk")
@@ -601,15 +601,15 @@ ggsave("figs/explore-all-slopes2.pdf", width = 6, height = 6)
 
 # ### benefits of interpolation
 #
-# d <- cvdata %>% group_by(species_common_name, survey_abbrev) %>% mutate(
-#   temp_bias_interp_ratio = abs(slope_re[restr_clean == "Same survey domain"])/abs(slope_re[restr_clean == "Shrunk survey domain"]),
-#   cv_interp_ratio = (cv_mean[restr_clean == "Same survey domain"])/(cv_mean[restr_clean == "Shrunk survey domain"]),
-#   mare_interp_ratio = (mare[restr_clean == "Same survey domain"])/(mare[restr_clean == "Shrunk survey domain"])
-# )
-#
-# median(d$temp_bias_interp_ratio)
-# median(d$cv_interp_ratio)
-# median(d$mare_interp_ratio)
+d <- cvdata %>% group_by(species_common_name, survey_abbrev) %>% mutate(
+  temp_bias_interp_ratio = abs(slope_re[restr_clean == "Same survey domain"])/abs(slope_re[restr_clean == "Shrunk survey domain"]),
+  cv_interp_ratio = (cv_mean[restr_clean == "Same survey domain"])/(cv_mean[restr_clean == "Shrunk survey domain"]),
+  mare_interp_ratio = (mare[restr_clean == "Same survey domain"])/(mare[restr_clean == "Shrunk survey domain"])
+)
+
+median(d$temp_bias_interp_ratio)
+median(d$cv_interp_ratio)
+median(d$mare_interp_ratio)
 
 
 # SUPPLEMENTAL FIGURES ----
