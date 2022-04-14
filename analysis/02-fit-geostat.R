@@ -1,18 +1,16 @@
 library(dplyr)
-# library(ggplot2)
-# library(sf)
-# library(future)
-# is_rstudio <- !is.na(Sys.getenv("RSTUDIO", unset = NA))
+library(future)
+library(sdmTMB)
+is_rstudio <- !is.na(Sys.getenv("RSTUDIO", unset = NA))
 is_unix <- .Platform$OS.type == "unix"
 # if (!is_rstudio && is_unix) plan(multicore, workers = 6L) else plan(multisession, workers = 6L)
-# options(future.rng.onMisuse = "ignore")
-library(sdmTMB)
-theme_set(ggsidekick::theme_sleek())
+options(future.rng.onMisuse = "ignore")
 options(dplyr.summarise.inform = FALSE)
 dir.create("figs", showWarnings = FALSE)
 if (is_unix) options(sdmTMB.cores = 4L)
 
 # plan(sequential, split = TRUE)
+# plan(sequential) # don't crash!
 
 # source("analysis/load-data.R")
 source("analysis/functions.R")
@@ -76,7 +74,6 @@ for (survey in c("SYN", "HBLL")) {
       "canary rockfish",
       "china rockfish",
       "copper rockfish",
-      "greenstriped rockfish",
       "lingcod",
       "longnose skate",
       "north pacific spiny dogfish",
@@ -122,7 +119,7 @@ for (survey in c("SYN", "HBLL")) {
       "Pacific Cod",
       "Lingcod",
       "North Pacific Spiny Dogfish",
-      "Shortraker Rockfish",
+      # "Shortraker Rockfish", # not fitting well! almost no data when restricted
       "Arrowtooth Flounder",
       "Longnose Skate",
       "Redbanded Rockfish",
@@ -146,20 +143,10 @@ for (survey in c("SYN", "HBLL")) {
     save_file <- paste0("data-generated/index-hbll-geo-", fam, ".rds")
   }
 
-  # dat_to_fit <- dplyr::filter(dat_to_fit, species_common_name == "arrowtooth flounder", survey_abbrev == "SYN HS")
+  # dat_to_fit <- dplyr::filter(dat_to_fit, species_common_name == "yellowtail rockfish", survey_abbrev == "SYN QCS")
 
 
   if (!file.exists(save_file)) {
-    index_orig <- dat_to_fit %>%
-      group_by(survey_abbrev, species_common_name) %>%
-      group_split() %>%
-      # furrr::future_map_dfr(function(.x) {
-        purrr::map_dfr(function(.x) {
-        out <- .x %>%
-          fit_geo_model(pred_grid = grid, survey = survey, family = family) %>%
-          mutate(type = "Status quo")
-      # }, .progress = TRUE)
-    })
 
     index_restr <- dat_to_fit %>%
       filter(!restricted) %>%
@@ -187,10 +174,21 @@ for (survey in c("SYN", "HBLL")) {
       # }, .progress = TRUE) # %>% filter(region != "mpa")
     })
 
+    index_orig <- dat_to_fit %>%
+      group_by(survey_abbrev, species_common_name) %>%
+      group_split() %>%
+      # furrr::future_map_dfr(function(.x) {
+      purrr::map_dfr(function(.x) {
+        out <- .x %>%
+          fit_geo_model(pred_grid = grid, survey = survey, family = family) %>%
+          mutate(type = "Status quo")
+        # }, .progress = TRUE)
+      })
+
     index_all <- bind_rows(index_orig, index_restr, index_shrunk)
     saveRDS(index_all, file = save_file)
   }
-  # plan(sequential) # don't crash!
+  plan(sequential) # don't crash!
 
   # gg <- bind_rows(tw, dg) %>% filter(survey_abbrev != "SYN WCHG") %>% ggplot(aes(year, est, ymin = lwr, ymax = upr, colour = type, fill = type)) +
   #   geom_line(lwd = 0.9) +
