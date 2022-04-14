@@ -67,7 +67,7 @@ shrink_a_survey <- function(grid_dat, restriction_dat, plot = FALSE) {
 }
 
 do_sdmTMB_fit <- function(surv_dat, cutoff, pred_grid,
-                          MPA_trend,
+                          MPA_trend,  spatiotemporal = "iid",
                           # formula = response ~ 0 + as.factor(year) + offset,
                           family = sdmTMB::tweedie(link = "log"),
                           return_model = FALSE,
@@ -94,11 +94,48 @@ do_sdmTMB_fit <- function(surv_dat, cutoff, pred_grid,
     # surv_dat$offset <- log(surv_dat$adjusted_hooks)
     surv_dat$response <- surv_dat$catch_count
   } else if (survey_type == "SYN") {
+    surv_dat$doorspread_m[is.na(surv_dat$doorspread_m)] <- mean(surv_dat$doorspread_m, na.rm = TRUE)
     surv_dat$offset <- log(surv_dat$tow_length_m * surv_dat$doorspread_m * 0.00001)
     surv_dat$response <- surv_dat$catch_weight
   } else {
     stop("Survey type not found", call. = FALSE)
   }
+
+  # # surv_dat$depth_scaled <- surv_dat$depth_m - mean()
+  # fit1 <- sdmTMB(
+  #   formula = response ~ 0 + as.factor(year),# + s(log(depth_m)),
+  #   data = surv_dat,
+  #   family = delta_gamma(),
+  #   time = "year",
+  #   # anisotropy = TRUE,
+  #   silent = FALSE,
+  #   offset = surv_dat$offset,
+  #   mesh = mesh,
+  #   priors = sdmTMBpriors(
+  #     matern_s = pc_matern(range_gt = 20, sigma_lt = 10),
+  #     matern_st = pc_matern(range_gt = 20, sigma_lt = 5)
+  #     ),
+  #   share_range = FALSE
+  #   # control = sdmTMBcontrol(newton_loops = 1L)
+  # )
+
+  # fit2 <- sdmTMB(
+  #   formula = response ~ 1,
+  #   data = surv_dat,
+  #   family = delta_gamma(),
+  #   time = "year",
+  #   # anisotropy = TRUE,
+  #   spatiotemporal = "rw",
+  #   silent = FALSE,
+  #   offset = surv_dat$offset,
+  #   mesh = mesh,
+  #   priors = sdmTMBpriors(
+  #     matern_s = pc_matern(range_gt = 20, sigma_lt = 10),
+  #     matern_st = pc_matern(range_gt = 20, sigma_lt = 5)
+  #   ),
+  #   share_range = FALSE,
+  #   control = sdmTMBcontrol(newton_loops = 1L)
+  # )
 
   m <- try({
     sdmTMB(
@@ -106,13 +143,24 @@ do_sdmTMB_fit <- function(surv_dat, cutoff, pred_grid,
       data = surv_dat,
       family = family,
       time = "year",
+      spatiotemporal = list("off", "iid"),
       # silent = F,
       offset = surv_dat$offset,
       mesh = mesh,
+      priors = sdmTMBpriors(
+        matern_s = pc_matern(range_gt = 20, sigma_lt = 10),
+        matern_st = pc_matern(range_gt = 20, sigma_lt = 5)
+      ),
+      share_range = list(TRUE, FALSE),
       control = sdmTMBcontrol(newton_loops = 1L),
       ...
     )
   })
+  print(m)
+
+  if (class(m)[[1]] == "try-error") {
+    return(NULL)
+  }
 
   if (class(m)[[1]] == "try-error") {
     return(NULL)
@@ -177,10 +225,30 @@ fit_geo_model <- function(surv_dat, pred_grid,
       return_model = return_model,
       ...
     )
+
+    # b <- tidy(fit, "ran_pars")
+    # # sigma_O1 <- b$estimate[b$term == "sigma_O"]
+    # sigma_E1 <- b$estimate[b$term == "sigma_E"]
+    # b2 <- tidy(fit, "ran_pars", model = 2)
+    # # sigma_O2 <- b2$estimate[b$term == "sigma_O"]
+    # sigma_E2 <- b2$estimate[b$term == "sigma_E"]
+
+    # if (sigma_E1 < 0.001 || sigma_E2 < 0.001) {
+    #   fit <- do_sdmTMB_fit(
+    #     surv_dat,
+    #     MPA_trend = MPA_trend,
+    #     cutoff = cutoff,
+    #     family = family,
+    #     pred_grid = pred_grid,
+    #     return_model = return_model,
+    #     spatiotemporal = "off",
+    #     ...
+    #   )
+    # }
+
     saveRDS(fit, file = .file_model)
   } else {
     fit <- readRDS(.file_model)
-    # if (!is.null(fit)) fit$tmb_obj$retape()
   }
 
   if (is.null(fit)) {
