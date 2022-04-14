@@ -905,7 +905,7 @@ dd2 <-  x_long %>%
     est_avg = mean(est, na.rm = TRUE),
     measure = "MARE (accuracy loss)")
 
-dd3 <- d %>%
+dd3 <- cvdata %>%
   group_by(survey_abbrev, species_common_name, `Restriction type`) %>%
   summarise(
     lwr = (median(slope_re)-1.98*mean(se_slope_re))/1,

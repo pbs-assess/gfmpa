@@ -103,6 +103,7 @@ for (survey in c("SYN", "HBLL")) {
   if (survey == "SYN") {
     dat_to_fit <- readRDS("data-generated/dat_to_fit.rds")
     grid <- readRDS("data-generated/syn-grid-w-restr.rds")
+    grid$area <- 4
 
     # "Copper"
     syn_highlights <- c(

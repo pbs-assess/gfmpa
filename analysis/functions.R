@@ -276,7 +276,7 @@ fit_geo_model <- function(surv_dat, pred_grid,
       message("Error on prediction; discarding.")
     }
 
-    ind <- get_index(pred, area = 4, bias_correct = TRUE) # 2 x 2 km
+    ind <- get_index(pred, area = pred_grid$area, bias_correct = TRUE) # 2 x 2 km
     ind$region <- "all"
     # ggplot(ind, aes(year, est, ymin = lwr, ymax = upr)) +
     #   geom_line() + geom_ribbon(alpha = 0.2)
@@ -287,7 +287,7 @@ fit_geo_model <- function(surv_dat, pred_grid,
         predict(fit, newdata = mpa_only, return_tmb_object = TRUE)
       })
       if (class(pred)[[1]] != "try-error") {
-        ind2 <- get_index(pred_mpa_only, area = 4, bias_correct = TRUE)
+        ind2 <- get_index(pred_mpa_only, area = mpa_only$area, bias_correct = TRUE)
         ind2$region <- "mpa"
         ind <- dplyr::bind_rows(ind, ind2)
       }
