@@ -228,7 +228,7 @@ fit_geo_model <- function(surv_dat, pred_grid,
     )
   }
 
-  if (!file.exists(.file_model)) {
+  # if (!file.exists(.file_model)) {
 
     if (file.exists(model_info_file)) {
       model_info <- readRDS(model_info_file)
@@ -322,11 +322,11 @@ fit_geo_model <- function(surv_dat, pred_grid,
       message("Didn't converge; discarding.")
     }
 
-    saveRDS(fit, file = .file_model)
+    # saveRDS(fit, file = .file_model)
     saveRDS(model_info, model_info_file)
-  } else {
-    fit <- readRDS(.file_model)
-  }
+  # } else {
+    # fit <- readRDS(.file_model)
+  # }
 
   if (is.null(fit)) {
     return(null_df)
@@ -341,7 +341,7 @@ fit_geo_model <- function(surv_dat, pred_grid,
   }
 
   cat("Indexing", unique(surv_dat$survey_abbrev), unique(surv_dat$species_common_name), "\n")
-  if (!file.exists(.file_ind)) {
+  # if (!file.exists(.file_ind)) {
     pred <- try({
       predict(fit, newdata = pred_grid, return_tmb_object = TRUE)
     })
@@ -375,9 +375,9 @@ fit_geo_model <- function(surv_dat, pred_grid,
     ind$species_common_name <- surv_dat$species_common_name[1]
     ind$survey_abbrev <- surv_dat$survey_abbrev[1]
     saveRDS(ind, file = .file_ind)
-  } else {
-    ind <- readRDS(.file_ind)
-  }
+  # } else {
+  #   ind <- readRDS(.file_ind)
+  # }
   ind
 }
 
