@@ -7,6 +7,7 @@ write_tex <- function(x, macro, ...) {
 }
 
 
+suppressWarnings(file.remove("analysis/values.tex"))
 paste0("% lost on each survey") %>% readr::write_lines("analysis/values.tex", append = TRUE)
 
 .d <- readRDS("data-generated/hbll-n-grid-w-restr.rds")
