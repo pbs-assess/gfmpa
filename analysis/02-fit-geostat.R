@@ -1,26 +1,21 @@
 library(dplyr)
-library(ggplot2)
+# library(ggplot2)
 # library(sf)
 # library(future)
-is_rstudio <- !is.na(Sys.getenv("RSTUDIO", unset = NA))
+# is_rstudio <- !is.na(Sys.getenv("RSTUDIO", unset = NA))
 is_unix <- .Platform$OS.type == "unix"
 # if (!is_rstudio && is_unix) plan(multicore, workers = 6L) else plan(multisession, workers = 6L)
-options(future.rng.onMisuse = "ignore")
+# options(future.rng.onMisuse = "ignore")
 library(sdmTMB)
 theme_set(ggsidekick::theme_sleek())
 options(dplyr.summarise.inform = FALSE)
 dir.create("figs", showWarnings = FALSE)
+if (is_unix) options(sdmTMB.cores = 4L)
 
 # plan(sequential, split = TRUE)
 
 # source("analysis/load-data.R")
 source("analysis/functions.R")
-
-# args <- commandArgs(trailingOnly = TRUE)
-# if (length(args) == 0L)
-#   stop("This script is meant to be run from the command line.", call. = FALSE)
-# survey <- args[[1]]
-# fam <- args[[2]]
 
 # survey <- "SYN"
 fam <- "binomial_gamma"
@@ -153,7 +148,6 @@ for (survey in c("SYN", "HBLL")) {
 
   # dat_to_fit <- dplyr::filter(dat_to_fit, species_common_name == "arrowtooth flounder", survey_abbrev == "SYN HS")
 
-  options(sdmTMB.cores = 4L)
 
   if (!file.exists(save_file)) {
     index_orig <- dat_to_fit %>%
