@@ -190,7 +190,7 @@ for (survey in c("SYN", "HBLL")) {
     index_all <- bind_rows(index_orig, index_restr, index_shrunk)
     saveRDS(index_all, file = save_file)
   }
-  plan(sequential) # don't crash!
+  # plan(sequential) # don't crash!
 
   # gg <- bind_rows(tw, dg) %>% filter(survey_abbrev != "SYN WCHG") %>% ggplot(aes(year, est, ymin = lwr, ymax = upr, colour = type, fill = type)) +
   #   geom_line(lwd = 0.9) +

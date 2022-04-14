@@ -199,41 +199,41 @@ for (survey in c("HBLL", "SYN")) {
   spp <- unique(re_long$species_common_name)
   sps <- list()
 
-  get_slopes <- function(dat) {
-    d1 <- filter(dat, `Restriction type` == "re_restr")
-    m1 <- tryCatch(lm(re100 ~ 1 + decade, data = d1), error = function(err) NA)
-
-    d2 <- filter(dat, `Restriction type` == "re_shrunk")
-    m2 <- tryCatch(lm(re100 ~ 1 + decade, data = d2), error = function(err) NA)
-
-    m3 <- tryCatch(lm(prop_mpa ~ 1 + decade, data = d1), error = function(err) NA)
-    m4 <- tryCatch(lm(prop_mpa ~ 1 + decade, data = d2), error = function(err) NA)
-
-    tibble(
-      survey_abbrev = c(survs[j], survs[j]),
-      species_common_name = c(spp[i], spp[i]),
-      `(Intercept)` = c(
-        tryCatch(m1$coefficients[[1]], error = function(err) NA),
-        tryCatch(m2$coefficients[[1]], error = function(err) NA)
-      ),
-      slope_re = c(
-        tryCatch(m1$coefficients[["decade"]], error = function(err) NA),
-        tryCatch(m2$coefficients[["decade"]], error = function(err) NA)
-      ),
-      se_slope_re = c(
-        tryCatch(summary(m1)$coefficients[2,2], error = function(err) NA),
-        tryCatch(summary(m2)$coefficients[2,2], error = function(err) NA)
-      ),
-      slope_mpa = c(
-        tryCatch(m3$coefficients[["decade"]], error = function(err) NA),
-        tryCatch(m4$coefficients[["decade"]], error = function(err) NA)
-      ),
-      restr_clean = c("Same survey domain", "Shrunk survey domain")
-    )
-  }
-  coefs <- group_by(re_long, survey_abbrev, species_common_name) %>%
-    group_split() %>%
-    purrr::map_dfr(get_slopes)
+  # get_slopes <- function(dat) {
+  #   d1 <- filter(dat, `Restriction type` == "re_restr")
+  #   m1 <- tryCatch(lm(re100 ~ 1 + decade, data = d1), error = function(err) NA)
+  #
+  #   d2 <- filter(dat, `Restriction type` == "re_shrunk")
+  #   m2 <- tryCatch(lm(re100 ~ 1 + decade, data = d2), error = function(err) NA)
+  #
+  #   m3 <- tryCatch(lm(prop_mpa ~ 1 + decade, data = d1), error = function(err) NA)
+  #   m4 <- tryCatch(lm(prop_mpa ~ 1 + decade, data = d2), error = function(err) NA)
+  #
+  #   tibble(
+  #     survey_abbrev = c(survs[j], survs[j]),
+  #     species_common_name = c(spp[i], spp[i]),
+  #     `(Intercept)` = c(
+  #       tryCatch(m1$coefficients[[1]], error = function(err) NA),
+  #       tryCatch(m2$coefficients[[1]], error = function(err) NA)
+  #     ),
+  #     slope_re = c(
+  #       tryCatch(m1$coefficients[["decade"]], error = function(err) NA),
+  #       tryCatch(m2$coefficients[["decade"]], error = function(err) NA)
+  #     ),
+  #     se_slope_re = c(
+  #       tryCatch(summary(m1)$coefficients[2,2], error = function(err) NA),
+  #       tryCatch(summary(m2)$coefficients[2,2], error = function(err) NA)
+  #     ),
+  #     slope_mpa = c(
+  #       tryCatch(m3$coefficients[["decade"]], error = function(err) NA),
+  #       tryCatch(m4$coefficients[["decade"]], error = function(err) NA)
+  #     ),
+  #     restr_clean = c("Same survey domain", "Shrunk survey domain")
+  #   )
+  # }
+  # coefs <- group_by(re_long, survey_abbrev, species_common_name) %>%
+  #   group_split() %>%
+  #   purrr::map_dfr(get_slopes)
 
 
   for (i in seq_along(spp)) {
