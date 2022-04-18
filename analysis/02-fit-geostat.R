@@ -105,7 +105,7 @@ for (survey in c("SYN", "HBLL")) {
       "sandpaper skate", ###
       "North Pacific Spiny Dogfish",
       "Spotted Ratfish",
-      "kelp greenling",
+      "kelp greenling", ###
       "Lingcod",
       "Pacific Cod",
       "Walleye Pollock",
