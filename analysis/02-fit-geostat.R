@@ -125,7 +125,7 @@ for (survey in c("SYN", "HBLL")) {
       "Yellowmouth Rockfish",
       "Yellowtail Rockfish",
       "Arrowtooth Flounder",
-      "Butter Sole", ### doesn't fit well enough
+      "Butter Sole", ###
       "Curlfin Sole",
       "Dover Sole",
       "English Sole",
