@@ -72,8 +72,8 @@ for (survey in c("SYN", "HBLL")) {
       "arrowtooth flounder",
       "big skate",
       "canary rockfish",
-      "china rockfish",
-      "copper rockfish",
+      "china rockfish", # 13% positive
+      "copper rockfish", # 11% positive
       "lingcod",
       "longnose skate",
       "north pacific spiny dogfish",
@@ -82,8 +82,8 @@ for (survey in c("SYN", "HBLL")) {
       "redbanded rockfish",
       "rosethorn rockfish",
       "rougheye/blackspotted rockfish complex",
-      "sandpaper skate",
-      "shortspine thornyhead",
+      "sandpaper skate", # 7.6 % positive
+      "shortspine thornyhead", # only 6.7% of samples are positive, 8% pos restricted
       "silvergray rockfish",
       "southern rock sole",
       "spotted ratfish",
@@ -98,35 +98,42 @@ for (survey in c("SYN", "HBLL")) {
     grid$area <- 4
 
     # "Copper"
+    ### indicates species added that Gabe asked about
     syn_highlights <- c(
-      "Redstripe Rockfish",
       "Big Skate",
-      "Walleye Pollock",
-      "Pacific Ocean Perch",
-      "Yellowmouth Rockfish",
-      "Bocaccio",
-      "Petrale Sole",
-      "Widow Rockfish",
-      "Canary Rockfish",
-      "Yellowtail Rockfish",
-      "Rex Sole",
-      "English Sole",
-      "rougheye/blackspotted rockfish complex",
-      "Dover Sole",
-      "Shortspine Thornyhead",
-      "Spotted Ratfish",
-      "southern rock sole",
-      "Pacific Cod",
-      "Lingcod",
-      "North Pacific Spiny Dogfish",
-      # "Shortraker Rockfish", # not fitting well! almost no data when restricted
-      "Arrowtooth Flounder",
       "Longnose Skate",
+      "sandpaper skate", ###
+      "North Pacific Spiny Dogfish",
+      "Spotted Ratfish",
+      "kelp greenling",
+      "Lingcod",
+      "Pacific Cod",
+      "Walleye Pollock",
+      "Bocaccio",
+      "Canary Rockfish",
+      "darkblotched rockfish", ###
+      "greenstriped rockfish", ###
+      "Pacific Ocean Perch",
+      "Redstripe Rockfish",
       "Redbanded Rockfish",
+      "rougheye/blackspotted rockfish complex",
+      "sharpchin rockfish", ###
+      # "Shortraker Rockfish", # not fitting well! almost no data when restricted (9% pos)
+      "Shortspine Thornyhead",
       "Silvergray Rockfish",
+      "Widow Rockfish",
+      "Yellowmouth Rockfish",
+      "Yellowtail Rockfish",
+      "Arrowtooth Flounder",
+      "Butter Sole", ### doesn't fit well enough
       "Curlfin Sole",
+      "Dover Sole",
+      "English Sole",
+      "Flathead Sole",
+      "Petrale Sole",
+      "Rex Sole",
       "Slender Sole",
-      "Flathead Sole"
+      "southern rock sole"
     ) %>% tolower() %>% sort() %>% unique()
     dat_to_fit <- filter(dat_to_fit, species_common_name %in% syn_highlights)
   }
