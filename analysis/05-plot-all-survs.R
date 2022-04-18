@@ -40,13 +40,14 @@ names(.pal) <- c("SYN HS", "SYN QCS", "HBLL OUT N", "SYN WCHG")
 # prep index data ----
 
 y1 <- readRDS(file = "data-generated/index-hbll-geo-clean-binomial_gamma.rds") %>%
-  # (x/4km left in predict function from density version)*199 sets to sample each grid cell
-  # then /1000 to change counts to per 1000 fish
-  # work out to  x 0.2
-  mutate(est = est * 0.2, lwr = lwr * 0.2, upr = upr * 0.2)
+  # 0.0024384 * 0.009144 * 2 is area swept in km2 per hook
+  # = est/1000/0.0024384 * 0.009144 * 2 to convert from # fish / hook to 1000 fish / km2
+  mutate(est = est * 0.0075, lwr = lwr * 0.0075, upr = upr * 0.0075)
 # y1 <- readRDS(file = "data-generated/index-hbll-geo-clean-binomial-gamma.rds") %>%
 #   mutate(est = est/10000, lwr = lwr/10000, upr = upr/10000)
-y2 <- readRDS(file = "data-generated/index-syn-geo-clean-binomial_gamma.rds")
+y2 <- readRDS(file = "data-generated/index-syn-geo-clean-binomial_gamma.rds")%>%
+  # current offset in strange units so /10000 gets us to tonnes/km2
+  mutate(est = est/10000, lwr = lwr/10000, upr = upr/10000 )
 y <- bind_rows(y1, y2)
 
 mean(y$orig_cv < 1)
@@ -938,7 +939,7 @@ g <- dd %>% filter(!survey_abbrev %in% c("SYN HS", "SYN WCHG")) %>%
   # xlab("") +
   # ylab("") +
   coord_flip() +
-  scale_y_continuous(breaks = waiver(), n.breaks = 4, expand = c(0,0)) +
+  scale_y_continuous(breaks = waiver(), n.breaks = 5, expand = c(0,0)) +
   scale_colour_manual(values = restricted_cols, label = restricted_labels) +
   labs(x = "", y = "", colour = "Index type", fill = "Index type", linetype = "Index type") +
   theme(
