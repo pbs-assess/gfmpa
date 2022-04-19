@@ -315,11 +315,14 @@ cvdata2 <- readRDS("data-generated/syn-cv-w-lm-slopes.rds")
 cvdata <- bind_rows(cvdata1, cvdata2)
 cvdata <- mutate(cvdata, species_common_name = gsub("Rougheye/Blackspotted Rockfish Complex", "Rougheye/Blackspotted Rockfish", species_common_name))
 
+## if wanting to filter out POP in WCHG this should happen here
+# cvdata <- cvdata %>% filter(cv_ratio < 1.6)
+## but it's actually more of an outlier in terms of prop_mpa
+cvdata <- cvdata %>% mutate(prop_mpa = ifelse(prop_mpa<0.4, prop_mpa, 0.4))
 
 d <- cvdata %>%
   tidyr::pivot_longer(c("cv_ratio", "mare", "slope_re"), names_to = "Response", values_to = "cv_index") %>%
   ungroup() %>%
-  filter(cv_index < 1.6) %>%
   mutate(Response = factor(Response, labels = c("CV Ratio", "MARE", "RE trend")))
 
 # change to proportional change in CV
@@ -495,6 +498,7 @@ if (length(unique(d$survey_abbrev)) > 3) { # makes sure all surveys
        switch = "y",
        scales = "free_y"
      ) +
+      scale_x_continuous(labels = c(0.0, 0.1, 0.2, 0.3, ">0.4")) +
      theme(
        axis.title.y = element_blank(),
        # legend.position = c(0.1, 0.95),
@@ -532,7 +536,7 @@ if (length(unique(d$survey_abbrev)) > 3) { # makes sure all surveys
 # MARE by CV ratio ----
 
 cvdata2 <- cvdata
-cvdata2[cvdata2$cv_ratio > 1.5, ]$cv_ratio <- 1.5
+# cvdata2[cvdata2$cv_ratio > 1.5, ]$cv_ratio <- 1.5
 
 cvdata2$cv_ratio <- cvdata2$cv_ratio - 1
 
