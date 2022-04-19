@@ -30,6 +30,8 @@ for (survey in c("HBLL", "SYN")) {
 
   index$species_common_name <- stringr::str_to_title(index$species_common_name)
 
+  index <- mutate(index, species_common_name = gsub("Rougheye/Blackspotted Rockfish Complex", "Rougheye/Blackspotted Rockfish", species_common_name))
+
   # get cv ratios and prop mpa
   cv2 <- index %>%
     group_by(species_common_name, survey_abbrev, year) %>%
