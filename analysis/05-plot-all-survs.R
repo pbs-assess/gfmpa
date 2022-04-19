@@ -598,7 +598,11 @@ d_shrunk2$slope_mpa[d_shrunk2$species_common_name=="Flathead Sole" & d_shrunk2$s
     geom_hline(yintercept = 0, colour = "gray80") +
     geom_vline(xintercept = 0, colour = "gray70") +
     scale_colour_manual(name = "Survey", values = .pal)+
-    theme(legend.position = c(0.82, 0.15))+
+    theme(legend.position = c(0.82, 0.85))+
+    scale_x_continuous(
+      breaks = c(-0.2, 0.0, 0.2, 0.4),
+      labels = c(-0.2, 0.0, 0.2, ">0.4")
+                       ) +
     ggrepel::geom_text_repel(
       aes(label = species_common_name),
       # colour = "darkgray",
