@@ -581,6 +581,10 @@ ggsave("figs/explore-abs-slope.pdf", width = 7, height = 7)
 
 
 d_shrunk2 <- filter(cvdata, `Restriction type` == "re_shrunk")
+
+# truncate an outlier for slope mpa to 0.5
+d_shrunk2$slope_mpa[d_shrunk2$species_common_name=="Flathead Sole" & d_shrunk2$survey_abbrev=="SYN QCS"] <- 0.5
+
 (g <- g <- ggplot(d_shrunk2,
                   aes_string("slope_mpa", "slope_re", colour = "survey_abbrev")) +
     geom_point(alpha = 0.8) +
@@ -590,15 +594,15 @@ d_shrunk2 <- filter(cvdata, `Restriction type` == "re_shrunk")
     geom_hline(yintercept = 0, colour = "gray80") +
     geom_vline(xintercept = 0, colour = "gray70") +
     scale_colour_manual(name = "Survey", values = .pal)+
-    theme(legend.position = c(0.8, 0.2))+
+    theme(legend.position = c(0.82, 0.15))+
     ggrepel::geom_text_repel(
       aes(label = species_common_name),
-      colour = "darkgray",
-      force = 2, direction = "y", max.overlaps = 4,
-      min.segment.length = 10, size = 2.5
+      # colour = "darkgray",
+      force = 2, direction = "y", max.overlaps = 5,
+      min.segment.length = 5, size = 2.5
     ))
 
-ggsave("figs/explore-all-slopes2.pdf", width = 6, height = 6)
+ggsave("figs/explore-all-slopes2.pdf", width = 6.5, height = 6.5)
 
 # ### benefits of interpolation
 #
@@ -892,6 +896,7 @@ dd1b <- cv_long2 %>%
             est = mean(`CV change`)) %>%
   ungroup() %>%
   group_by(species_common_name) %>%
+  filter(!survey_abbrev %in% c("SYN HS", "SYN WCHG")) %>% #order based only on illustrated surveys?
   mutate(
     est_avg = mean(est, na.rm = TRUE),
     measure = "CV ratio - 1 (precision loss)") %>%
@@ -902,6 +907,7 @@ dd2 <-  x_long %>%
   summarise(lwr = quantile(abs(re), 0.025),
             upr = ifelse(quantile(abs(re), 0.975) > 0.5, 0.5, quantile(abs(re), 0.975)),
             est = median(abs(re))) %>%
+  filter(!survey_abbrev %in% c("SYN HS", "SYN WCHG")) %>% #order based only on illustrated surveys?
   mutate(
     est_avg = mean(est, na.rm = TRUE),
     measure = "MARE (accuracy loss)")
@@ -912,6 +918,7 @@ dd3 <- cvdata %>%
     lwr = (median(slope_re)-1.98*mean(se_slope_re))/1,
     upr = (median(slope_re)+1.98*mean(se_slope_re))/1,
     est = median((slope_re))/1) %>%
+  filter(!survey_abbrev %in% c("SYN HS", "SYN WCHG")) %>% #order based only on illustrated surveys?
   mutate(
     est_avg = mean(abs(est), na.rm = TRUE)/1,
     measure = "RE trend (bias)") %>%
