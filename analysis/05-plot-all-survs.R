@@ -56,6 +56,10 @@ filter(y, orig_cv <= 1)
 index <- filter(y, orig_cv < 1)
 
 index$species_common_name <- stringr::str_to_title(index$species_common_name)
+index <- filter(index, !species_common_name=="Shortraker Rockfish")
+
+# remove Shortspine as only HBLL spp below 10% occurance that converges
+index <- filter(index, !(survey_abbrev == "HBLL OUT N" & species_common_name == "Shortspine Thornyhead"))
 index <- mutate(index, species_common_name = gsub("Rougheye/Blackspotted Rockfish Complex", "Rougheye/Blackspotted Rockfish", species_common_name))
 
 if (!include_mpa) index <- index %>% filter(type != "MPA only")
@@ -591,12 +595,12 @@ d_shrunk2$slope_mpa[d_shrunk2$species_common_name=="Flathead Sole" & d_shrunk2$s
 
 (g <- g <- ggplot(d_shrunk2,
                   aes_string("slope_mpa", "slope_re", colour = "survey_abbrev")) +
-    geom_point(alpha = 0.8) +
     ylab("Change in RE per decade") +
     xlab("Change in proportion of biomass inside MPAs") +
     guides(shape = "none") +
     geom_hline(yintercept = 0, colour = "gray80") +
     geom_vline(xintercept = 0, colour = "gray70") +
+    geom_point(alpha = 0.8) +
     scale_colour_manual(name = "Survey", values = .pal)+
     theme(legend.position = c(0.82, 0.85))+
     scale_x_continuous(
@@ -641,7 +645,7 @@ g <- index %>%
   facet_wrap(~species_common_name, scales = "free_y", ncol = 4) +
   theme(legend.position = "top")
 g
-ggsave("figs/index-hbll-geo-restricted.pdf", width = 9, height = 8)
+ggsave("figs/index-hbll-geo-restricted.pdf", width = 9, height = 7)
 
 g <- index %>%
   filter(survey_abbrev == "SYN QCS") %>%
@@ -700,7 +704,7 @@ g <- index %>%
   facet_wrap(~species_common_name, scales = "free_y", ncol = 4)+
   theme(legend.position = "top",axis.text.y = element_text(size = 7))
 g
-ggsave("figs/index-wchg-geo-restricted.pdf", width = 9.2, height = 6, limitsize = FALSE)
+ggsave("figs/index-wchg-geo-restricted.pdf", width = 9.2, height = 7, limitsize = FALSE)
 
 
 # RE PLOTS for each survey ----

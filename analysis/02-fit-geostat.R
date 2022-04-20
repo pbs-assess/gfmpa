@@ -16,6 +16,7 @@ if (is_unix) options(sdmTMB.cores = 4L)
 source("analysis/functions.R")
 
 # survey <- "SYN"
+survey <- "HBLL"
 fam <- "binomial_gamma"
 
 for (survey in c("SYN", "HBLL")) {
@@ -68,6 +69,7 @@ for (survey in c("SYN", "HBLL")) {
     grid$survey_abbrev <- "HBLL OUT N"
     grid$area <- 4
 
+    # Petrale Sole errors out
     highlights <- c(
       "arrowtooth flounder",
       "big skate",
@@ -82,8 +84,8 @@ for (survey in c("SYN", "HBLL")) {
       "redbanded rockfish",
       "rosethorn rockfish",
       "rougheye/blackspotted rockfish complex",
-      "sandpaper skate", # 7.6 % positive
-      "shortspine thornyhead", # only 6.7% of samples are positive, 8% pos restricted
+      # "sandpaper skate", # 7.6 % positive, gets filtered out
+      # "shortspine thornyhead", # only 6.7% of samples are positive, 8% pos restricted
       "silvergray rockfish",
       "southern rock sole",
       "spotted ratfish",
@@ -99,7 +101,11 @@ for (survey in c("SYN", "HBLL")) {
 
     # "Copper"
     ### indicates species added that Gabe asked about
+    #### more abundant species of potential interest
     syn_highlights <- c(
+      "Harlequin Rockfish", ####
+      "Pacific Sanddab", #### abundant flatfish
+      "Sand Sole", #### abundant flatfish
       "Big Skate",
       "Longnose Skate",
       "sandpaper skate", ###
