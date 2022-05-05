@@ -43,24 +43,24 @@ for (survey in c("SYN", "HBLL")) {
 
   if (survey == "HBLL") {
     dat_to_fit <- readRDS("data-generated/dat_to_fit_hbll.rds")
-    ##  hooks <- readRDS("data-raw/HBLLOUTN-hooks.rds") %>%
-    ##    mutate(count_animals = count_target_species + count_non_target_species) %>%
-    ##    select(year, fishing_event_id, count_animals,
-    ##           count_bait_only, count_empty_hooks, count_bent_broken) %>%
-    ##    mutate(total_hooks = count_animals + count_bait_only + count_empty_hooks - count_bent_broken) %>%
-    ##    mutate(count_bait_only2 = replace(count_bait_only, which(count_bait_only == 0), 1))
-    ##
-    ##  hookmeans <- filter(hooks, total_hooks > 350) %>%
-    ##    summarise(baited  = mean(count_bait_only),
-    ##              prop_baited = mean(count_bait_only / total_hooks))
-    ##  # hist(hooks[hooks$total_hooks > 350,]$count_bait_only, breaks = 30)
-    ##
-    ##  dat_to_fit <- left_join(dat_to_fit, hooks)  %>%
-    ##    mutate(missing_hooks = hook_count - total_hooks) %>%
-    ##    mutate(prop_bait_hooks = ifelse(total_hooks > 350, count_bait_only2 / total_hooks, hookmeans$prop_baited)) %>%
-    ##    mutate(hook_adjust_factor = -log(prop_bait_hooks) / (1 - prop_bait_hooks),
-    ##           adjusted_hooks = hook_count/hook_adjust_factor
-    ##           )
+     # hooks <- readRDS("data-raw/HBLLOUTN-hooks.rds") %>%
+     #   mutate(count_animals = count_target_species + count_non_target_species) %>%
+     #   select(year, fishing_event_id, count_animals,
+     #          count_bait_only, count_empty_hooks, count_bent_broken) %>%
+     #   mutate(total_hooks = count_animals + count_bait_only + count_empty_hooks - count_bent_broken) %>%
+     #   mutate(count_bait_only2 = replace(count_bait_only, which(count_bait_only == 0), 1))
+     #
+     # hookmeans <- filter(hooks, total_hooks > 350) %>%
+     #   summarise(baited  = mean(count_bait_only),
+     #             prop_baited = mean(count_bait_only / total_hooks))
+     # # hist(hooks[hooks$total_hooks > 350,]$count_bait_only, breaks = 30)
+     #
+     # dat_to_fit <- left_join(dat_to_fit, hooks)  %>%
+     #   mutate(missing_hooks = hook_count - total_hooks) %>%
+     #   mutate(prop_bait_hooks = ifelse(total_hooks > 350, count_bait_only2 / total_hooks, hookmeans$prop_baited)) %>%
+     #   mutate(hook_adjust_factor = -log(prop_bait_hooks) / (1 - prop_bait_hooks),
+     #          adjusted_hooks = hook_count/hook_adjust_factor
+     #          )
 
     # d <- filter(dat_to_fit, species_common_name == "pacific cod")
     # hist(d$adjusted_hooks)
@@ -71,6 +71,7 @@ for (survey in c("SYN", "HBLL")) {
 
     # Petrale Sole errors out
     highlights <- c(
+      # "petrale sole",
       "arrowtooth flounder",
       "big skate",
       "canary rockfish",
@@ -84,8 +85,8 @@ for (survey in c("SYN", "HBLL")) {
       "redbanded rockfish",
       "rosethorn rockfish",
       "rougheye/blackspotted rockfish complex",
-      # "sandpaper skate", # 7.6 % positive, gets filtered out
-      # "shortspine thornyhead", # only 6.7% of samples are positive, 8% pos restricted
+      "sandpaper skate", # 7.6 % positive, gets filtered out
+      "shortspine thornyhead", # only 6.7% of samples are positive, 8% pos restricted
       "silvergray rockfish",
       "southern rock sole",
       "spotted ratfish",
@@ -124,7 +125,7 @@ for (survey in c("SYN", "HBLL")) {
       "Redbanded Rockfish",
       "rougheye/blackspotted rockfish complex",
       "sharpchin rockfish", ###
-      # "Shortraker Rockfish", # not fitting well! almost no data when restricted (9% pos)
+      "Shortraker Rockfish", # not fitting well! almost no data when restricted (9% pos)
       "Shortspine Thornyhead",
       "Silvergray Rockfish",
       "Widow Rockfish",
