@@ -41,13 +41,13 @@ names(.pal) <- c("SYN HS", "SYN QCS", "HBLL OUT N", "SYN WCHG")
 
 y1 <- readRDS(file = "data-generated/index-hbll-geo-clean-binomial_gamma.rds") %>%
   # 0.0024384 * 0.009144 * 2 is area swept in km2 per hook
-  # = est/1000/0.0024384 * 0.009144 * 2 to convert from # fish / hook to 1000 fish / km2
-  mutate(est = est * 0.0075, lwr = lwr * 0.0075, upr = upr * 0.0075)
+  # = est * (1/10000)/(0.0024384 * 0.009144 * 2) to convert from # fish / hook to 1000 fish / km2
+  mutate(est = est * 2.242481, lwr = lwr * 2.242481, upr = upr * 2.242481)
 # y1 <- readRDS(file = "data-generated/index-hbll-geo-clean-binomial-gamma.rds") %>%
 #   mutate(est = est/10000, lwr = lwr/10000, upr = upr/10000)
 y2 <- readRDS(file = "data-generated/index-syn-geo-clean-binomial_gamma.rds")%>%
   # current offset in strange units so /10000 gets us to tonnes/km2
-  mutate(est = est/10000, lwr = lwr/10000, upr = upr/10000 )
+  mutate(est = est/10000, lwr = lwr/10000, upr = upr/10000)
 y <- bind_rows(y1, y2)
 
 mean(y$orig_cv < 1)
@@ -175,7 +175,7 @@ i2 <- index %>%
 #   facet_grid(species_common_name ~ survey_abbrev, scales = "free_y") +
 #   scale_y_continuous(breaks = waiver(), n.breaks = 4) +
 #   ggtitle("Index type:   ") +
-#   ylab("Relative abundance in 1000s (HBLL) or biomass in tonnes (SYN)") +
+#   ylab("Relative abundance in 10,000s (HBLL) or biomass in tonnes (SYN)") +
 #   theme(
 #     plot.title = element_text(hjust = 0.9),
 #     strip.text.y = element_blank(),
@@ -231,7 +231,7 @@ g <- i3  %>%
   scale_linetype_manual(values = line_pal) +
   facet_wrap(~spp_survey, scales = "free_y", ncol = 4) +
   # scale_y_continuous(breaks = waiver(), n.breaks = 3) +
-  ylab("Relative abundance in 1000s (HBLL) or biomass in tonnes (SYN)") +
+  ylab("Relative abundance in 10,000s (HBLL) or biomass in tonnes (SYN)") +
   labs(x = "Year", colour = "Index type", fill = "Index type", linetype = "Index type") +
   # ggtitle("Index type:   ") +
   theme(
@@ -641,7 +641,7 @@ g <- index %>%
   scale_colour_manual(values = colour_pal) +
   scale_fill_manual(values = colour_pal) +
   scale_linetype_manual(values = line_pal) +
-  ylab("Relative abundance in 1000s") +
+  ylab("Relative abundance in 10,000s") +
   facet_wrap(~species_common_name, scales = "free_y", ncol = 4) +
   theme(legend.position = "top")
 g
