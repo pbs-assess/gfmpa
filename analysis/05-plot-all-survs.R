@@ -40,13 +40,14 @@ names(.pal) <- c("SYN HS", "SYN QCS", "HBLL OUT N", "SYN WCHG")
 # prep index data ----
 
 y1 <- readRDS(file = "data-generated/index-hbll-geo-clean-binomial_gamma.rds") %>%
-  # (x/4km left in predict function from density version)*199 sets to sample each grid cell
-  # then /1000 to change counts to per 1000 fish
-  # work out to  x 0.2
-  mutate(est = est * 0.2, lwr = lwr * 0.2, upr = upr * 0.2)
+  # 0.0024384 * 0.009144 * 2 is area swept in km2 per hook
+  # = est * (1/10000)/(0.0024384 * 0.009144 * 2) to convert from # fish / hook to 1000 fish / km2
+  mutate(est = est * 2.242481, lwr = lwr * 2.242481, upr = upr * 2.242481)
 # y1 <- readRDS(file = "data-generated/index-hbll-geo-clean-binomial-gamma.rds") %>%
 #   mutate(est = est/10000, lwr = lwr/10000, upr = upr/10000)
-y2 <- readRDS(file = "data-generated/index-syn-geo-clean-binomial_gamma.rds")
+y2 <- readRDS(file = "data-generated/index-syn-geo-clean-binomial_gamma.rds")%>%
+  # current offset in strange units so /10000 gets us to tonnes/km2
+  mutate(est = est/10000, lwr = lwr/10000, upr = upr/10000)
 y <- bind_rows(y1, y2)
 
 mean(y$orig_cv < 1)
@@ -55,6 +56,10 @@ filter(y, orig_cv <= 1)
 index <- filter(y, orig_cv < 1)
 
 index$species_common_name <- stringr::str_to_title(index$species_common_name)
+index <- filter(index, !species_common_name=="Shortraker Rockfish")
+
+# remove Shortspine as only HBLL spp below 10% occurance that converges
+index <- filter(index, !(survey_abbrev == "HBLL OUT N" & species_common_name == "Shortspine Thornyhead"))
 index <- mutate(index, species_common_name = gsub("Rougheye/Blackspotted Rockfish Complex", "Rougheye/Blackspotted Rockfish", species_common_name))
 
 saveRDS(index, file = "data-generated/index-filtered.rds")
@@ -172,7 +177,7 @@ i2 <- index %>%
 #   facet_grid(species_common_name ~ survey_abbrev, scales = "free_y") +
 #   scale_y_continuous(breaks = waiver(), n.breaks = 4) +
 #   ggtitle("Index type:   ") +
-#   ylab("Relative abundance in 1000s (HBLL) or biomass in tonnes (SYN)") +
+#   ylab("Relative abundance in 10,000s (HBLL) or biomass in tonnes (SYN)") +
 #   theme(
 #     plot.title = element_text(hjust = 0.9),
 #     strip.text.y = element_blank(),
@@ -228,7 +233,7 @@ g <- i3  %>%
   scale_linetype_manual(values = line_pal) +
   facet_wrap(~spp_survey, scales = "free_y", ncol = 4) +
   # scale_y_continuous(breaks = waiver(), n.breaks = 3) +
-  ylab("Relative abundance in 1000s (HBLL) or biomass in tonnes (SYN)") +
+  ylab("Relative abundance in 10,000s (HBLL) or biomass in tonnes (SYN)") +
   labs(x = "Year", colour = "Index type", fill = "Index type", linetype = "Index type") +
   # ggtitle("Index type:   ") +
   theme(
@@ -316,11 +321,14 @@ cvdata2 <- readRDS("data-generated/syn-cv-w-lm-slopes.rds")
 cvdata <- bind_rows(cvdata1, cvdata2)
 cvdata <- mutate(cvdata, species_common_name = gsub("Rougheye/Blackspotted Rockfish Complex", "Rougheye/Blackspotted Rockfish", species_common_name))
 
+## if wanting to filter out POP in WCHG this should happen here
+# cvdata <- cvdata %>% filter(cv_ratio < 1.6)
+## but it's actually more of an outlier in terms of prop_mpa
+cvdata <- cvdata %>% mutate(prop_mpa = ifelse(prop_mpa<0.4, prop_mpa, 0.4))
 
 d <- cvdata %>%
   tidyr::pivot_longer(c("cv_ratio", "mare", "slope_re"), names_to = "Response", values_to = "cv_index") %>%
   ungroup() %>%
-  filter(cv_index < 1.6) %>%
   mutate(Response = factor(Response, labels = c("CV Ratio", "MARE", "RE trend")))
 
 # change to proportional change in CV
@@ -496,6 +504,7 @@ if (length(unique(d$survey_abbrev)) > 3) { # makes sure all surveys
        switch = "y",
        scales = "free_y"
      ) +
+      scale_x_continuous(labels = c(0.0, 0.1, 0.2, 0.3, ">0.4")) +
      theme(
        axis.title.y = element_blank(),
        # legend.position = c(0.1, 0.95),
@@ -533,7 +542,7 @@ if (length(unique(d$survey_abbrev)) > 3) { # makes sure all surveys
 # MARE by CV ratio ----
 
 cvdata2 <- cvdata
-cvdata2[cvdata2$cv_ratio > 1.5, ]$cv_ratio <- 1.5
+# cvdata2[cvdata2$cv_ratio > 1.5, ]$cv_ratio <- 1.5
 
 cvdata2$cv_ratio <- cvdata2$cv_ratio - 1
 
@@ -582,24 +591,32 @@ ggsave("figs/explore-abs-slope.pdf", width = 7, height = 7)
 
 
 d_shrunk2 <- filter(cvdata, `Restriction type` == "re_shrunk")
+
+# truncate an outlier for slope mpa to 0.5
+d_shrunk2$slope_mpa[d_shrunk2$species_common_name=="Flathead Sole" & d_shrunk2$survey_abbrev=="SYN QCS"] <- 0.5
+
 (g <- g <- ggplot(d_shrunk2,
                   aes_string("slope_mpa", "slope_re", colour = "survey_abbrev")) +
-    geom_point(alpha = 0.8) +
     ylab("Change in RE per decade") +
     xlab("Change in proportion of biomass inside MPAs") +
     guides(shape = "none") +
     geom_hline(yintercept = 0, colour = "gray80") +
     geom_vline(xintercept = 0, colour = "gray70") +
+    geom_point(alpha = 0.8) +
     scale_colour_manual(name = "Survey", values = .pal)+
-    theme(legend.position = c(0.8, 0.2))+
+    theme(legend.position = c(0.82, 0.85))+
+    scale_x_continuous(
+      breaks = c(-0.2, 0.0, 0.2, 0.4),
+      labels = c(-0.2, 0.0, 0.2, ">0.4")
+                       ) +
     ggrepel::geom_text_repel(
       aes(label = species_common_name),
-      colour = "darkgray",
-      force = 2, direction = "y", max.overlaps = 4,
-      min.segment.length = 10, size = 2.5
+      # colour = "darkgray",
+      force = 2, direction = "y", max.overlaps = 5,
+      min.segment.length = 5, size = 2.5
     ))
 
-ggsave("figs/explore-all-slopes2.pdf", width = 6, height = 6)
+ggsave("figs/explore-all-slopes2.pdf", width = 6.5, height = 6.5)
 
 # ### benefits of interpolation
 #
@@ -626,11 +643,11 @@ g <- index %>%
   scale_colour_manual(values = colour_pal) +
   scale_fill_manual(values = colour_pal) +
   scale_linetype_manual(values = line_pal) +
-  ylab("Relative abundance in 1000s") +
+  ylab("Relative abundance in 10,000s") +
   facet_wrap(~species_common_name, scales = "free_y", ncol = 4) +
   theme(legend.position = "top")
 g
-ggsave("figs/index-hbll-geo-restricted.pdf", width = 9, height = 8)
+ggsave("figs/index-hbll-geo-restricted.pdf", width = 9, height = 7)
 
 g <- index %>%
   filter(survey_abbrev == "SYN QCS") %>%
@@ -689,7 +706,7 @@ g <- index %>%
   facet_wrap(~species_common_name, scales = "free_y", ncol = 4)+
   theme(legend.position = "top",axis.text.y = element_text(size = 7))
 g
-ggsave("figs/index-wchg-geo-restricted.pdf", width = 9.2, height = 6, limitsize = FALSE)
+ggsave("figs/index-wchg-geo-restricted.pdf", width = 9.2, height = 7, limitsize = FALSE)
 
 
 # RE PLOTS for each survey ----
@@ -893,6 +910,7 @@ dd1b <- cv_long2 %>%
             est = mean(`CV change`)) %>%
   ungroup() %>%
   group_by(species_common_name) %>%
+  filter(!survey_abbrev %in% c("SYN HS", "SYN WCHG")) %>% #order based only on illustrated surveys?
   mutate(
     est_avg = mean(est, na.rm = TRUE),
     measure = "CV ratio - 1 (precision loss)") %>%
@@ -903,6 +921,7 @@ dd2 <-  x_long %>%
   summarise(lwr = quantile(abs(re), 0.025),
             upr = ifelse(quantile(abs(re), 0.975) > 0.5, 0.5, quantile(abs(re), 0.975)),
             est = median(abs(re))) %>%
+  filter(!survey_abbrev %in% c("SYN HS", "SYN WCHG")) %>% #order based only on illustrated surveys?
   mutate(
     est_avg = mean(est, na.rm = TRUE),
     measure = "MARE (accuracy loss)")
@@ -913,6 +932,7 @@ dd3 <- cvdata %>%
     lwr = (median(slope_re)-1.98*mean(se_slope_re))/1,
     upr = (median(slope_re)+1.98*mean(se_slope_re))/1,
     est = median((slope_re))/1) %>%
+  filter(!survey_abbrev %in% c("SYN HS", "SYN WCHG")) %>% #order based only on illustrated surveys?
   mutate(
     est_avg = mean(abs(est), na.rm = TRUE)/1,
     measure = "RE trend (bias)") %>%
@@ -940,7 +960,7 @@ g <- dd %>% filter(!survey_abbrev %in% c("SYN HS", "SYN WCHG")) %>%
   # xlab("") +
   # ylab("") +
   coord_flip() +
-  scale_y_continuous(breaks = waiver(), n.breaks = 4, expand = c(0,0)) +
+  scale_y_continuous(breaks = waiver(), n.breaks = 5, expand = c(0,0)) +
   scale_colour_manual(values = restricted_cols, label = restricted_labels) +
   labs(x = "", y = "", colour = "Index type", fill = "Index type", linetype = "Index type") +
   theme(

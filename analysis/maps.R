@@ -198,6 +198,61 @@ names(.pal) <- c("SYN HS", "SYN QCS", "HBLL OUT N", "SYN WCHG")
 
 ggsave("figs/restricted-grid.png", width = 6, height = 6)
 
+# without the proposed restrictions
+# add existing restrictions
+
+utm_zone9 <- 3156
+
+Gwaii_Haanas <- sf::read_sf("data-raw/Gwaii Haanas Land-Sea-People plan FINAL ZONING_Nov 2018")
+Gwaii_Haanas <- sf::st_cast(Gwaii_Haanas, "MULTIPOLYGON") %>% sf::st_transform(utm_zone9)
+
+Hecate <- sf::read_sf("data-raw/Hecate") %>%
+  sf::st_transform(utm_zone9)
+
+RCA <- sf::read_sf("data-raw/RCA2019") %>%
+  sf::st_transform(utm_zone9)
+# unique(RCA$NAME)
+
+
+(g <-all %>% mutate(x = X, y = Y, X = X*1000, Y = Y*1000) %>%
+  sf::st_as_sf(coords = c("X", "Y"), crs = utm_zone9) %>%
+    ggplot() +
+    geom_tile(aes(x*1000, y*1000, fill = survey_abbrev), alpha = 0.45, width=2*1000, height=2*1000) +
+    geom_polygon(
+      data = coast, aes(x = X*1000, y = Y*1000, group = PID),
+      fill = "grey67", col = "grey60", lwd = 0.2
+    ) +
+
+    geom_point(data = dat, aes(X*1000, Y*1000, colour = survey_abbrev), size = 0.1) +
+    geom_point(data = dat_hbll, aes(X*1000, Y*1000, colour = survey_abbrev), size = 0.1) +
+    geom_sf(
+      data = filter(Gwaii_Haanas, Zone_Type == "Strict Protection (IUCN II)"), aes(group = Name),
+      fill = NA, lwd = 0.3, col = "red"
+    ) +
+    geom_sf(
+      data = filter(Hecate, Zone_Type %in% c("AMZ", #"CPZ" # AMZ = buffer, CPZ = main protected area?
+                                             )), aes(group = Shape_Area),
+      fill = NA, lwd = 0.3, col = "red"
+    ) +
+    geom_sf(
+      data = filter(RCA, !NAME %in% c(# "Scott Islands",
+        "Triangle Island")),
+      aes(group = NAME),
+      fill = NA, lwd = 0.3, col = "red"
+    ) +
+    scale_fill_manual("Survey", values = .pal) +
+    scale_colour_manual("Survey", values = .pal) +
+    coord_sf(xlim = c(180*1000, 590*1000), ylim = c(5640*1000, 6050*1000)) +
+    gfplot::theme_pbs() + theme(legend.position=c(0.15,0.15)) +
+    xlab("Easting (km)") + ylab("Northing (km)"))
+
+ggsave("figs/map-existing-restrictions.png", width = 6, height = 6)
+
+
+
+
+
+
 # gg <- g + facet_wrap(~year)
 # ggsave("figs/restricted-grid-year.png", width = 8, height = 8)
 
