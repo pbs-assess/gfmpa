@@ -57,6 +57,8 @@ index <- filter(y, orig_cv < 1)
 index$species_common_name <- stringr::str_to_title(index$species_common_name)
 index <- mutate(index, species_common_name = gsub("Rougheye/Blackspotted Rockfish Complex", "Rougheye/Blackspotted Rockfish", species_common_name))
 
+saveRDS(index, file = "data-generated/index-filtered.rds")
+
 if (!include_mpa) index <- index %>% filter(type != "MPA only")
 
 # choose labels for each index type ----
@@ -83,7 +85,7 @@ syn_highlights <- c(
   # "Sandpaper Skate", #
   # "Longnose Skate",#HS
   "Spotted Ratfish",
-  # "Pacific Cod",
+  "Pacific Cod",
   "Walleye Pollock", #
   # "Pacific Hake",
   # "Sablefish",
@@ -99,7 +101,7 @@ syn_highlights <- c(
   # "Silvergray Rockfish", # an interesting one
   # "Yellowtail Rockfish",
   # "Shortspine Thornyhead",
-  "Widow Rockfish",
+  # "Widow Rockfish",
   "Arrowtooth Flounder", #
   "Curlfin Sole",# QCS
   # "Dover Sole",
@@ -124,7 +126,7 @@ hbll_highlights <- c(
   "Lingcod",
   # "Blackbelly Eelpout",
   # "Canary Rockfish",
-  "China Rockfish",
+  # "China Rockfish",
   # "Greenstriped Rockfish",#HS
   "Quillback Rockfish",
   # "Redbanded Rockfish", # HS
@@ -132,8 +134,8 @@ hbll_highlights <- c(
   # "Rosethorn Rockfish",
   # "Rougheye/Blackspotted Rockfish Complex",#HBLL
   # "Silvergray Rockfish",
-  "Tiger Rockfish" # an interesting one
-  # "Yelloweye Rockfish"
+  "Tiger Rockfish", # an interesting one
+  "Yelloweye Rockfish"
   # "Yellowtail Rockfish",
   # "Shortspine Thornyhead"
 )

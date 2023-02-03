@@ -9,11 +9,58 @@ dir.create("figs", showWarnings = FALSE)
 
 source("analysis/functions.R")
 
-x <- sf::read_sf("data-raw/Spatial_N1_May17_2021.gdb")
-# plot(x["hu_co_demersalfishing_bottomtrawling_d"])
-trawl_removed <- dplyr::filter(x, hu_co_demersalfishing_bottomtrawling_d %in% c("X"))
-saveRDS(trawl_removed, file = "data-generated/demersalfishing_bottomtrawling_X.rds")
+
+x <- sf::read_sf("data-raw/MPATT_P2_Nov25_limited_attributes.gdb/", type = 7)
+table(x$Category_Detailed)
+# Category 1
+# 171
+# Category 2
+# 12
+# Existing MPA/RCA - 'as-is, where-is'
+# 54
+# Existing MPA/RCA - 'as-is, where-is' *
+#   24
+# Existing MPA/RCA - 'as-is, where-is' **
+#   29
+# Existing MPA/RCA - 'as-is, where-is' ***
+#   67
+table(x$Prop_Desig_Tool)
+# BC WMA Fisheries Act + BC tools
+# 2                        7                        9
+# Fisheries Act tool                     MNWA                    NMCAR
+# 17                       51                       76
+# Oceans Act MPA                      TBD
+# 18                       12
+table(x$SUBREGION)
+# CC  HG  NC NVI
+# 83  84  68 122
+
+trawl_removed <- dplyr::filter(x, Category_Detailed %in% c("Category 1", "Category 2"))
+
+# x |>
+#   dplyr::filter(Category_Detailed == "Category 1") |>
+#   plot()
+
+
+# x <- sf::read_sf("data-raw/Spatial_N1_May17_2021.gdb")
+# # plot(x["hu_co_demersalfishing_bottomtrawling_d"])
+# trawl_removed <- dplyr::filter(x, hu_co_demersalfishing_bottomtrawling_d %in% c("X"))
 # plot(trawl_removed["hu_co_demersalfishing_bottomtrawling_d"])
+
+# https://gis.stackexchange.com/questions/389814/r-st-centroid-geos-error-unknown-wkb-type-12
+
+# library(sf)
+# library(gdalUtilities)
+ensure_multipolygons <- function(X) {
+  tmp1 <- tempfile(fileext = ".gpkg")
+  tmp2 <- tempfile(fileext = ".gpkg")
+  sf::st_write(X, tmp1)
+  gdalUtilities::ogr2ogr(tmp1, tmp2, f = "GPKG", nlt = "MULTIPOLYGON")
+  Y <- sf::st_read(tmp2)
+  sf::st_sf(sf::st_drop_geometry(X), geom = sf::st_geometry(Y))
+}
+trawl_removed <- ensure_multipolygons(trawl_removed)
+saveRDS(trawl_removed, file = "data-generated/Cat1_2_Dec2022.rds")
 
 assign_restricted_tows <- function(trawl_dat) {
   orig <- trawl_dat
@@ -44,7 +91,7 @@ assign_restricted_tows <- function(trawl_dat) {
 # ggplot(aleut, aes(longitude, latitude, size = density_kgpm2, colour = restricted)) + geom_point()
 
 if (Sys.info()[['user']] == "seananderson") {
-  f <- list.files("~/src/gfsynopsis-2021/report/data-cache/",
+  f <- list.files("~/src/gfsynopsis-2021/report/data-cache-april-2022/",
     full.names = TRUE)
   f <- f[!grepl("cpue", f)]
   f <- f[!grepl("iphc", f)]
@@ -52,7 +99,7 @@ if (Sys.info()[['user']] == "seananderson") {
     cat(f[i], "\n")
     d <- readRDS(f[i])$survey_sets
     filter(d, survey_abbrev %in% c("SYN QCS", "SYN HS", "SYN WCHG")) %>%
-      select(year, survey_abbrev, species_science_name, species_common_name,
+      select(year, survey_abbrev, species_science_name, species_common_name, speed_mpm, duration_min,
         density_kgpm2, catch_weight, doorspread_m, tow_length_m, latitude, longitude, grouping_code, area_km2, depth_m)
   })
   saveRDS(synoptic_data, file = "data-raw/syn-survey-data.rds")
@@ -63,7 +110,9 @@ if (Sys.info()[['user']] == "seananderson") {
 dat <- assign_restricted_tows(synoptic_data)
 
 frac_pos_df <- dat %>% group_by(species_common_name, survey_abbrev) %>%
-  summarise(frac_pos = sum(density_kgpm2 > 0) / length(density_kgpm2), .groups = "drop")
+  summarise(
+    frac_pos = sum(density_kgpm2 > 0) / length(density_kgpm2), .groups = "drop"
+  )
 
 tokeep <- frac_pos_df %>% filter(frac_pos > 0.05)
 notkeep <- frac_pos_df %>% filter(frac_pos <= 0.05)
@@ -78,10 +127,12 @@ saveRDS(dat_to_fit, file = "data-generated/dat_to_fit.rds")
 # HBLL -----------------
 
 x <- sf::read_sf("data-raw/Spatial_N1_May17_2021.gdb")
+
+ll_removed <- trawl_removed
 # plot(x["hu_co_demersalfishing_bottomlongline_d"])
-ll_removed <- dplyr::filter(x, hu_co_demersalfishing_bottomlongline_d %in% c("X"))
-ll_removed <- sf::st_cast(ll_removed, "MULTIPOLYGON")
-saveRDS(ll_removed, file = "data-generated/hu_co_demersalfishing_bottomlongline_d_X.rds")
+# ll_removed <- dplyr::filter(x, hu_co_demersalfishing_bottomlongline_d %in% c("X"))
+# ll_removed <- sf::st_cast(ll_removed, "MULTIPOLYGON")
+# saveRDS(ll_removed, file = "data-generated/hu_co_demersalfishing_bottomlongline_d_X.rds")
 # png("figs/ll-map.png", width = 5, height = 6, units = "in", res = 200)
 # plot(ll_removed["hu_co_demersalfishing_bottomlongline_d"])
 # dev.off()
@@ -115,7 +166,7 @@ assign_restricted_tows_hbll <- function(dat) {
 # ggplot(aleut, aes(longitude, latitude, size = density_ppkm2, colour = restricted)) + geom_point()
 
 if (Sys.info()[['user']] == "seananderson") {
-  f <- list.files("~/src/gfsynopsis-2021/report/data-cache/",
+  f <- list.files("~/src/gfsynopsis-2021/report/data-cache-april-2022/",
     full.names = TRUE)
   f <- f[!grepl("cpue", f)]
   f <- f[!grepl("iphc", f)]
@@ -165,15 +216,13 @@ dat_to_fit <- left_join(tokeep, dat, by = c("species_common_name", "survey_abbre
 
 saveRDS(dat_to_fit, file = "data-generated/dat_to_fit_hbll.rds")
 
-
-
 dat_to_fit <- readRDS("data-generated/dat_to_fit_hbll.rds")
 hbll_grid <- gfplot::hbll_n_grid$grid
 utm_zone9 <- 3156
 coords <- hbll_grid %>%
   sf::st_as_sf(crs = 4326, coords = c("X", "Y")) %>%
   sf::st_transform(utm_zone9)
-coords_restr <- shrink_a_survey(coords, ll_removed, plot = FALSE)
+coords_restr <- shrink_a_survey(coords, ll_removed, plot = TRUE)
 coords <- coords %>%
   sf::st_coordinates() %>%
   as.data.frame()
@@ -195,7 +244,7 @@ syn_grid$Y <- syn_grid$Y * 1000
 utm_zone9 <- 3156
 coords <- syn_grid %>%
   sf::st_as_sf(crs = utm_zone9, coords = c("X", "Y"))
-coords_restr <- shrink_a_survey(coords, trawl_removed, plot = FALSE)
+coords_restr <- shrink_a_survey(coords, trawl_removed, plot = TRUE)
 coords <- coords %>%
   sf::st_coordinates() %>%
   as.data.frame()

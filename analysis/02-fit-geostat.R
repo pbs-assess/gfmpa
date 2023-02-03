@@ -3,11 +3,10 @@ library(future)
 library(sdmTMB)
 is_rstudio <- !is.na(Sys.getenv("RSTUDIO", unset = NA))
 is_unix <- .Platform$OS.type == "unix"
-# if (!is_rstudio && is_unix) plan(multicore, workers = 6L) else plan(multisession, workers = 6L)
+if (!is_rstudio && is_unix) plan(multicore, workers = 4L) else plan(multisession, workers = 6L)
 options(future.rng.onMisuse = "ignore")
 options(dplyr.summarise.inform = FALSE)
 dir.create("figs", showWarnings = FALSE)
-if (is_unix) options(sdmTMB.cores = 4L)
 
 # plan(sequential, split = TRUE)
 # plan(sequential) # don't crash!
@@ -133,22 +132,19 @@ for (survey in c("SYN", "HBLL")) {
 
   # dat_to_fit <- filter(dat_to_fit, survey_abbrev == "SYN QCS")
 
-  ll_removed <- readRDS("data-generated/hu_co_demersalfishing_bottomlongline_d_X.rds")
-  trawl_removed <- readRDS("data-generated/hu_co_demersalfishing_bottomlongline_d_X.rds")
-
   if (survey == "SYN") {
     save_file <- paste0("data-generated/index-syn-geo-", fam, ".rds")
+    # trawl_removed <- readRDS("data-generated/Cat1_2_Dec2022.rds")
   }
   if (survey == "HBLL") {
     save_file <- paste0("data-generated/index-hbll-geo-", fam, ".rds")
+    # ll_removed <- readRDS("data-generated/Cat1_2_Dec2022.rds")
   }
-
-  # dat_to_fit <- dplyr::filter(dat_to_fit, species_common_name == "yellowtail rockfish", survey_abbrev == "SYN QCS")
-
 
   if (!file.exists(save_file)) {
 
     index_restr <- dat_to_fit %>%
+      filter(survey_abbrev == "SYN WCHG") |>
       filter(!restricted) %>%
       group_by(survey_abbrev, species_common_name) %>%
       group_split() %>%
@@ -158,32 +154,32 @@ for (survey in c("SYN", "HBLL")) {
           fit_geo_model(pred_grid = grid, survey = survey, family = family,
             mpa_dat_removed = TRUE) %>%
           mutate(type = "Restricted")
-      # }, .progress = TRUE) # %>% filter(region != "mpa")
+      # }, .progress = TRUE)
     })
 
     index_shrunk <- dat_to_fit %>%
       filter(!restricted) %>%
       group_by(survey_abbrev, species_common_name) %>%
       group_split() %>%
-      # furrr::future_map_dfr(function(.x) {
-        purrr::map_dfr(function(.x) {
+      furrr::future_map_dfr(function(.x) {
+        # purrr::map_dfr(function(.x) {
         out <- .x %>%
           fit_geo_model(pred_grid = filter(grid, !restricted), family = family,
             survey = survey, mpa_dat_removed = TRUE, shrunk = TRUE) %>%
           mutate(type = "Restricted and shrunk")
-      # }, .progress = TRUE) # %>% filter(region != "mpa")
-    })
+      }, .progress = TRUE)
+    # })
 
     index_orig <- dat_to_fit %>%
       group_by(survey_abbrev, species_common_name) %>%
       group_split() %>%
-      # furrr::future_map_dfr(function(.x) {
-      purrr::map_dfr(function(.x) {
+      furrr::future_map_dfr(function(.x) {
+      # purrr::map_dfr(function(.x) {
         out <- .x %>%
           fit_geo_model(pred_grid = grid, survey = survey, family = family) %>%
           mutate(type = "Status quo")
-        # }, .progress = TRUE)
-      })
+        }, .progress = TRUE)
+      # })
 
     index_all <- bind_rows(index_orig, index_restr, index_shrunk)
     saveRDS(index_all, file = save_file)
@@ -195,7 +191,7 @@ for (survey in c("SYN", "HBLL")) {
   #   geom_ribbon(alpha = 0.2, colour = NA) +
   #   labs(x = "Year", colour = "Type", fill = "Type") +  facet_grid(species_common_name~survey_abbrev, scales = "free_y")
 
-  index <- readRDS(save_file) %>% filter(!(region == "mpa" & type %in% c("Restricted", "Restricted and shrunk")))
+  index <- readRDS(save_file) %>% dplyr::filter(!(region == "mpa" & type %in% c("Restricted", "Restricted and shrunk")))
 
   index <- filter(index, !is.na(est), !is.na(se)) # didn't fit
   index[index$region == "mpa", ]$type <- "MPA only"

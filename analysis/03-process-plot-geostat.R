@@ -10,7 +10,7 @@ dir.create("figs", showWarnings = FALSE)
 # survey <- args[[1]]
 # fam <- args[[2]]
 
-# survey <- "HBLL"
+survey <- "HBLL"
 fam <- "binomial_gamma"
 
 for (survey in c("HBLL", "SYN")) {
@@ -20,10 +20,10 @@ for (survey in c("HBLL", "SYN")) {
   if (survey == "HBLL") y <- readRDS(paste0("data-generated/index-hbll-geo-clean-", fam, ".rds"))
   if (survey == "SYN") y <- readRDS(paste0("data-generated/index-syn-geo-clean-", fam, ".rds"))
 
-  mean(y$orig_cv < 1)
+  mean(y$orig_cv < 0.5)
   filter(y, orig_cv > 1)
   filter(y, orig_cv <= 1)
-  index <- filter(y, orig_cv < 1)
+  index <- filter(y, orig_cv < 0.5)
 
   index$species_common_name <- stringr::str_to_title(index$species_common_name)
 

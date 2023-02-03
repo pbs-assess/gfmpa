@@ -78,7 +78,6 @@ do_sdmTMB_fit <- function(surv_dat, cutoff, pred_grid,
   } else {
     survey_type <- "SYN"
   }
-  mesh <- make_mesh(surv_dat, xy_cols = c("X", "Y"), cutoff = cutoff)
 
   if (MPA_trend) {
     surv_dat <- surv_dat %>% mutate(
@@ -88,6 +87,7 @@ do_sdmTMB_fit <- function(surv_dat, cutoff, pred_grid,
     formula <- response ~ 1 + year_seq + MPA + year_seq:MPA
   } else {
     formula <- response ~ 0 + as.factor(year)
+    # formula <- response ~ 1
   }
 
   if (survey_type == "HBLL") {
@@ -95,93 +95,40 @@ do_sdmTMB_fit <- function(surv_dat, cutoff, pred_grid,
     # surv_dat$offset <- log(surv_dat$adjusted_hooks)
     surv_dat$response <- surv_dat$catch_count
   } else if (survey_type == "SYN") {
-    surv_dat$doorspread_m[is.na(surv_dat$doorspread_m)] <- mean(surv_dat$doorspread_m, na.rm = TRUE)
-    surv_dat$tow_length_m[is.na(surv_dat$tow_length_m)] <- mean(surv_dat$tow_length_m, na.rm = TRUE)
-    surv_dat$offset <- log(surv_dat$tow_length_m * surv_dat$doorspread_m * 0.00001)
+    surv_dat$area_swept1 <- surv_dat$doorspread_m * surv_dat$tow_length_m
+    surv_dat$area_swept2 <- surv_dat$doorspread_m * surv_dat$duration_min *
+      surv_dat$speed_mpm
+    surv_dat$area_swept <- ifelse(!is.na(surv_dat$tow_length_m),
+      surv_dat$area_swept1, surv_dat$area_swept2)
+    surv_dat <- dplyr::filter(surv_dat, !is.na(area_swept))
+    surv_dat$offset <- log(surv_dat$area_swept * 0.00001)
     surv_dat$response <- surv_dat$catch_weight
   } else {
     stop("Survey type not found", call. = FALSE)
   }
 
-  # # surv_dat$depth_scaled <- surv_dat$depth_m - mean()
-  # fit1 <- sdmTMB(
-  #   formula = response ~ 0 + as.factor(year),# + s(log(depth_m)),
-  #   data = surv_dat,
-  #   family = delta_gamma(),
-  #   time = "year",
-  #   # anisotropy = TRUE,
-  #   silent = FALSE,
-  #   offset = surv_dat$offset,
-  #   mesh = mesh,
-  #   priors = sdmTMBpriors(
-  #     matern_s = pc_matern(range_gt = 20, sigma_lt = 10),
-  #     matern_st = pc_matern(range_gt = 20, sigma_lt = 5)
-  #     ),
-  #   share_range = FALSE
-  #   # control = sdmTMBcontrol(newton_loops = 1L)
-  # )
-
-  # fit2 <- sdmTMB(
-  #   formula = response ~ 1,
-  #   data = surv_dat,
-  #   family = delta_gamma(),
-  #   time = "year",
-  #   # anisotropy = TRUE,
-  #   spatiotemporal = "rw",
-  #   silent = FALSE,
-  #   offset = surv_dat$offset,
-  #   mesh = mesh,
-  #   priors = sdmTMBpriors(
-  #     matern_s = pc_matern(range_gt = 20, sigma_lt = 10),
-  #     matern_st = pc_matern(range_gt = 20, sigma_lt = 5)
-  #   ),
-  #   share_range = FALSE,
-  #   control = sdmTMBcontrol(newton_loops = 1L)
-  # )
-
-  # browser()
+  mesh <- make_mesh(surv_dat, xy_cols = c("X", "Y"), cutoff = cutoff)
   m <- try({
     sdmTMB(
       formula = formula,
       data = surv_dat,
       family = family,
-      # family = sdmTMB::tweedie(),
       time = "year",
       spatiotemporal = spatiotemporal,
-      # spatiotemporal = "iid",
-      # silent = F,
       offset = surv_dat$offset,
       mesh = mesh,
+      anisotropy = FALSE,
       priors = sdmTMBpriors(
-        matern_s = pc_matern(range_gt = 20, sigma_lt = 10),
-        matern_st = pc_matern(range_gt = 20, sigma_lt = 5)
+        matern_s = pc_matern(range_gt = 20, sigma_lt = 5)
       ),
+      silent = TRUE,
       share_range = share_range,
-      # share_range = TRUE,
       control = sdmTMBcontrol(newton_loops = 1L),
       ...
     )
   })
+  if (inherits(m, "try-error")) return(m)
   print(m)
-
-  if (class(m)[[1]] == "try-error") {
-    return(NULL)
-  }
-
-  if (class(m)[[1]] == "try-error") {
-    return(NULL)
-  }
-  if (max(m$gradients) > 0.01) {
-    m <- try({
-      run_extra_optimization(m, newton_loops = 1L, nlminb_loops = 1L)
-    })
-  }
-  if (return_model) {
-    return(m)
-  }
-  if (class(m)[[1]] == "try-error" || max(m$gradients) > 0.01) {
-    return(NULL)
-  }
   m
 }
 
@@ -189,7 +136,7 @@ fit_geo_model <- function(surv_dat, pred_grid,
                           MPA_trend = FALSE,
                           mpa_dat_removed = FALSE, shrunk = FALSE,
                           survey = c("HBLL", "SYN"),
-                          family = c(sdmTMB::tweedie(), sdmTMB::delta_gamma(), sdmTMB::nbinom2()),
+                          family = sdmTMB::delta_gamma(),
                           return_model = FALSE, ...) {
   survey <- match.arg(survey)
 
@@ -204,7 +151,10 @@ fit_geo_model <- function(surv_dat, pred_grid,
     stringsAsFactors = FALSE
   )
 
-  cat("Fitting", unique(surv_dat$survey_abbrev), unique(surv_dat$species_common_name), "\n")
+  cat(
+    "Fitting", unique(surv_dat$survey_abbrev),
+    unique(surv_dat$species_common_name), "\n"
+  )
 
   .sp <- gsub(" ", "-", unique(surv_dat$species_science_name)[1])
   .sp <- gsub("/", "-", .sp)
@@ -223,23 +173,19 @@ fit_geo_model <- function(surv_dat, pred_grid,
 
   if (shrunk) {
     .file_ind <- gsub(
-      "data-generated/model-cache/",
       "mpa-dat-removed", "mpa-dat-removed-shrunk", .file_ind
     )
   }
 
-  # if (!file.exists(.file_model)) {
-
+  if (!file.exists(.file_ind)) {
     if (file.exists(model_info_file)) {
       model_info <- readRDS(model_info_file)
-      new_fit <- FALSE
     } else {
       model_info <- list(
-        spatiotemporal = list("off", "iid"),
+        spatiotemporal = list("iid", "iid"),
         family = delta_gamma(),
-        share_range = list(FALSE, TRUE)
+        share_range = list(TRUE, TRUE)
       )
-      new_fit <- TRUE
     }
 
     fit <- do_sdmTMB_fit(
@@ -254,39 +200,13 @@ fit_geo_model <- function(surv_dat, pred_grid,
       ...
     )
 
-    # b <- tidy(fit, "ran_pars")
-    # sigma_O1 <- b$estimate[b$term == "sigma_O"]
-    # sigma_E1 <- b$estimate[b$term == "sigma_E"]
-    if (!is.null(fit) && new_fit) {
-      b2 <- tidy(fit, "ran_pars", model = 2)
-      # sigma_O2 <- b2$estimate[b$term == "sigma_O"]
-      sigma_E2 <- b2$estimate[b2$term == "sigma_E"]
-    } else {
-      sigma_E2 <- -999
-    }
+    s <- sanity(fit)
+    all_ok <- all(unlist(s))
 
-    if (sigma_E2 < 0.001 && new_fit) {
-      # turn off sigma E
-      model_info$spatiotemporal <- list("off", "off")
-
-      fit <- do_sdmTMB_fit(
-        surv_dat,
-        MPA_trend = MPA_trend,
-        cutoff = cutoff,
-        family = model_info$family,
-        pred_grid = pred_grid,
-        return_model = return_model,
-        spatiotemporal = model_info$spatiotemporal,
-        share_range = model_info$share_range,
-        ...
-      )
-    }
-
-    if (any(summary(fit$sd_report, "fixed")[,"Std. Error"] > 10) && new_fit) {
-      # try Tweedie!
+    if (!all_ok) {
       model_info$family <- sdmTMB::tweedie()
       model_info$spatiotemporal <- "iid"
-      model_info$share_range <- FALSE
+      model_info$share_range <- TRUE
 
       fit <- do_sdmTMB_fit(
         surv_dat,
@@ -301,47 +221,20 @@ fit_geo_model <- function(surv_dat, pred_grid,
       )
     }
 
-    if (any(summary(fit$sd_report, "fixed")[,"Std. Error"] > 10) && new_fit) {
-      # share range
-      model_info$share_range <- TRUE
-      fit <- do_sdmTMB_fit(
-        surv_dat,
-        MPA_trend = MPA_trend,
-        cutoff = cutoff,
-        family = model_info$family,
-        pred_grid = pred_grid,
-        return_model = return_model,
-        spatiotemporal = model_info$spatiotemporal,
-        share_range = model_info$share_range, #<
-        ...
-      )
-    }
+    s <- sanity(fit)
+    all_ok <- all(unlist(s))
 
-    if (is.null(fit)) {
+    saveRDS(model_info, model_info_file)
+    if (!all_ok) {
       return(null_df)
       message("Didn't converge; discarding.")
     }
 
-    # saveRDS(fit, file = .file_model)
-    saveRDS(model_info, model_info_file)
-  # } else {
-    # fit <- readRDS(.file_model)
-  # }
-
-  if (is.null(fit)) {
-    return(null_df)
-    message("Didn't converge; discarding.")
-  }
-
-  .diag <- sdmTMB:::get_convergence_diagnostics(fit$sd_report)
-  if (max(.diag$final_grads) > 0.01 || isTRUE(.diag$bad_eig) || isFALSE(.diag$pdHess ||
-      any(summary(fit$sd_report, "fixed")[,"Std. Error"] > 10))) {
-    message("Didn't converge; discarding.")
-    return(null_df)
-  }
-
-  cat("Indexing", unique(surv_dat$survey_abbrev), unique(surv_dat$species_common_name), "\n")
-  # if (!file.exists(.file_ind)) {
+    cat(
+      "Indexing",
+      unique(surv_dat$survey_abbrev),
+      unique(surv_dat$species_common_name), "\n"
+    )
     pred <- try({
       predict(fit, newdata = pred_grid, return_tmb_object = TRUE)
     })
@@ -349,8 +242,8 @@ fit_geo_model <- function(surv_dat, pred_grid,
     if (return_model) {
       return(pred$data)
     }
-    if (class(pred)[[1]] == "try-error") {
-      return(NULL)
+    if (inherits(pred, "try-error")) {
+      return(null_df)
       message("Error on prediction; discarding.")
     }
 
@@ -364,20 +257,21 @@ fit_geo_model <- function(surv_dat, pred_grid,
       pred_mpa_only <- try({
         predict(fit, newdata = mpa_only, return_tmb_object = TRUE)
       })
-      if (class(pred)[[1]] != "try-error") {
+      if (!inherits(pred, "try-error")) {
         ind2 <- get_index(pred_mpa_only, area = mpa_only$area, bias_correct = TRUE)
         ind2$region <- "mpa"
         ind <- dplyr::bind_rows(ind, ind2)
+      } else {
+        return(null_df)
       }
     }
 
-    # ind$pdHess <- .diag$pdHess
     ind$species_common_name <- surv_dat$species_common_name[1]
     ind$survey_abbrev <- surv_dat$survey_abbrev[1]
     saveRDS(ind, file = .file_ind)
-  # } else {
-  #   ind <- readRDS(.file_ind)
-  # }
+  } else {
+    ind <- readRDS(.file_ind)
+  }
   ind
 }
 

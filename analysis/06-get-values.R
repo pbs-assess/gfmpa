@@ -29,3 +29,13 @@ write_tex(round((
   sum(.d$restricted)/length(.d$restricted)
 ) , 2), "lostWCHG")
 
+
+index <- readRDS("data-generated/index-filtered.rds")
+
+write_tex(length(unique(index$species_common_name)), "nSpp")
+
+filter(index, survey_abbrev == "HBLL OUT N") %>% pull(species_common_name) %>% unique() %>% length() %>%
+  write_tex("hbllNSpp")
+
+filter(index, survey_abbrev != "HBLL OUT N") %>% pull(species_common_name) %>% unique() %>% length() %>%
+  write_tex("synNSpp")
