@@ -3,7 +3,7 @@ library(future)
 library(sdmTMB)
 is_rstudio <- !is.na(Sys.getenv("RSTUDIO", unset = NA))
 is_unix <- .Platform$OS.type == "unix"
-if (!is_rstudio && is_unix) plan(multicore, workers = 4L) else plan(multisession, workers = 6L)
+if (!is_rstudio && is_unix) plan(multicore, workers = 5L) else plan(multisession, workers = 5L)
 options(future.rng.onMisuse = "ignore")
 options(dplyr.summarise.inform = FALSE)
 dir.create("figs", showWarnings = FALSE)
@@ -15,7 +15,7 @@ dir.create("figs", showWarnings = FALSE)
 source("analysis/functions.R")
 
 # survey <- "SYN"
-survey <- "HBLL"
+# survey <- "HBLL"
 fam <- "binomial_gamma"
 
 for (survey in c("SYN", "HBLL")) {
@@ -157,19 +157,30 @@ for (survey in c("SYN", "HBLL")) {
 
   if (!file.exists(save_file)) {
 
+    index_orig <- dat_to_fit %>%
+      group_by(survey_abbrev, species_common_name) %>%
+      group_split() %>%
+      furrr::future_map_dfr(function(.x) {
+      # purrr::map_dfr(function(.x) {
+        out <- .x %>%
+          fit_geo_model(pred_grid = grid, survey = survey, family = family) %>%
+          mutate(type = "Status quo")
+        }, .progress = TRUE)
+      # })
+
     index_restr <- dat_to_fit %>%
-      filter(survey_abbrev == "SYN WCHG") |>
+      # filter(survey_abbrev == "SYN WCHG") |>
       filter(!restricted) %>%
       group_by(survey_abbrev, species_common_name) %>%
       group_split() %>%
-      # furrr::future_map_dfr(function(.x) {
-        purrr::map_dfr(function(.x) {
+      furrr::future_map_dfr(function(.x) {
+        # purrr::map_dfr(function(.x) {
         out <- .x %>%
           fit_geo_model(pred_grid = grid, survey = survey, family = family,
             mpa_dat_removed = TRUE) %>%
           mutate(type = "Restricted")
-      # }, .progress = TRUE)
-    })
+      }, .progress = TRUE)
+    # })
 
     index_shrunk <- dat_to_fit %>%
       filter(!restricted) %>%
@@ -183,17 +194,6 @@ for (survey in c("SYN", "HBLL")) {
           mutate(type = "Restricted and shrunk")
       }, .progress = TRUE)
     # })
-
-    index_orig <- dat_to_fit %>%
-      group_by(survey_abbrev, species_common_name) %>%
-      group_split() %>%
-      furrr::future_map_dfr(function(.x) {
-      # purrr::map_dfr(function(.x) {
-        out <- .x %>%
-          fit_geo_model(pred_grid = grid, survey = survey, family = family) %>%
-          mutate(type = "Status quo")
-        }, .progress = TRUE)
-      # })
 
     index_all <- bind_rows(index_orig, index_restr, index_shrunk)
     saveRDS(index_all, file = save_file)

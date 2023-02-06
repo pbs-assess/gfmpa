@@ -68,7 +68,7 @@ shrink_a_survey <- function(grid_dat, restriction_dat, plot = FALSE) {
 
 do_sdmTMB_fit <- function(surv_dat, cutoff, pred_grid,
                           MPA_trend, spatiotemporal = list("off", "iid"),
-                          share_range = list(TRUE, FALSE),
+                          share_range = list(TRUE, TRUE),
                           # formula = response ~ 0 + as.factor(year) + offset,
                           family = sdmTMB::tweedie(link = "log"),
                           return_model = FALSE,
@@ -119,7 +119,8 @@ do_sdmTMB_fit <- function(surv_dat, cutoff, pred_grid,
       mesh = mesh,
       anisotropy = FALSE,
       priors = sdmTMBpriors(
-        matern_s = pc_matern(range_gt = 20, sigma_lt = 5)
+        matern_s = pc_matern(range_gt = 20, sigma_lt = 5),
+        matern_st = pc_matern(range_gt = 20, sigma_lt = 5)
       ),
       silent = TRUE,
       share_range = share_range,
@@ -180,12 +181,14 @@ fit_geo_model <- function(surv_dat, pred_grid,
   if (!file.exists(.file_ind)) {
     if (file.exists(model_info_file)) {
       model_info <- readRDS(model_info_file)
+      model_already_decided <- TRUE
     } else {
       model_info <- list(
         spatiotemporal = list("iid", "iid"),
         family = delta_gamma(),
         share_range = list(TRUE, TRUE)
       )
+      model_already_decided <- FALSE
     }
 
     fit <- do_sdmTMB_fit(
@@ -199,14 +202,11 @@ fit_geo_model <- function(surv_dat, pred_grid,
       return_model = return_model,
       ...
     )
-
     s <- sanity(fit)
     all_ok <- all(unlist(s))
 
-    if (!all_ok) {
-      model_info$family <- sdmTMB::tweedie()
-      model_info$spatiotemporal <- "iid"
-      model_info$share_range <- TRUE
+    if (!all_ok && !model_already_decided) {
+      model_info$spatiotemporal <- list("off", "iid")
 
       fit <- do_sdmTMB_fit(
         surv_dat,
@@ -219,12 +219,67 @@ fit_geo_model <- function(surv_dat, pred_grid,
         share_range = model_info$share_range,
         ...
       )
+      s <- sanity(fit)
+      all_ok <- all(unlist(s))
     }
 
-    s <- sanity(fit)
-    all_ok <- all(unlist(s))
+    if (!all_ok && !model_already_decided) {
+      model_info$spatiotemporal <- list("off", "off")
 
-    saveRDS(model_info, model_info_file)
+      fit <- do_sdmTMB_fit(
+        surv_dat,
+        MPA_trend = MPA_trend,
+        cutoff = cutoff,
+        family = model_info$family,
+        pred_grid = pred_grid,
+        return_model = return_model,
+        spatiotemporal = model_info$spatiotemporal,
+        share_range = model_info$share_range,
+        ...
+      )
+      s <- sanity(fit)
+      all_ok <- all(unlist(s))
+    }
+
+    if (!all_ok && !model_already_decided) {
+      model_info$family <- sdmTMB::tweedie()
+      model_info$spatiotemporal <- "iid"
+
+      fit <- do_sdmTMB_fit(
+        surv_dat,
+        MPA_trend = MPA_trend,
+        cutoff = cutoff,
+        family = model_info$family,
+        pred_grid = pred_grid,
+        return_model = return_model,
+        spatiotemporal = model_info$spatiotemporal,
+        share_range = model_info$share_range,
+        ...
+      )
+      s <- sanity(fit)
+      all_ok <- all(unlist(s))
+    }
+
+    if (!all_ok && !model_already_decided) {
+      model_info$spatiotemporal <- "off"
+
+      fit <- do_sdmTMB_fit(
+        surv_dat,
+        MPA_trend = MPA_trend,
+        cutoff = cutoff,
+        family = model_info$family,
+        pred_grid = pred_grid,
+        return_model = return_model,
+        spatiotemporal = model_info$spatiotemporal,
+        share_range = model_info$share_range,
+        ...
+      )
+      s <- sanity(fit)
+      all_ok <- all(unlist(s))
+    }
+
+    if (!model_already_decided) saveRDS(model_info, model_info_file)
+
     if (!all_ok) {
       return(null_df)
       message("Didn't converge; discarding.")
