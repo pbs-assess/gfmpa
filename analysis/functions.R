@@ -185,12 +185,21 @@ fit_geo_model <- function(surv_dat, pred_grid,
     } else {
       model_info <- list(
         spatiotemporal = list("iid", "iid"),
-        family = delta_gamma(),
+        family = sdmTMB::delta_gamma(),
         share_range = list(TRUE, TRUE)
       )
       model_already_decided <- FALSE
     }
 
+    # order of trials:
+    # - delta-Gamma, spatiotemporal: iid, iid
+    # - delta-Gamma, spatiotemporal: off, iid
+    # - Tweedie, spatiotemporal: iid
+    # - delta-Gamma, spatiotemporal: off, off
+    # - Tweedie, spatiotemporal: off
+
+    # - delta-Gamma, spatiotemporal: iid, iid
+    # - or whatever was fit last time!
     fit <- do_sdmTMB_fit(
       surv_dat,
       MPA_trend = MPA_trend,
@@ -206,6 +215,7 @@ fit_geo_model <- function(surv_dat, pred_grid,
     all_ok <- all(unlist(s))
 
     if (!all_ok && !model_already_decided) {
+      # - delta-Gamma, spatiotemporal: off, iid
       model_info$spatiotemporal <- list("off", "iid")
 
       fit <- do_sdmTMB_fit(
@@ -224,26 +234,10 @@ fit_geo_model <- function(surv_dat, pred_grid,
     }
 
     if (!all_ok && !model_already_decided) {
-      model_info$spatiotemporal <- list("off", "off")
-
-      fit <- do_sdmTMB_fit(
-        surv_dat,
-        MPA_trend = MPA_trend,
-        cutoff = cutoff,
-        family = model_info$family,
-        pred_grid = pred_grid,
-        return_model = return_model,
-        spatiotemporal = model_info$spatiotemporal,
-        share_range = model_info$share_range,
-        ...
-      )
-      s <- sanity(fit)
-      all_ok <- all(unlist(s))
-    }
-
-    if (!all_ok && !model_already_decided) {
+      # - Tweedie, spatiotemporal: iid
       model_info$family <- sdmTMB::tweedie()
       model_info$spatiotemporal <- "iid"
+      model_info$share_range <- TRUE
 
       fit <- do_sdmTMB_fit(
         surv_dat,
@@ -261,7 +255,31 @@ fit_geo_model <- function(surv_dat, pred_grid,
     }
 
     if (!all_ok && !model_already_decided) {
+      # - delta-Gamma, spatiotemporal: off, off
+      model_info$family <- sdmTMB::delta_gamma()
+      model_info$spatiotemporal <- list("off", "off")
+      model_info$share_range <- list(TRUE, TRUE)
+
+      fit <- do_sdmTMB_fit(
+        surv_dat,
+        MPA_trend = MPA_trend,
+        cutoff = cutoff,
+        family = model_info$family,
+        pred_grid = pred_grid,
+        return_model = return_model,
+        spatiotemporal = model_info$spatiotemporal,
+        share_range = model_info$share_range,
+        ...
+      )
+      s <- sanity(fit)
+      all_ok <- all(unlist(s))
+    }
+
+    if (!all_ok && !model_already_decided) {
+      # - Tweedie, spatiotemporal: off
       model_info$spatiotemporal <- "off"
+      model_info$family <- sdmTMB::tweedie()
+      model_info$share_range <- TRUE
 
       fit <- do_sdmTMB_fit(
         surv_dat,
@@ -307,19 +325,19 @@ fit_geo_model <- function(surv_dat, pred_grid,
     # ggplot(ind, aes(year, est, ymin = lwr, ymax = upr)) +
     #   geom_line() + geom_ribbon(alpha = 0.2)
 
-    if (length(unique(pred_grid$restricted)) > 1) {
-      mpa_only <- pred_grid[pred_grid$restricted, , drop = FALSE]
-      pred_mpa_only <- try({
-        predict(fit, newdata = mpa_only, return_tmb_object = TRUE)
-      })
-      if (!inherits(pred, "try-error")) {
-        ind2 <- get_index(pred_mpa_only, area = mpa_only$area, bias_correct = TRUE)
-        ind2$region <- "mpa"
-        ind <- dplyr::bind_rows(ind, ind2)
-      } else {
-        return(null_df)
-      }
-    }
+    # if (length(unique(pred_grid$restricted)) > 1) {
+    #   mpa_only <- pred_grid[pred_grid$restricted, , drop = FALSE]
+    #   pred_mpa_only <- try({
+    #     predict(fit, newdata = mpa_only, return_tmb_object = TRUE)
+    #   })
+    #   if (!inherits(pred, "try-error")) {
+    #     ind2 <- get_index(pred_mpa_only, area = mpa_only$area, bias_correct = TRUE)
+    #     ind2$region <- "mpa"
+    #     ind <- dplyr::bind_rows(ind, ind2)
+    #   } else {
+    #     return(null_df)
+    #   }
+    # }
 
     ind$species_common_name <- surv_dat$species_common_name[1]
     ind$survey_abbrev <- surv_dat$survey_abbrev[1]
