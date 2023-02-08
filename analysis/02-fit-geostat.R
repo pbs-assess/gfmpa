@@ -3,7 +3,7 @@ library(future)
 library(sdmTMB)
 is_rstudio <- !is.na(Sys.getenv("RSTUDIO", unset = NA))
 is_unix <- .Platform$OS.type == "unix"
-# if (!is_rstudio && is_unix) plan(multicore, workers = 5L) else plan(multisession, workers = 5L)
+if (!is_rstudio && is_unix) plan(multicore, workers = 5L) else plan(multisession, workers = 5L)
 options(future.rng.onMisuse = "ignore")
 options(dplyr.summarise.inform = FALSE)
 dir.create("figs", showWarnings = FALSE)
@@ -14,11 +14,11 @@ dir.create("figs", showWarnings = FALSE)
 # source("analysis/load-data.R")
 source("analysis/functions.R")
 
-survey <- "SYN"
+# survey <- "SYN"
 # survey <- "HBLL"
 fam <- "binomial_gamma"
 
-for (survey in c("SYN", "HBLL")) {
+for (survey in c("HBLL", "SYN")) {
   if (fam == "tweedie") {
     family = tweedie()
   } else if (fam == "nbinom2") {
@@ -158,7 +158,6 @@ for (survey in c("SYN", "HBLL")) {
   if (!file.exists(save_file)) {
 
     index_restr <- dat_to_fit %>%
-      # filter(survey_abbrev == "SYN WCHG") |>
       filter(!restricted) %>%
       group_by(survey_abbrev, species_common_name) %>%
       group_split() %>%
@@ -173,7 +172,6 @@ for (survey in c("SYN", "HBLL")) {
 
     index_orig <- dat_to_fit %>%
       group_by(survey_abbrev, species_common_name) %>%
-      filter(species_common_name %in% "petrale sole", survey_abbrev %in% "SYN QCS") |>
       group_split() %>%
       furrr::future_map_dfr(function(.x) {
       # purrr::map_dfr(function(.x) {
@@ -209,7 +207,7 @@ for (survey in c("SYN", "HBLL")) {
   index <- readRDS(save_file) %>% dplyr::filter(!(region == "mpa" & type %in% c("Restricted", "Restricted and shrunk")))
 
   index <- filter(index, !is.na(est), !is.na(se)) # didn't fit
-  index[index$region == "mpa", ]$type <- "MPA only"
+  # index[index$region == "mpa", ]$type <- "MPA only"
   index <- index %>% mutate(cv = sqrt(exp(se^2) - 1))
   # stopifnot(max(index$max_gradient) < 0.01)
 
@@ -223,15 +221,24 @@ for (survey in c("SYN", "HBLL")) {
     ) %>%
     ungroup()
 
-  table(index$type)
-
-  filter(.u1, orig_converged & !restr_converged)
   filter(.u1, !orig_converged & restr_converged)
+  filter(.u1, orig_converged & !restr_converged)
+
+  # which ones aren't in all 3?
+  filter(.u1, !orig_converged | !restr_converged | !shrunk_converged)
+
   .u1 <- filter(.u1, restr_converged & orig_converged)
-  index <- left_join(.u1, index)
-  y <- index %>%
-    group_by(survey_abbrev, species_common_name) %>%
-    mutate(orig_cv = max(cv[type == "Status quo"]))
+  # remove ones with any non-converged
+  index <- left_join(.u1, index, multiple = "all", by = join_by(species_common_name, survey_abbrev))
+
+  ocv <- index |> filter(type == "Status quo") |> mutate(orig_cv = cv)
+
+  y <- left_join(index, select(ocv, species_common_name, survey_abbrev, year, orig_cv),
+    by = join_by(species_common_name, survey_abbrev, year), multiple = "all")
+
+  # y <- index %>%
+  #   group_by(survey_abbrev, species_common_name) %>%
+  #   mutate(orig_cv = rep(cv[type == "Status quo"], 3))
 
   if (survey == "HBLL") saveRDS(y, file = paste0("data-generated/index-hbll-geo-clean-", fam, ".rds"))
   if (survey == "SYN") saveRDS(y, file = paste0("data-generated/index-syn-geo-clean-", fam, ".rds"))
