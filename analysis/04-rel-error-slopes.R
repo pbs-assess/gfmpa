@@ -5,36 +5,20 @@ library(sdmTMB)
 theme_set(ggsidekick::theme_sleek())
 options(dplyr.summarise.inform = FALSE)
 
-# Globals to set ------------------------------
-# survey <- "HBLL"
-# survey <- "SYN"
-#
-# args <- commandArgs(trailingOnly = TRUE)
-# if (length(args) == 0L)
-#   stop("This script is meant to be run from the command line.", call. = FALSE)
-# survey <- args[[1]]
-
-# ---------------------------------------------
 for (survey in c("HBLL", "SYN")) {
-
   # for now using delta-gamma?
   if (survey == "HBLL") y <- readRDS(file = "data-generated/index-hbll-geo-clean-binomial_gamma.rds")
   if (survey == "SYN") y <- readRDS(file = "data-generated/index-syn-geo-clean-binomial_gamma.rds")
 
-  # keep only species with original cv <= 1
-  mean(y$orig_cv < 1)
-  filter(y, orig_cv > 1)
-  filter(y, orig_cv <= 1)
-  index <- filter(y, orig_cv < 1)
-  # index <- filter(index, cv < 2)
-
   index$species_common_name <- stringr::str_to_title(index$species_common_name)
 
-  index <- filter(index, !species_common_name=="Shortraker Rockfish")
+  # index <- filter(index, !species_common_name == "Shortraker Rockfish")
   # remove Shortspine as only HBLL spp below 10% occurance that converges
-  index <- filter(index, !(survey_abbrev == "HBLL OUT N" & species_common_name == "Shortspine Thornyhead"))
-  index <- mutate(index, species_common_name = gsub("Rougheye/Blackspotted Rockfish Complex",
-                                                    "Rougheye/Blackspotted Rockfish", species_common_name))
+  # index <- filter(index, !(survey_abbrev == "HBLL OUT N" & species_common_name == "Shortspine Thornyhead"))
+  index <- mutate(index, species_common_name = gsub(
+    "Rougheye/Blackspotted Rockfish Complex",
+    "Rougheye/Blackspotted Rockfish", species_common_name
+  ))
 
   # get cv ratios and prop mpa
   cv2 <- index %>%
@@ -271,8 +255,8 @@ for (survey in c("HBLL", "SYN")) {
           tryCatch(m2$coefficients[["decade"]], error = function(err) NA)
         ),
         se_slope_re = c(
-          tryCatch(summary(m1)$coefficients[2,2], error = function(err) NA),
-          tryCatch(summary(m2)$coefficients[2,2], error = function(err) NA)
+          tryCatch(summary(m1)$coefficients[2, 2], error = function(err) NA),
+          tryCatch(summary(m2)$coefficients[2, 2], error = function(err) NA)
         ),
         slope_mpa = c(
           tryCatch(m3$coefficients[["decade"]], error = function(err) NA),
@@ -301,5 +285,4 @@ for (survey in c("HBLL", "SYN")) {
   # (g <- ggplot(d) + geom_point(aes_string("cv_orig", "temp_bias_interp_ratio"))+ geom_hline(yintercept = 1))
   # (g <- ggplot(d) + geom_point(aes_string("cv_orig", "cv_interp_ratio"))+ geom_hline(yintercept = 1))
   # (g <- ggplot(d) + geom_point(aes_string("cv_orig", "mare_interp_ratio"))+ geom_hline(yintercept = 1))
-
 }

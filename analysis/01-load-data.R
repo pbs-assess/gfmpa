@@ -90,17 +90,20 @@ assign_restricted_tows <- function(trawl_dat) {
 # aleut <- assign_restricted_tows(aleut)
 # ggplot(aleut, aes(longitude, latitude, size = density_kgpm2, colour = restricted)) + geom_point()
 
-if (Sys.info()[['user']] == "seananderson") {
+if (Sys.info()[["user"]] == "seananderson") {
   f <- list.files("~/src/gfsynopsis-2021/report/data-cache-april-2022/",
-    full.names = TRUE)
+    full.names = TRUE
+  )
   f <- f[!grepl("cpue", f)]
   f <- f[!grepl("iphc", f)]
   synoptic_data <- purrr::map_dfr(seq_along(f), function(i) {
     cat(f[i], "\n")
     d <- readRDS(f[i])$survey_sets
     filter(d, survey_abbrev %in% c("SYN QCS", "SYN HS", "SYN WCHG")) %>%
-      select(year, survey_abbrev, species_science_name, species_common_name, speed_mpm, duration_min,
-        density_kgpm2, catch_weight, doorspread_m, tow_length_m, latitude, longitude, grouping_code, area_km2, depth_m)
+      select(
+        year, survey_abbrev, species_science_name, species_common_name, speed_mpm, duration_min,
+        density_kgpm2, catch_weight, doorspread_m, tow_length_m, latitude, longitude, grouping_code, area_km2, depth_m
+      )
   })
   saveRDS(synoptic_data, file = "data-raw/syn-survey-data.rds")
 } else {
@@ -109,7 +112,8 @@ if (Sys.info()[['user']] == "seananderson") {
 
 dat <- assign_restricted_tows(synoptic_data)
 
-frac_pos_df <- dat %>% group_by(species_common_name, survey_abbrev) %>%
+frac_pos_df <- dat %>%
+  group_by(species_common_name, survey_abbrev) %>%
   summarise(
     frac_pos = sum(density_kgpm2 > 0) / length(density_kgpm2), .groups = "drop"
   )
@@ -165,46 +169,57 @@ assign_restricted_tows_hbll <- function(dat) {
 # aleut <- assign_restricted_tows_hbll(aleut)
 # ggplot(aleut, aes(longitude, latitude, size = density_ppkm2, colour = restricted)) + geom_point()
 
-if (Sys.info()[['user']] == "seananderson") {
+if (Sys.info()[["user"]] == "seananderson") {
   f <- list.files("~/src/gfsynopsis-2021/report/data-cache-april-2022/",
-    full.names = TRUE)
+    full.names = TRUE
+  )
   f <- f[!grepl("cpue", f)]
   f <- f[!grepl("iphc", f)]
   hbll_data <- purrr::map_dfr(seq_along(f), function(i) {
     cat(f[i], "\n")
     d <- readRDS(f[i])$survey_sets
     filter(d, survey_abbrev %in% c("HBLL OUT N")) %>%
-      select(year, fishing_event_id, survey_abbrev, species_science_name, species_common_name,
+      select(
+        year, fishing_event_id, survey_abbrev, species_science_name, species_common_name,
         density_ppkm2, latitude, longitude, grouping_code, area_km2, depth_m,
-        hook_count, catch_count)
+        hook_count, catch_count
+      )
   })
   saveRDS(hbll_data, file = "data-raw/hbll-survey-data.rds")
 } else {
-  if (Sys.info()[['user']] == "dfomac") {
-  f <- list.files("~/github/dfo/gfsynopsis/report/data-cache/",
-                  full.names = TRUE)
-  f <- f[!grepl("cpue", f)]
-  f <- f[!grepl("iphc", f)]
-  hbll_data <- purrr::map_dfr(seq_along(f), function(i) {
-    cat(f[i], "\n")
-    d <- readRDS(f[i])$survey_sets
-    filter(d, survey_abbrev %in% c("HBLL OUT N")) %>%
-      select(year, fishing_event_id, survey_abbrev, species_science_name, species_common_name,
-             density_ppkm2, latitude, longitude, grouping_code, area_km2, depth_m,
-             hook_count, catch_count)
-  })
-  saveRDS(hbll_data, file = "data-raw/hbll-survey-data.rds")
+  if (Sys.info()[["user"]] == "dfomac") {
+    f <- list.files("~/github/dfo/gfsynopsis/report/data-cache/",
+      full.names = TRUE
+    )
+    f <- f[!grepl("cpue", f)]
+    f <- f[!grepl("iphc", f)]
+    hbll_data <- purrr::map_dfr(seq_along(f), function(i) {
+      cat(f[i], "\n")
+      d <- readRDS(f[i])$survey_sets
+      filter(d, survey_abbrev %in% c("HBLL OUT N")) %>%
+        select(
+          year, fishing_event_id, survey_abbrev, species_science_name, species_common_name,
+          density_ppkm2, latitude, longitude, grouping_code, area_km2, depth_m,
+          hook_count, catch_count
+        )
+    })
+    saveRDS(hbll_data, file = "data-raw/hbll-survey-data.rds")
   } else {
-  hbll_data <- readRDS("data-raw/hbll-survey-data.rds")
+    hbll_data <- readRDS("data-raw/hbll-survey-data.rds")
   }
 }
 
 dat <- assign_restricted_tows_hbll(hbll_data)
 
-frac_pos_df <- dat %>% group_by(species_common_name, survey_abbrev) %>%
+frac_pos_df <- dat %>%
+  group_by(species_common_name, survey_abbrev) %>%
   summarise(frac_pos = sum(density_ppkm2 > 0) / length(density_ppkm2), .groups = "drop")
 
-frac_pos_df %>% ungroup() %>% arrange(-frac_pos) %>% top_n(30) %>% as.data.frame()
+frac_pos_df %>%
+  ungroup() %>%
+  arrange(-frac_pos) %>%
+  top_n(30) %>%
+  as.data.frame()
 
 tokeep <- frac_pos_df %>% filter(frac_pos > 0.05)
 notkeep <- frac_pos_df %>% filter(frac_pos <= 0.05)

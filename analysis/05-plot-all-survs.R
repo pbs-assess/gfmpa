@@ -45,9 +45,9 @@ y1 <- readRDS(file = "data-generated/index-hbll-geo-clean-binomial_gamma.rds") %
   mutate(est = est * 2.242481, lwr = lwr * 2.242481, upr = upr * 2.242481)
 # y1 <- readRDS(file = "data-generated/index-hbll-geo-clean-binomial-gamma.rds") %>%
 #   mutate(est = est/10000, lwr = lwr/10000, upr = upr/10000)
-y2 <- readRDS(file = "data-generated/index-syn-geo-clean-binomial_gamma.rds")%>%
+y2 <- readRDS(file = "data-generated/index-syn-geo-clean-binomial_gamma.rds") %>%
   # current offset in strange units so /10000 gets us to tonnes/km2
-  mutate(est = est/10000, lwr = lwr/10000, upr = upr/10000)
+  mutate(est = est / 10000, lwr = lwr / 10000, upr = upr / 10000)
 y <- bind_rows(y1, y2)
 
 mean(y$orig_cv < 1)
@@ -56,7 +56,7 @@ filter(y, orig_cv <= 1)
 index <- filter(y, orig_cv < 1)
 
 index$species_common_name <- stringr::str_to_title(index$species_common_name)
-index <- filter(index, !species_common_name=="Shortraker Rockfish")
+index <- filter(index, !species_common_name == "Shortraker Rockfish")
 
 # remove Shortspine as only HBLL spp below 10% occurance that converges
 index <- filter(index, !(survey_abbrev == "HBLL OUT N" & species_common_name == "Shortspine Thornyhead"))
@@ -108,7 +108,7 @@ syn_highlights <- c(
   # "Shortspine Thornyhead",
   # "Widow Rockfish",
   "Arrowtooth Flounder", #
-  "Curlfin Sole",# QCS
+  "Curlfin Sole", # QCS
   # "Dover Sole",
   # "English Sole",
   "Flathead Sole",
@@ -122,7 +122,7 @@ hbll_highlights <- c(
   "North Pacific Spiny Dogfish",
   "Big Skate",
   # "Sandpaper Skate", #
-  "Longnose Skate",#HS
+  "Longnose Skate", # HS
   # "Spotted Ratfish",
   # "Pacific Cod",
   # "Walleye Pollock", #
@@ -212,18 +212,21 @@ i2 <- index %>%
 #
 # g1 + g2 + patchwork::plot_layout(widths = c(1, 2))
 
-i3 <- bind_rows(i1,i2)%>% ungroup() %>% mutate(
-  which_survey = ifelse(survey_abbrev== "HBLL OUT N", "HBLL", "SYN QCS"),
-  # spp_survey = paste0(species_common_name, " (", which_survey, ")"),
-  spp_survey = paste0(species_common_name),
-  spp_survey1 = forcats::fct_reorder(spp_survey, orig_cv))
-  # spp_survey1 = forcats::fct_reorder(spp_survey, year, max))
+i3 <- bind_rows(i1, i2) %>%
+  ungroup() %>%
+  mutate(
+    which_survey = ifelse(survey_abbrev == "HBLL OUT N", "HBLL", "SYN QCS"),
+    # spp_survey = paste0(species_common_name, " (", which_survey, ")"),
+    spp_survey = paste0(species_common_name),
+    spp_survey1 = forcats::fct_reorder(spp_survey, orig_cv)
+  )
+# spp_survey1 = forcats::fct_reorder(spp_survey, year, max))
 glimpse(i3)
 
-g <- i3  %>%
+g <- i3 %>%
   ggplot(aes(year, est,
-             ymin = lwr, ymax = upr,
-             colour = type_label, fill = type_label, linetype = type_label
+    ymin = lwr, ymax = upr,
+    colour = type_label, fill = type_label, linetype = type_label
   )) +
   geom_line(lwd = 0.6) +
   geom_ribbon(alpha = 0.1, colour = NA) +
@@ -239,8 +242,8 @@ g <- i3  %>%
   theme(
     # legend.justification = c(0, 1), legend.position = c(0.1, 1.095), legend.direction = "horizontal"
     strip.text = element_text(colour = "black"),
-    legend.position = "top",axis.text.y = element_text(size = 8)
-        )
+    legend.position = "top", axis.text.y = element_text(size = 8)
+  )
 g
 
 
@@ -324,7 +327,7 @@ cvdata <- mutate(cvdata, species_common_name = gsub("Rougheye/Blackspotted Rockf
 ## if wanting to filter out POP in WCHG this should happen here
 # cvdata <- cvdata %>% filter(cv_ratio < 1.6)
 ## but it's actually more of an outlier in terms of prop_mpa
-cvdata <- cvdata %>% mutate(prop_mpa = ifelse(prop_mpa<0.4, prop_mpa, 0.4))
+cvdata <- cvdata %>% mutate(prop_mpa = ifelse(prop_mpa < 0.4, prop_mpa, 0.4))
 
 d <- cvdata %>%
   tidyr::pivot_longer(c("cv_ratio", "mare", "slope_re"), names_to = "Response", values_to = "cv_index") %>%
@@ -332,10 +335,10 @@ d <- cvdata %>%
   mutate(Response = factor(Response, labels = c("CV Ratio", "MARE", "RE trend")))
 
 # change to proportional change in CV
-d[d$Response == "CV Ratio",]$cv_index <- d[d$Response == "CV Ratio",]$cv_index - 1
+d[d$Response == "CV Ratio", ]$cv_index <- d[d$Response == "CV Ratio", ]$cv_index - 1
 
 # make RE trend absolute values
-d[d$Response == "RE trend",]$cv_index <- abs(d[d$Response == "RE trend",]$cv_index)
+d[d$Response == "RE trend", ]$cv_index <- abs(d[d$Response == "RE trend", ]$cv_index)
 
 # update labels
 d$Response <- factor(d$Response, labels = c("CV Ratio - 1", "MARE", "| RE trend |"))
@@ -346,7 +349,6 @@ plot_scatter <- function(dat, x, y, col_var = "restr_clean",
                          col_vec = restricted_cols,
                          label_vec = restricted_labels,
                          spp = TRUE) {
-
   g <- ggplot(dat, aes_string(x, y,
     colour = col_var,
     group = "species_common_name"
@@ -355,17 +357,17 @@ plot_scatter <- function(dat, x, y, col_var = "restr_clean",
     geom_point() +
     theme(legend.position = "none", legend.title = element_blank()) +
     scale_colour_manual(values = col_vec, label = label_vec)
-# browser()
-  if(spp){
+  # browser()
+  if (spp) {
     g <- g + ggrepel::geom_text_repel(
-        data = filter(dat, `Restriction type` == "re_restr"),
-        aes(label = species_common_name),
-        colour = "darkgray",
-        force = 2, direction = "y", max.overlaps = 4,
-        min.segment.length = 10, size = 2
-      )
+      data = filter(dat, `Restriction type` == "re_restr"),
+      aes(label = species_common_name),
+      colour = "darkgray",
+      force = 2, direction = "y", max.overlaps = 4,
+      min.segment.length = 10, size = 2
+    )
   }
-g
+  g
 }
 
 
@@ -449,7 +451,7 @@ g
 ##  CV ratio and MARE by status quo CV for all surveys at once ----
 if (length(unique(d$survey_abbrev)) > 3) { # makes sure all surveys
 
-  (g0 <- plot_scatter(d, "cv_orig", "cv_index", spp=FALSE) +
+  (g0 <- plot_scatter(d, "cv_orig", "cv_index", spp = FALSE) +
     xlab("CV of 'Status quo' index") +
     guides(shape = "none") +
     facet_grid(
@@ -470,7 +472,7 @@ if (length(unique(d$survey_abbrev)) > 3) { # makes sure all surveys
 
 
   # CV ratio and MARE by prop MPA for all surveys at once for appendix ----
-  (g <- plot_scatter(d, "prop_mpa", "cv_index", spp=FALSE) +
+  (g <- plot_scatter(d, "prop_mpa", "cv_index", spp = FALSE) +
     xlab("Biomass proportion inside MPAs") +
     guides(shape = "none") +
     facet_grid(
@@ -492,50 +494,53 @@ if (length(unique(d$survey_abbrev)) > 3) { # makes sure all surveys
 
   # CV ratio and MARE by prop MPA for all surveys at once----
   d_shrunk <- filter(d, `Restriction type` == "re_shrunk")
-  (g <- g <- ggplot(d_shrunk,
-                    aes_string("prop_mpa", "cv_index", colour = "survey_abbrev")) +
-     geom_point(alpha = 0.8) +
-     xlab("Biomass proportion inside MPAs") +
-     guides(shape = "none") +
-      scale_colour_manual(name = "Survey", values = .pal) +
-     facet_grid(
-       rows = vars(Response),
-       # cols = vars(survey_abbrev),
-       switch = "y",
-       scales = "free_y"
-     ) +
-      scale_x_continuous(labels = c(0.0, 0.1, 0.2, 0.3, ">0.4")) +
-     theme(
-       axis.title.y = element_blank(),
-       # legend.position = c(0.1, 0.95),
-       strip.placement = "outside"
-     ))
+  (g <- g <- ggplot(
+    d_shrunk,
+    aes_string("prop_mpa", "cv_index", colour = "survey_abbrev")
+  ) +
+    geom_point(alpha = 0.8) +
+    xlab("Biomass proportion inside MPAs") +
+    guides(shape = "none") +
+    scale_colour_manual(name = "Survey", values = .pal) +
+    facet_grid(
+      rows = vars(Response),
+      # cols = vars(survey_abbrev),
+      switch = "y",
+      scales = "free_y"
+    ) +
+    scale_x_continuous(labels = c(0.0, 0.1, 0.2, 0.3, ">0.4")) +
+    theme(
+      axis.title.y = element_blank(),
+      # legend.position = c(0.1, 0.95),
+      strip.placement = "outside"
+    ))
   (g <- tag_facet(g, fontface = 1))
 
   # ggsave("figs/explore-all-cv-by-mpa.pdf", width = 6, height = 3)
   ggsave("figs/explore-all-cv-by-mpa2.pdf", width = 4.5, height = 5) # for 3 rows
 
 
-  (g <- g <- ggplot(d_shrunk,
-                    aes_string("cv_orig", "cv_index", colour = "survey_abbrev")) +
-      geom_point(alpha = 0.8) +
-      xlab("CV of 'Status quo' index") +
-      guides(shape = "none") +
-      scale_colour_manual(name = "Survey", values = .pal) +
-      facet_grid(
-        rows = vars(Response),
-        # cols = vars(survey_abbrev),
-        switch = "y",
-        scales = "free_y"
-      ) +
-      theme(
-        axis.title.y = element_blank(),
-        # legend.position = c(0.1, 0.95),
-        strip.placement = "outside"
-      ))
+  (g <- g <- ggplot(
+    d_shrunk,
+    aes_string("cv_orig", "cv_index", colour = "survey_abbrev")
+  ) +
+    geom_point(alpha = 0.8) +
+    xlab("CV of 'Status quo' index") +
+    guides(shape = "none") +
+    scale_colour_manual(name = "Survey", values = .pal) +
+    facet_grid(
+      rows = vars(Response),
+      # cols = vars(survey_abbrev),
+      switch = "y",
+      scales = "free_y"
+    ) +
+    theme(
+      axis.title.y = element_blank(),
+      # legend.position = c(0.1, 0.95),
+      strip.placement = "outside"
+    ))
   (g <- tag_facet(g, fontface = 1))
   ggsave("figs/explore-all-cv-by-cv2.pdf", width = 4.5, height = 5) # for 3 rows
-
 }
 
 
@@ -593,38 +598,42 @@ ggsave("figs/explore-abs-slope.pdf", width = 7, height = 7)
 d_shrunk2 <- filter(cvdata, `Restriction type` == "re_shrunk")
 
 # truncate an outlier for slope mpa to 0.5
-d_shrunk2$slope_mpa[d_shrunk2$species_common_name=="Flathead Sole" & d_shrunk2$survey_abbrev=="SYN QCS"] <- 0.5
+d_shrunk2$slope_mpa[d_shrunk2$species_common_name == "Flathead Sole" & d_shrunk2$survey_abbrev == "SYN QCS"] <- 0.5
 
-(g <- g <- ggplot(d_shrunk2,
-                  aes_string("slope_mpa", "slope_re", colour = "survey_abbrev")) +
-    ylab("Change in RE per decade") +
-    xlab("Change in proportion of biomass inside MPAs") +
-    guides(shape = "none") +
-    geom_hline(yintercept = 0, colour = "gray80") +
-    geom_vline(xintercept = 0, colour = "gray70") +
-    geom_point(alpha = 0.8) +
-    scale_colour_manual(name = "Survey", values = .pal)+
-    theme(legend.position = c(0.82, 0.85))+
-    scale_x_continuous(
-      breaks = c(-0.2, 0.0, 0.2, 0.4),
-      labels = c(-0.2, 0.0, 0.2, ">0.4")
-                       ) +
-    ggrepel::geom_text_repel(
-      aes(label = species_common_name),
-      # colour = "darkgray",
-      force = 2, direction = "y", max.overlaps = 5,
-      min.segment.length = 5, size = 2.5
-    ))
+(g <- g <- ggplot(
+  d_shrunk2,
+  aes_string("slope_mpa", "slope_re", colour = "survey_abbrev")
+) +
+  ylab("Change in RE per decade") +
+  xlab("Change in proportion of biomass inside MPAs") +
+  guides(shape = "none") +
+  geom_hline(yintercept = 0, colour = "gray80") +
+  geom_vline(xintercept = 0, colour = "gray70") +
+  geom_point(alpha = 0.8) +
+  scale_colour_manual(name = "Survey", values = .pal) +
+  theme(legend.position = c(0.82, 0.85)) +
+  scale_x_continuous(
+    breaks = c(-0.2, 0.0, 0.2, 0.4),
+    labels = c(-0.2, 0.0, 0.2, ">0.4")
+  ) +
+  ggrepel::geom_text_repel(
+    aes(label = species_common_name),
+    # colour = "darkgray",
+    force = 2, direction = "y", max.overlaps = 5,
+    min.segment.length = 5, size = 2.5
+  ))
 
 ggsave("figs/explore-all-slopes2.pdf", width = 6.5, height = 6.5)
 
 # ### benefits of interpolation
 #
-d <- cvdata %>% group_by(species_common_name, survey_abbrev) %>% mutate(
-  temp_bias_interp_ratio = abs(slope_re[restr_clean == "Same survey domain"])/abs(slope_re[restr_clean == "Shrunk survey domain"]),
-  cv_interp_ratio = (cv_mean[restr_clean == "Same survey domain"])/(cv_mean[restr_clean == "Shrunk survey domain"]),
-  mare_interp_ratio = (mare[restr_clean == "Same survey domain"])/(mare[restr_clean == "Shrunk survey domain"])
-)
+d <- cvdata %>%
+  group_by(species_common_name, survey_abbrev) %>%
+  mutate(
+    temp_bias_interp_ratio = abs(slope_re[restr_clean == "Same survey domain"]) / abs(slope_re[restr_clean == "Shrunk survey domain"]),
+    cv_interp_ratio = (cv_mean[restr_clean == "Same survey domain"]) / (cv_mean[restr_clean == "Shrunk survey domain"]),
+    mare_interp_ratio = (mare[restr_clean == "Same survey domain"]) / (mare[restr_clean == "Shrunk survey domain"])
+  )
 
 median(d$temp_bias_interp_ratio)
 median(d$cv_interp_ratio)
@@ -673,8 +682,8 @@ g <- index %>%
   scale_fill_manual(values = colour_pal) +
   scale_linetype_manual(values = line_pal) +
   ylab("Relative biomass in tonnes") +
-  facet_wrap(~species_common_name, scales = "free_y", ncol = 4)+
-  theme(legend.position = "top",axis.text.y = element_text(size = 7))
+  facet_wrap(~species_common_name, scales = "free_y", ncol = 4) +
+  theme(legend.position = "top", axis.text.y = element_text(size = 7))
 g
 ggsave("figs/index-qcs-geo-restricted.pdf", width = 9.1, height = 11, limitsize = FALSE)
 
@@ -688,8 +697,8 @@ g <- index %>%
   scale_fill_manual(values = colour_pal) +
   scale_linetype_manual(values = line_pal) +
   ylab("Relative biomass in tonnes") +
-  facet_wrap(~species_common_name, scales = "free_y", ncol = 4)+
-  theme(legend.position = "top",axis.text.y = element_text(size = 7))
+  facet_wrap(~species_common_name, scales = "free_y", ncol = 4) +
+  theme(legend.position = "top", axis.text.y = element_text(size = 7))
 g
 ggsave("figs/index-hs-geo-restricted.pdf", width = 9, height = 9, limitsize = FALSE)
 
@@ -703,8 +712,8 @@ g <- index %>%
   scale_fill_manual(values = colour_pal) +
   scale_linetype_manual(values = line_pal) +
   ylab("Relative biomass in tonnes") +
-  facet_wrap(~species_common_name, scales = "free_y", ncol = 4)+
-  theme(legend.position = "top",axis.text.y = element_text(size = 7))
+  facet_wrap(~species_common_name, scales = "free_y", ncol = 4) +
+  theme(legend.position = "top", axis.text.y = element_text(size = 7))
 g
 ggsave("figs/index-wchg-geo-restricted.pdf", width = 9.2, height = 7, limitsize = FALSE)
 
@@ -722,8 +731,8 @@ g <- x_long %>%
   facet_wrap(~species_common_name, scales = "free_y", ncol = 4) +
   # scale_y_continuous(trans = "S_sqrt", breaks = c(-0.5,-0.1,0, 0.1, 0.5)) +
   # coord_cartesian(ylim = c(-0.35, 0.4)) +
-  labs(colour = "")+
-  theme(legend.position = "top",axis.text.y = element_text(size = 7))
+  labs(colour = "") +
+  theme(legend.position = "top", axis.text.y = element_text(size = 7))
 g
 ggsave("figs/index-hbll-geo-restricted-re.pdf", width = 9, height = 8)
 
@@ -737,8 +746,8 @@ g <- x_long %>%
   ylab("Relative error") +
   xlab("Year") +
   facet_wrap(~species_common_name, scales = "free_y", ncol = 4) +
-  labs(colour = "")+
-  theme(legend.position = "top",axis.text.y = element_text(size = 7))
+  labs(colour = "") +
+  theme(legend.position = "top", axis.text.y = element_text(size = 7))
 g
 ggsave("figs/index-qcs-geo-restricted-re.pdf", width = 9.1, height = 11, limitsize = FALSE)
 
@@ -752,8 +761,8 @@ g <- x_long %>%
   ylab("Relative error") +
   xlab("Year") +
   facet_wrap(~species_common_name, scales = "free_y", ncol = 4) +
-  labs(colour = "")+
-  theme(legend.position = "top",axis.text.y = element_text(size = 7))
+  labs(colour = "") +
+  theme(legend.position = "top", axis.text.y = element_text(size = 7))
 g
 ggsave("figs/index-hs-geo-restricted-re.pdf", width = 9, height = 9, limitsize = FALSE)
 
@@ -767,8 +776,8 @@ g <- x_long %>%
   ylab("Relative error") +
   xlab("Year") +
   facet_wrap(~species_common_name, scales = "free_y", ncol = 4) +
-  labs(colour = "")+
-  theme(legend.position = "top",axis.text.y = element_text(size = 7))
+  labs(colour = "") +
+  theme(legend.position = "top", axis.text.y = element_text(size = 7))
 g
 ggsave("figs/index-wchg-geo-restricted-re.pdf", width = 9.2, height = 6, limitsize = FALSE)
 
@@ -824,14 +833,14 @@ ggsave("figs/index-geo-cv-ratio-dotplot.pdf", width = 8.5, height = 6)
 cv2 <- index %>%
   group_by(species_common_name, survey_abbrev, year) %>%
   summarise(
-    cv_change_restr = round((cv[type == "Restricted"]-cv[type == "Status quo"]) /
+    cv_change_restr = round((cv[type == "Restricted"] - cv[type == "Status quo"]) /
       cv[type == "Status quo"], 2),
-    cv_change_shrunk = round((cv[type == "Restricted and shrunk"]-cv[type == "Status quo"]) /
+    cv_change_shrunk = round((cv[type == "Restricted and shrunk"] - cv[type == "Status quo"]) /
       cv[type == "Status quo"], 2)
   )
 cv_long2 <- cv2 %>%
   tidyr::pivot_longer(starts_with("cv"),
-                      names_to = "Restriction type", values_to = "CV change"
+    names_to = "Restriction type", values_to = "CV change"
   )
 cv_long2 %>%
   group_by(`Restriction type`, survey_abbrev) %>%
@@ -849,7 +858,7 @@ g <- cv_long2 %>%
   mutate(est_avg = mean(est, na.rm = TRUE)) %>%
   left_join(lu_cv2) %>%
   ggplot(aes(forcats::fct_reorder(stringr::str_to_title(species_common_name), -est_avg), est,
-             colour = restr_clean, ymin = lwr, ymax = upr
+    colour = restr_clean, ymin = lwr, ymax = upr
   )) +
   geom_hline(yintercept = 0, lty = 2, col = "grey60") +
   geom_pointrange(position = position_dodge(width = 0.75), size = 0.35) +
@@ -900,79 +909,93 @@ dd1 <- cv_long %>%
   group_by(species_common_name) %>%
   mutate(
     # est_avg = mean(est, na.rm = TRUE),
-         measure = "CV ratio (lost precision)") %>%
+    measure = "CV ratio (lost precision)"
+  ) %>%
   left_join(lu_cv)
 
 dd1b <- cv_long2 %>%
   group_by(survey_abbrev, species_common_name, `Restriction type`) %>%
-  summarise(lwr = quantile(`CV change`, 0.025),
-            upr = quantile(`CV change`, 0.975),
-            est = mean(`CV change`)) %>%
+  summarise(
+    lwr = quantile(`CV change`, 0.025),
+    upr = quantile(`CV change`, 0.975),
+    est = mean(`CV change`)
+  ) %>%
   ungroup() %>%
   group_by(species_common_name) %>%
-  filter(!survey_abbrev %in% c("SYN HS", "SYN WCHG")) %>% #order based only on illustrated surveys?
+  filter(!survey_abbrev %in% c("SYN HS", "SYN WCHG")) %>% # order based only on illustrated surveys?
   mutate(
     est_avg = mean(est, na.rm = TRUE),
-    measure = "CV ratio - 1 (precision loss)") %>%
+    measure = "CV ratio - 1 (precision loss)"
+  ) %>%
   left_join(lu_cv2)
 
-dd2 <-  x_long %>%
+dd2 <- x_long %>%
   group_by(survey_abbrev, species_common_name, `Restriction type`) %>%
-  summarise(lwr = quantile(abs(re), 0.025),
-            upr = ifelse(quantile(abs(re), 0.975) > 0.5, 0.5, quantile(abs(re), 0.975)),
-            est = median(abs(re))) %>%
-  filter(!survey_abbrev %in% c("SYN HS", "SYN WCHG")) %>% #order based only on illustrated surveys?
+  summarise(
+    lwr = quantile(abs(re), 0.025),
+    upr = ifelse(quantile(abs(re), 0.975) > 0.5, 0.5, quantile(abs(re), 0.975)),
+    est = median(abs(re))
+  ) %>%
+  filter(!survey_abbrev %in% c("SYN HS", "SYN WCHG")) %>% # order based only on illustrated surveys?
   mutate(
     est_avg = mean(est, na.rm = TRUE),
-    measure = "MARE (accuracy loss)")
+    measure = "MARE (accuracy loss)"
+  )
 
 dd3 <- cvdata %>%
   group_by(survey_abbrev, species_common_name, `Restriction type`) %>%
   summarise(
-    lwr = (median(slope_re)-1.98*mean(se_slope_re))/1,
-    upr = (median(slope_re)+1.98*mean(se_slope_re))/1,
-    est = median((slope_re))/1) %>%
-  filter(!survey_abbrev %in% c("SYN HS", "SYN WCHG")) %>% #order based only on illustrated surveys?
+    lwr = (median(slope_re) - 1.98 * mean(se_slope_re)) / 1,
+    upr = (median(slope_re) + 1.98 * mean(se_slope_re)) / 1,
+    est = median((slope_re)) / 1
+  ) %>%
+  filter(!survey_abbrev %in% c("SYN HS", "SYN WCHG")) %>% # order based only on illustrated surveys?
   mutate(
-    est_avg = mean(abs(est), na.rm = TRUE)/1,
-    measure = "RE trend (bias)") %>%
+    est_avg = mean(abs(est), na.rm = TRUE) / 1,
+    measure = "RE trend (bias)"
+  ) %>%
   select(
     survey_abbrev, species_common_name, `Restriction type`,
     lwr, upr,
     est_avg,
     est, measure
-    )
+  )
 
-dd <- bind_rows(dd2, dd3)%>%
-  left_join(lu) %>% bind_rows(
+dd <- bind_rows(dd2, dd3) %>%
+  left_join(lu) %>%
+  bind_rows(
     # dd1
     dd1b
-    )
+  )
 
-g <- dd %>% filter(!survey_abbrev %in% c("SYN HS", "SYN WCHG")) %>%
+g <- dd %>%
+  filter(!survey_abbrev %in% c("SYN HS", "SYN WCHG")) %>%
   ggplot(aes(
     forcats::fct_reorder(stringr::str_to_title(species_common_name), -est_avg, mean, na.rm = TRUE),
-    est, ymin = lwr, ymax = upr,
-             colour = as.factor(restr_clean)
+    est,
+    ymin = lwr, ymax = upr,
+    colour = as.factor(restr_clean)
   )) +
   geom_hline(yintercept = 0, lty = 2, col = "grey60") +
   geom_pointrange(position = position_dodge(width = 0.75), size = 0.35) +
   # xlab("") +
   # ylab("") +
   coord_flip() +
-  scale_y_continuous(breaks = waiver(), n.breaks = 5, expand = c(0,0)) +
+  scale_y_continuous(breaks = waiver(), n.breaks = 5, expand = c(0, 0)) +
   scale_colour_manual(values = restricted_cols, label = restricted_labels) +
   labs(x = "", y = "", colour = "Index type", fill = "Index type", linetype = "Index type") +
   theme(
     strip.text = element_text(colour = "black"),
     legend.position = "top", panel.grid.major.y = element_line(colour = "grey90"),
-    strip.placement = "outside") +
-  facet_grid(survey_abbrev~measure, scales = "free",
-             space="free_y", switch="x")
+    strip.placement = "outside"
+  ) +
+  facet_grid(survey_abbrev ~ measure,
+    scales = "free",
+    space = "free_y", switch = "x"
+  )
 g
 # not sure why but egg didn't work here
 # devtools::install_github("eliocamp/tagger")
 (g <- g + tagger::tag_facets(tag_prefix = "(", position = list(x = 0.1, y = 0.96)))
 
 ggsave("figs/index-geo-combind-dotplot.pdf", width = 7.8, height = 8)
-

@@ -20,11 +20,11 @@ fam <- "binomial_gamma"
 
 for (survey in c("HBLL", "SYN")) {
   if (fam == "tweedie") {
-    family = tweedie()
+    family <- tweedie()
   } else if (fam == "nbinom2") {
-    family = nbinom2()
+    family <- nbinom2()
   } else if (fam == "binomial_gamma") {
-    family = sdmTMB::delta_gamma()
+    family <- sdmTMB::delta_gamma()
   } else {
     stop("Family not found.")
   }
@@ -42,24 +42,24 @@ for (survey in c("HBLL", "SYN")) {
 
   if (survey == "HBLL") {
     dat_to_fit <- readRDS("data-generated/dat_to_fit_hbll.rds")
-     # hooks <- readRDS("data-raw/HBLLOUTN-hooks.rds") %>%
-     #   mutate(count_animals = count_target_species + count_non_target_species) %>%
-     #   select(year, fishing_event_id, count_animals,
-     #          count_bait_only, count_empty_hooks, count_bent_broken) %>%
-     #   mutate(total_hooks = count_animals + count_bait_only + count_empty_hooks - count_bent_broken) %>%
-     #   mutate(count_bait_only2 = replace(count_bait_only, which(count_bait_only == 0), 1))
-     #
-     # hookmeans <- filter(hooks, total_hooks > 350) %>%
-     #   summarise(baited  = mean(count_bait_only),
-     #             prop_baited = mean(count_bait_only / total_hooks))
-     # # hist(hooks[hooks$total_hooks > 350,]$count_bait_only, breaks = 30)
-     #
-     # dat_to_fit <- left_join(dat_to_fit, hooks)  %>%
-     #   mutate(missing_hooks = hook_count - total_hooks) %>%
-     #   mutate(prop_bait_hooks = ifelse(total_hooks > 350, count_bait_only2 / total_hooks, hookmeans$prop_baited)) %>%
-     #   mutate(hook_adjust_factor = -log(prop_bait_hooks) / (1 - prop_bait_hooks),
-     #          adjusted_hooks = hook_count/hook_adjust_factor
-     #          )
+    # hooks <- readRDS("data-raw/HBLLOUTN-hooks.rds") %>%
+    #   mutate(count_animals = count_target_species + count_non_target_species) %>%
+    #   select(year, fishing_event_id, count_animals,
+    #          count_bait_only, count_empty_hooks, count_bent_broken) %>%
+    #   mutate(total_hooks = count_animals + count_bait_only + count_empty_hooks - count_bent_broken) %>%
+    #   mutate(count_bait_only2 = replace(count_bait_only, which(count_bait_only == 0), 1))
+    #
+    # hookmeans <- filter(hooks, total_hooks > 350) %>%
+    #   summarise(baited  = mean(count_bait_only),
+    #             prop_baited = mean(count_bait_only / total_hooks))
+    # # hist(hooks[hooks$total_hooks > 350,]$count_bait_only, breaks = 30)
+    #
+    # dat_to_fit <- left_join(dat_to_fit, hooks)  %>%
+    #   mutate(missing_hooks = hook_count - total_hooks) %>%
+    #   mutate(prop_bait_hooks = ifelse(total_hooks > 350, count_bait_only2 / total_hooks, hookmeans$prop_baited)) %>%
+    #   mutate(hook_adjust_factor = -log(prop_bait_hooks) / (1 - prop_bait_hooks),
+    #          adjusted_hooks = hook_count/hook_adjust_factor
+    #          )
 
     # d <- filter(dat_to_fit, species_common_name == "pacific cod")
     # hist(d$adjusted_hooks)
@@ -91,7 +91,10 @@ for (survey in c("HBLL", "SYN")) {
       "spotted ratfish",
       "tiger rockfish",
       "yelloweye rockfish"
-    ) %>% tolower() %>% sort() %>% unique()
+    ) %>%
+      tolower() %>%
+      sort() %>%
+      unique()
     dat_to_fit <- filter(dat_to_fit, species_common_name %in% highlights)
   }
   if (survey == "SYN") {
@@ -140,7 +143,10 @@ for (survey in c("HBLL", "SYN")) {
       "Rex Sole",
       "Slender Sole",
       "southern rock sole"
-    ) %>% tolower() %>% sort() %>% unique()
+    ) %>%
+      tolower() %>%
+      sort() %>%
+      unique()
     dat_to_fit <- filter(dat_to_fit, species_common_name %in% syn_highlights)
   }
 
@@ -156,7 +162,6 @@ for (survey in c("HBLL", "SYN")) {
   }
 
   if (!file.exists(save_file)) {
-
     index_restr <- dat_to_fit %>%
       filter(!restricted) %>%
       group_by(survey_abbrev, species_common_name) %>%
@@ -164,8 +169,10 @@ for (survey in c("HBLL", "SYN")) {
       furrr::future_map_dfr(function(.x) {
         # purrr::map_dfr(function(.x) {
         out <- .x %>%
-          fit_geo_model(pred_grid = grid, survey = survey, family = family,
-            mpa_dat_removed = TRUE) %>%
+          fit_geo_model(
+            pred_grid = grid, survey = survey, family = family,
+            mpa_dat_removed = TRUE
+          ) %>%
           mutate(type = "Restricted")
       }, .progress = TRUE)
     # })
@@ -174,12 +181,12 @@ for (survey in c("HBLL", "SYN")) {
       group_by(survey_abbrev, species_common_name) %>%
       group_split() %>%
       furrr::future_map_dfr(function(.x) {
-      # purrr::map_dfr(function(.x) {
+        # purrr::map_dfr(function(.x) {
         out <- .x %>%
           fit_geo_model(pred_grid = grid, survey = survey, family = family) %>%
           mutate(type = "Status quo")
-        }, .progress = TRUE)
-      # })
+      }, .progress = TRUE)
+    # })
 
     index_shrunk <- dat_to_fit %>%
       filter(!restricted) %>%
@@ -188,8 +195,10 @@ for (survey in c("HBLL", "SYN")) {
       furrr::future_map_dfr(function(.x) {
         # purrr::map_dfr(function(.x) {
         out <- .x %>%
-          fit_geo_model(pred_grid = filter(grid, !restricted), family = family,
-            survey = survey, mpa_dat_removed = TRUE, shrunk = TRUE) %>%
+          fit_geo_model(
+            pred_grid = filter(grid, !restricted), family = family,
+            survey = survey, mpa_dat_removed = TRUE, shrunk = TRUE
+          ) %>%
           mutate(type = "Restricted and shrunk")
       }, .progress = TRUE)
     # })
@@ -205,6 +214,7 @@ for (survey in c("HBLL", "SYN")) {
   #   labs(x = "Year", colour = "Type", fill = "Type") +  facet_grid(species_common_name~survey_abbrev, scales = "free_y")
 
   index <- readRDS(save_file) %>% dplyr::filter(!(region == "mpa" & type %in% c("Restricted", "Restricted and shrunk")))
+  index <- filter(index, region != "mpa")
 
   index <- filter(index, !is.na(est), !is.na(se)) # didn't fit
   # index[index$region == "mpa", ]$type <- "MPA only"
@@ -231,16 +241,27 @@ for (survey in c("HBLL", "SYN")) {
   # remove ones with any non-converged
   index <- left_join(.u1, index, multiple = "all", by = join_by(species_common_name, survey_abbrev))
 
-  ocv <- index |> filter(type == "Status quo") |> mutate(orig_cv = cv)
+  ocv <- index |>
+    filter(type == "Status quo") |>
+    mutate(orig_cv = cv)
 
   y <- left_join(index, select(ocv, species_common_name, survey_abbrev, year, orig_cv),
-    by = join_by(species_common_name, survey_abbrev, year), multiple = "all")
+    by = join_by(species_common_name, survey_abbrev, year), multiple = "all"
+  )
 
   # y <- index %>%
   #   group_by(survey_abbrev, species_common_name) %>%
   #   mutate(orig_cv = rep(cv[type == "Status quo"], 3))
 
+  nrow(y)
+  high_cvs <- filter(y, orig_cv > 1) |>
+    select(species_common_name, survey_abbrev) |>
+    distinct()
+  y <- anti_join(y, high_cvs)
+  nrow(y)
+
+  # if (survey == "HBLL") y <- filter(y, species_common_name != "sandpaper skate") # high CV
+
   if (survey == "HBLL") saveRDS(y, file = paste0("data-generated/index-hbll-geo-clean-", fam, ".rds"))
   if (survey == "SYN") saveRDS(y, file = paste0("data-generated/index-syn-geo-clean-", fam, ".rds"))
-
 }

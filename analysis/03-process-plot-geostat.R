@@ -4,12 +4,6 @@ theme_set(ggsidekick::theme_sleek())
 options(dplyr.summarise.inform = FALSE)
 dir.create("figs", showWarnings = FALSE)
 
-# args <- commandArgs(trailingOnly = TRUE)
-# if (length(args) == 0L)
-#   stop("This script is meant to be run from the command line.", call. = FALSE)
-# survey <- args[[1]]
-# fam <- args[[2]]
-
 survey <- "HBLL"
 fam <- "binomial_gamma"
 
@@ -20,15 +14,10 @@ for (survey in c("HBLL", "SYN")) {
   if (survey == "HBLL") y <- readRDS(paste0("data-generated/index-hbll-geo-clean-", fam, ".rds"))
   if (survey == "SYN") y <- readRDS(paste0("data-generated/index-syn-geo-clean-", fam, ".rds"))
 
-  mean(y$orig_cv < 0.5)
-  filter(y, orig_cv > 1)
-  filter(y, orig_cv <= 1)
-  index <- filter(y, orig_cv < 0.5)
-
   index$species_common_name <- stringr::str_to_title(index$species_common_name)
 
   g <- ggplot(index, aes(year, est, ymin = lwr, ymax = upr, colour = type, fill = type)) +
-    geom_line(lwd = 0.9) +
+    geom_line(linewidth = 0.9) +
     geom_ribbon(alpha = 0.2, colour = NA) +
     labs(x = "Year", colour = "Type", fill = "Type") +
     scale_color_brewer(palette = "Set2") +
@@ -45,7 +34,7 @@ for (survey in c("HBLL", "SYN")) {
       ylab("Relative biomass")
   }
 
-  if (survey == "HBLL") ggsave(paste0("figs/index-hbll-geo-restricted-",fam,".pdf"), width = 12, height = 8)
+  if (survey == "HBLL") ggsave(paste0("figs/index-hbll-geo-restricted-", fam, ".pdf"), width = 12, height = 8)
   if (survey == "SYN") ggsave(paste0("figs/index-syn-geo-restricted-", fam, ".pdf"), width = 9, height = 60, limitsize = FALSE)
 
   syn_highlights <- c(
