@@ -161,7 +161,7 @@ calc_indices <- function(spp, survey) {
     labs(colour = "Type") +
     ggtitle(spp)
 
-  g1 <- g + coord_cartesian(expand = FALSE, ylim = c(0.01, NA))
+  g1 <- g + coord_cartesian(expand = FALSE, ylim = c(0, NA))
   g2 <- g + scale_y_log10() + ylab("Index (log distributed)")
   g0 <- cowplot::plot_grid(g1, g2, nrow = 2)
 
