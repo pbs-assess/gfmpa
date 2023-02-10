@@ -2,7 +2,7 @@ library(tidyverse)
 library(sdmTMB)
 theme_set(theme_light())
 
-# spp <- "pacific ocean perch"
+# spp <- "big skate"
 # spp <- "pacific cod"
 # survey <- "SYN WCHG"
 SILENT <- TRUE
@@ -12,9 +12,15 @@ dir.create("figs/indexes", showWarnings = FALSE)
 dir.create("data-generated/indexes", showWarnings = FALSE)
 
 calc_indices <- function(spp, survey) {
-
+  cat(spp, "\n")
+  cat(survey, "\n")
   spp_file <- gsub(" ", "-", spp)
   spp_file <- gsub("\\/", "-", spp_file)
+  surv_file <- gsub(" ", "-", survey)
+  if (file.exists(paste0("data-generated/indexes/", spp_file, "-", surv_file, ".rds"))) {
+    return(NULL)
+  }
+  ggplot2::theme_set(ggplot2::theme_light())
 
   if (grepl("SYN", survey)) {
     surv_dat <- readRDS("data-generated/dat_to_fit.rds")
@@ -28,6 +34,7 @@ calc_indices <- function(spp, survey) {
   }
 
   surv_dat <- filter(surv_dat, survey_abbrev == survey, species_common_name == spp)
+  if (nrow(surv_dat) == 0L) return(NULL)
 
   if (grepl("SYN", survey)) {
     surv_dat$area_swept1 <- surv_dat$doorspread_m * surv_dat$tow_length_m
@@ -49,7 +56,7 @@ calc_indices <- function(spp, survey) {
     coord_fixed() +
     scale_colour_manual(values = c(`TRUE` = "red", `FALSE` = "grey60")) +
     ggtitle(spp)
-  ggsave(paste0("figs/raw-data-maps/", spp_file, ".pdf"), width = 10, height = 10)
+  ggsave(paste0("figs/raw-data-maps/", spp_file, "-", surv_file, ".pdf"), width = 10, height = 10)
 
   priors <- sdmTMBpriors(
     matern_s = pc_matern(range_gt = 20, sigma_lt = 5),
@@ -66,7 +73,7 @@ calc_indices <- function(spp, survey) {
     family = sdmTMB::delta_gamma()
   )
 
-  fit_restr <- sdmTMB(
+  fit_restr <- try({sdmTMB(
     formula = response ~ 0 + as.factor(year),
     data = surv_dat_r,
     family = mi$family,
@@ -78,35 +85,34 @@ calc_indices <- function(spp, survey) {
     priors = priors,
     silent = SILENT,
     control = sdmTMBcontrol(newton_loops = 1L),
-  )
+  )})
   s <- sanity(fit_restr)
 
   if (!s$all_ok) {
     mi$spatiotemporal <- list("off", "iid")
-    fit_restr <- update(fit_restr, spatiotemporal = mi$spatiotemporal, family = mi$family)
+    fit_restr <- try({update(fit_restr, spatiotemporal = mi$spatiotemporal, family = mi$family)})
     s <- sanity(fit_restr)
   }
   if (!s$all_ok) {
-    model_info$family <- sdmTMB::tweedie()
-    model_info$spatiotemporal <- "iid"
-    fit_restr <- update(fit_restr, spatiotemporal = mi$spatiotemporal, family = mi$family)
+    mi$family <- sdmTMB::tweedie()
+    mi$spatiotemporal <- "iid"
+    fit_restr <- try({update(fit_restr, spatiotemporal = mi$spatiotemporal, family = mi$family)})
     s <- sanity(fit_restr)
   }
   if (!s$all_ok) {
-    model_info$family <- sdmTMB::delta_gamma()
-    model_info$spatiotemporal <- list("off", "off")
-    fit_restr <- update(fit_restr, spatiotemporal = mi$spatiotemporal, family = mi$family)
+    mi$family <- sdmTMB::delta_gamma()
+    mi$spatiotemporal <- list("off", "off")
+    fit_restr <- try({update(fit_restr, spatiotemporal = mi$spatiotemporal, family = mi$family)})
     s <- sanity(fit_restr)
   }
   if (!s$all_ok) {
-    model_info$spatiotemporal <- "off"
-    model_info$family <- sdmTMB::tweedie()
-    fit_restr <- update(fit_restr, spatiotemporal = mi$spatiotemporal, family = mi$family)
+    mi$spatiotemporal <- "off"
+    mi$family <- sdmTMB::tweedie()
+    fit_restr <- try({update(fit_restr, spatiotemporal = mi$spatiotemporal, family = mi$family)})
   }
-
   sanity_restr <- sanity(fit_restr)
 
-  fit_all <- sdmTMB(
+  fit_all <- try({sdmTMB(
     formula = response ~ 0 + as.factor(year),
     data = surv_dat,
     family = mi$family,
@@ -118,7 +124,7 @@ calc_indices <- function(spp, survey) {
     priors = priors,
     silent = SILENT,
     control = sdmTMBcontrol(newton_loops = 1L),
-  )
+  )})
   sanity(fit_all)
   sanity_all <- sanity(fit_all)
 
@@ -131,8 +137,6 @@ calc_indices <- function(spp, survey) {
 
   gr <- dplyr::filter(grid, year %in% surv_dat$year, survey_abbrev == survey)
   grs <- dplyr::filter(grid, year %in% surv_dat$year, !restricted, survey_abbrev == survey)
-  nrow(gr)
-  nrow(grs)
 
   p <- predict(fit_all, newdata = gr, return_tmb_object = TRUE)
   ind <- get_index(p, bias_correct = TRUE)
@@ -159,16 +163,15 @@ calc_indices <- function(spp, survey) {
 
   g1 <- g + coord_cartesian(expand = FALSE, ylim = c(0.01, NA))
   g2 <- g + scale_y_log10() + ylab("Index (log distributed)")
-
   g0 <- cowplot::plot_grid(g1, g2, nrow = 2)
 
-  ggsave(paste0("figs/indexes/", spp_file, ".pdf"), width = 7, height = 7)
+  ggsave(paste0("figs/indexes/", spp_file, "-", surv_file, ".pdf"), width = 7, height = 7)
 
   i$species_common_name <- spp
   i$survey_abbrev <- survey
   i$cv <- mutate(i, cv = sqrt(exp(se^2) - 1))
 
-  saveRDS(i, paste0("data-generated/indexes/", spp_file, ".rds"))
+  saveRDS(i, paste0("data-generated/indexes/", spp_file, "-", surv_file, ".rds"))
 }
 
 source("analysis/spp.R")
@@ -186,8 +189,8 @@ to_fit <- expand_grid(spp = syn_highlights, survey = syn_survs)
 furrr::future_pmap(to_fit, calc_indices)
 
 to_fit <- expand_grid(spp = hbll_highlights, survey = "HBLL OUT N")
-calc_indices(spp = hbll_highlights[1], survey = "HBLL OUT N")
-purrr::pmap(to_fit, calc_indices)
+# calc_indices(spp = hbll_highlights[1], survey = "HBLL OUT N")
+# purrr::pmap(to_fit, calc_indices)
 furrr::future_pmap(to_fit, calc_indices)
 
 
