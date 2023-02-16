@@ -56,7 +56,8 @@ calc_indices <- function(spp, survey) {
     coord_fixed() +
     scale_colour_manual(values = c(`TRUE` = "red", `FALSE` = "grey60")) +
     ggtitle(spp)
-  ggsave(paste0("figs/raw-data-maps/", spp_file, "-", surv_file, ".pdf"), width = 10, height = 10)
+  ggsave(paste0("figs/raw-data-maps/", spp_file, "-", surv_file, ".pdf"),
+    width = 10, height = 10)
 
   priors <- sdmTMBpriors(
     matern_s = pc_matern(range_gt = 20, sigma_lt = 5),
@@ -125,35 +126,43 @@ calc_indices <- function(spp, survey) {
     silent = SILENT,
     control = sdmTMBcontrol(newton_loops = 1L),
   )})
-  sanity(fit_all)
   sanity_all <- sanity(fit_all)
 
   if (!sanity_all$all_ok || !sanity_restr$all_ok) {
+    saveRDS(NULL, paste0("data-generated/indexes/", spp_file, "-", surv_file, ".rds"))
     return(NULL)
   }
 
-  fit_all
-  fit_restr
+  gr_full <- dplyr::filter(grid, year %in% surv_dat$year, survey_abbrev == survey)
+  gr_mpa <- dplyr::filter(grid, year %in% surv_dat$year, survey_abbrev == survey)
+  gr_remaining <- dplyr::filter(grid, year %in% surv_dat$year, !restricted, survey_abbrev == survey)
 
-  gr <- dplyr::filter(grid, year %in% surv_dat$year, survey_abbrev == survey)
-  grs <- dplyr::filter(grid, year %in% surv_dat$year, !restricted, survey_abbrev == survey)
-
-  p <- predict(fit_all, newdata = gr, return_tmb_object = TRUE)
+  p <- predict(fit_all, newdata = gr_full, return_tmb_object = TRUE)
   ind <- get_index(p, bias_correct = TRUE)
 
-  pr <- predict(fit_restr, newdata = gr, return_tmb_object = TRUE)
+  pmpa <- predict(fit_all, newdata = gr_mpa, return_tmb_object = TRUE)
+  indmpa <- get_index(pmpa, bias_correct = TRUE)
+
+  pmpa_restr <- predict(fit_restr, newdata = gr_mpa, return_tmb_object = TRUE)
+  indmpa_restr <- get_index(pmpa_restr, bias_correct = TRUE)
+
+  pr <- predict(fit_restr, newdata = gr_full, return_tmb_object = TRUE)
   indr <- get_index(pr, bias_correct = TRUE)
 
-  prs <- predict(fit_restr, newdata = grs, return_tmb_object = TRUE)
+  prs <- predict(fit_restr, newdata = gr_remaining, return_tmb_object = TRUE)
   indrs <- get_index(prs, bias_correct = TRUE)
 
   i <- bind_rows(
     mutate(ind, type = "Status quo"),
     mutate(indr, type = "Restricted"),
-    mutate(indrs, type = "Restricted and shrunk")
+    mutate(indrs, type = "Restricted and shrunk"),
+    mutate(indmpa, type = "MPA only"),
+    mutate(indmpa_restr, type = "MPA only restricted")
   )
 
-  g <- ggplot(i, aes(year, est, ymin = lwr, ymax = upr, colour = type)) +
+  g <- i |>
+    filter(!grepl("MPA", type)) |>
+    ggplot(aes(year, est, ymin = lwr, ymax = upr, colour = type)) +
     geom_pointrange(position = position_dodge(width = 0.55), pch = 21) +
     scale_colour_manual(values =
         c("Restricted" = "red", "Status quo" = "grey60", "Restricted and shrunk" = "purple")) +
@@ -165,11 +174,11 @@ calc_indices <- function(spp, survey) {
   g2 <- g + scale_y_log10() + ylab("Index (log distributed)")
   g0 <- cowplot::plot_grid(g1, g2, nrow = 2)
 
-  ggsave(paste0("figs/indexes/", spp_file, "-", surv_file, ".pdf"), width = 7, height = 7)
+  ggsave(paste0("figs/indexes/", spp_file, "-", surv_file, ".pdf"),
+    width = 7, height = 7)
 
   i$species_common_name <- spp
   i$survey_abbrev <- survey
-  i$cv <- mutate(i, cv = sqrt(exp(se^2) - 1))
 
   saveRDS(i, paste0("data-generated/indexes/", spp_file, "-", surv_file, ".rds"))
 }
@@ -178,19 +187,53 @@ source("analysis/spp.R")
 
 syn_survs <- c("SYN WCHG", "SYN QCS", "SYN HS")
 
-library(future)
-is_rstudio <- !is.na(Sys.getenv("RSTUDIO", unset = NA))
-is_unix <- .Platform$OS.type == "unix"
-if (!is_rstudio && is_unix) plan(multicore, workers = 5L) else plan(multisession, workers = 5L)
+# library(future)
+# is_rstudio <- !is.na(Sys.getenv("RSTUDIO", unset = NA))
+# is_unix <- .Platform$OS.type == "unix"
+# if (!is_rstudio && is_unix) plan(multicore, workers = 5L) else plan(multisession, workers = 5L)
 
 to_fit <- expand_grid(spp = syn_highlights, survey = syn_survs)
 # calc_indices(spp = syn_highlights[1], survey = syn_survs[1])
-# purrr::pmap(to_fit, calc_indices)
-furrr::future_pmap(to_fit, calc_indices)
+purrr::pmap(to_fit, calc_indices)
+# furrr::future_pmap(to_fit, calc_indices)
 
 to_fit <- expand_grid(spp = hbll_highlights, survey = "HBLL OUT N")
 # calc_indices(spp = hbll_highlights[1], survey = "HBLL OUT N")
-# purrr::pmap(to_fit, calc_indices)
-furrr::future_pmap(to_fit, calc_indices)
+purrr::pmap(to_fit, calc_indices)
+# furrr::future_pmap(to_fit, calc_indices)
 
+f <- list.files("data-generated/indexes/", pattern = ".rds", full.names = TRUE)
+ind <- purrr::map_dfr(f, readRDS)
+ind$cv <- NULL
+ind$cv <- sqrt(exp(ind$se^2) - 1)
 
+table(ind$survey_abbrev, ind$type)
+
+ocv <- ind |>
+  filter(type == "Status quo") |>
+  mutate(orig_cv = cv) |>
+  select(year, orig_cv, species_common_name, survey_abbrev) |>
+  distinct()
+
+ind <- left_join(
+  ind,
+  ocv,
+  by = join_by(year, species_common_name, survey_abbrev)
+)
+
+hbll <- ind[grepl("HBLL", ind$survey_abbrev),]
+syn <- ind[grepl("SYN", ind$survey_abbrev),]
+saveRDS(hbll, "data-generated/index-hbll-geo-clean.rds")
+saveRDS(syn, "data-generated/index-syn-geo-clean.rds")
+
+g <- ind |>
+  # filter(grepl("SYN", survey_abbrev)) |>
+  ggplot(aes(year, est, ymin = lwr, ymax = upr, colour = type)) +
+  geom_pointrange(position = position_dodge(width = 0.55), pch = 21) +
+  scale_colour_manual(values =
+      c("Restricted" = "red", "Status quo" = "grey60", "Restricted and shrunk" = "purple")) +
+  ylab("Index") + xlab("Year") +
+  labs(colour = "Type") +
+  facet_grid(species_common_name~survey_abbrev, scales = "free_y")
+g <- g + scale_y_log10() + ylab("Index (log distributed)")
+ggsave("figs/giant-index-explore.pdf", width = 20, height = 50, limitsize = FALSE)

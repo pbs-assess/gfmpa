@@ -11,8 +11,8 @@ for (survey in c("HBLL", "SYN")) {
   cat("survey: ", survey, "\n")
   cat("family: ", fam, "\n")
 
-  if (survey == "HBLL") y <- readRDS(paste0("data-generated/index-hbll-geo-clean-", fam, ".rds"))
-  if (survey == "SYN") y <- readRDS(paste0("data-generated/index-syn-geo-clean-", fam, ".rds"))
+  if (survey == "HBLL") index <- readRDS("data-generated/index-hbll-geo-clean.rds")
+  if (survey == "SYN") index <- readRDS("data-generated/index-syn-geo-clean.rds")
 
   index$species_common_name <- stringr::str_to_title(index$species_common_name)
 
@@ -34,8 +34,8 @@ for (survey in c("HBLL", "SYN")) {
       ylab("Relative biomass")
   }
 
-  if (survey == "HBLL") ggsave(paste0("figs/index-hbll-geo-restricted-", fam, ".pdf"), width = 12, height = 8)
-  if (survey == "SYN") ggsave(paste0("figs/index-syn-geo-restricted-", fam, ".pdf"), width = 9, height = 60, limitsize = FALSE)
+  if (survey == "HBLL") ggsave(paste0("figs/index-hbll-geo-restricted.pdf"), width = 12, height = 8)
+  if (survey == "SYN") ggsave(paste0("figs/index-syn-geo-restricted.pdf"), width = 9, height = 60, limitsize = FALSE)
 
   syn_highlights <- c(
     "Arrowtooth Flounder",

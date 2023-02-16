@@ -14,7 +14,7 @@ dir.create("figs", showWarnings = FALSE)
 # source("analysis/load-data.R")
 source("analysis/functions.R")
 
-# survey <- "SYN"
+survey <- "SYN"
 # survey <- "HBLL"
 fam <- "binomial_gamma"
 
@@ -178,15 +178,16 @@ for (survey in c("HBLL", "SYN")) {
     # })
 
     index_orig <- dat_to_fit %>%
+      # filter(species_common_name == "pacific ocean perch", survey_abbrev == "SYN WCHG") |>
       group_by(survey_abbrev, species_common_name) %>%
       group_split() %>%
-      furrr::future_map_dfr(function(.x) {
-        # purrr::map_dfr(function(.x) {
+      # furrr::future_map_dfr(function(.x) {
+        purrr::map_dfr(function(.x) {
         out <- .x %>%
           fit_geo_model(pred_grid = grid, survey = survey, family = family) %>%
           mutate(type = "Status quo")
-      }, .progress = TRUE)
-    # })
+      # }, .progress = TRUE)
+    })
 
     index_shrunk <- dat_to_fit %>%
       filter(!restricted) %>%

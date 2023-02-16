@@ -7,14 +7,10 @@ options(dplyr.summarise.inform = FALSE)
 
 for (survey in c("HBLL", "SYN")) {
   # for now using delta-gamma?
-  if (survey == "HBLL") y <- readRDS(file = "data-generated/index-hbll-geo-clean-binomial_gamma.rds")
-  if (survey == "SYN") y <- readRDS(file = "data-generated/index-syn-geo-clean-binomial_gamma.rds")
+  if (survey == "HBLL") index <- readRDS(file = "data-generated/index-hbll-geo-clean.rds")
+  if (survey == "SYN") index <- readRDS(file = "data-generated/index-syn-geo-clean.rds")
 
   index$species_common_name <- stringr::str_to_title(index$species_common_name)
-
-  # index <- filter(index, !species_common_name == "Shortraker Rockfish")
-  # remove Shortspine as only HBLL spp below 10% occurance that converges
-  # index <- filter(index, !(survey_abbrev == "HBLL OUT N" & species_common_name == "Shortspine Thornyhead"))
   index <- mutate(index, species_common_name = gsub(
     "Rougheye/Blackspotted Rockfish Complex",
     "Rougheye/Blackspotted Rockfish", species_common_name
@@ -53,8 +49,6 @@ for (survey in c("HBLL", "SYN")) {
     group_by(survey_abbrev, species_common_name, `Restriction type`) %>%
     summarise(lwr = min(`CV ratio`), upr = max(`CV ratio`), est = mean(`CV ratio`)) %>%
     left_join(lu)
-
-
 
   # get raw cvs
   lu <- tibble(
