@@ -3,7 +3,7 @@ library(dplyr)
 library(ggplot2)
 library(sdmTMB)
 theme_set(ggsidekick::theme_sleek())
-options(dplyr.summarise.inform = FALSE)
+# options(dplyr.summarise.inform = FALSE)
 
 for (survey in c("HBLL", "SYN")) {
   # for now using delta-gamma?
@@ -68,10 +68,10 @@ for (survey in c("HBLL", "SYN")) {
     left_join(., lu)
 
 
-  # bad year in SYN, removed from plot so removing here too
-  if (survey == "SYN") {
-    index <- filter(index, !(species_common_name == "deepsea sole" & survey_abbrev == "SYN WCHG" & year == 2020))
-  }
+  # # bad year in SYN, removed from plot so removing here too
+  # if (survey == "SYN") {
+  #   index <- filter(index, !(species_common_name == "deepsea sole" & survey_abbrev == "SYN WCHG" & year == 2020))
+  # }
 
   re <- index %>%
     group_by(species_common_name, survey_abbrev, type) %>%
@@ -97,7 +97,6 @@ for (survey in c("HBLL", "SYN")) {
     summarise(lwr = min(re), upr = max(re), est = median(abs(re))) %>%
     left_join(lu)
 
-
   # rename variables for other previously calculated indices
   cvratio2 <- cvratio %>%
     rename(cv_ratio = est, cv_lwr = lwr, cv_upr = upr) %>%
@@ -105,8 +104,6 @@ for (survey in c("HBLL", "SYN")) {
   mare2 <- mare %>%
     rename(mare = est, mare_lwr = lwr, mare_upr = upr) %>%
     mutate(spp_by_survey = paste(species_common_name, survey_abbrev))
-
-
 
   # mean(re_long$year)
   re_long <- re_long %>%
@@ -174,8 +171,6 @@ for (survey in c("HBLL", "SYN")) {
   #
   # if (survey == "HBLL") saveRDS(cvdata, "data-generated/hbll-cv-w-re-slopes.rds")
   # if (survey == "SYN") saveRDS(cvdata, "data-generated/syn-cv-w-re-slopes.rds")
-
-
 
   # OR use simple linear models
 

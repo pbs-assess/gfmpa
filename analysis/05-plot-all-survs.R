@@ -1,7 +1,4 @@
 # make plots that combine results from all species and surveys
-# need to run geostat-all.R and then rel-error-slopes.R
-# each with globals set for each survey separately
-# currently using the "binomial-gamma" model type for both surveys
 # for this script the only global is whether to include the mpa index in figure 1
 # devtools::install_github("eliocamp/tagger")
 
@@ -39,27 +36,37 @@ names(.pal) <- c("SYN HS", "SYN QCS", "HBLL OUT N", "SYN WCHG")
 
 # prep index data ----
 
-y1 <- readRDS(file = "data-generated/index-hbll-geo-clean-binomial_gamma.rds") %>%
+y1 <- readRDS(file = "data-generated/index-hbll-geo-clean.rds") %>%
   # 0.0024384 * 0.009144 * 2 is area swept in km2 per hook
   # = est * (1/10000)/(0.0024384 * 0.009144 * 2) to convert from # fish / hook to 1000 fish / km2
   mutate(est = est * 2.242481, lwr = lwr * 2.242481, upr = upr * 2.242481)
 # y1 <- readRDS(file = "data-generated/index-hbll-geo-clean-binomial-gamma.rds") %>%
 #   mutate(est = est/10000, lwr = lwr/10000, upr = upr/10000)
-y2 <- readRDS(file = "data-generated/index-syn-geo-clean-binomial_gamma.rds") %>%
+y2 <- readRDS(file = "data-generated/index-syn-geo-clean.rds") %>%
   # current offset in strange units so /10000 gets us to tonnes/km2
   mutate(est = est / 10000, lwr = lwr / 10000, upr = upr / 10000)
 y <- bind_rows(y1, y2)
 
-mean(y$orig_cv < 1)
-filter(y, orig_cv > 1)
-filter(y, orig_cv <= 1)
-index <- filter(y, orig_cv < 1)
+ocv <- y |>
+  filter(type == "Status quo") |>
+  group_by(species_common_name, survey_abbrev) |>
+  summarise(orig_cv_mean = mean(cv)) |>
+  select(orig_cv_mean, species_common_name, survey_abbrev) |>
+  ungroup() |>
+  distinct()
+
+y <- left_join(y, ocv)
+
+mean(y$orig_cv_mean < 1)
+filter(y, orig_cv_mean > 1) |> View()
+filter(y, orig_cv_mean <= 1)
+index <- filter(y, orig_cv_mean < 1)
 
 index$species_common_name <- stringr::str_to_title(index$species_common_name)
 index <- filter(index, !species_common_name == "Shortraker Rockfish")
 
 # remove Shortspine as only HBLL spp below 10% occurance that converges
-index <- filter(index, !(survey_abbrev == "HBLL OUT N" & species_common_name == "Shortspine Thornyhead"))
+# index <- filter(index, !(survey_abbrev == "HBLL OUT N" & species_common_name == "Shortspine Thornyhead"))
 index <- mutate(index, species_common_name = gsub("Rougheye/Blackspotted Rockfish Complex", "Rougheye/Blackspotted Rockfish", species_common_name))
 
 saveRDS(index, file = "data-generated/index-filtered.rds")
@@ -246,14 +253,10 @@ g <- i3 %>%
   )
 g
 
-
 (g <- g + tagger::tag_facets(tag_prefix = "(", position = list(x = 0.1, y = 0.87)))
 
 if (include_mpa) ggsave("figs/index-geo-restricted-highlights.pdf", width = 6.5, height = 8)
 if (!include_mpa) ggsave("figs/index-geo-restricted-highlights-noMPA.pdf", width = 8, height = 7)
-
-
-
 
 # FIGURE 2: RE through time ----
 
@@ -286,7 +289,7 @@ g <- x_long %>%
   mutate(species_common_name = factor(species_common_name, levels = syn_highlights)) %>%
   ggplot(aes(year, re, colour = restr_clean)) +
   geom_hline(yintercept = 0, lty = 2, alpha = 0.5) +
-  geom_line(size = 0.84, alpha = 0.9) +
+  geom_line(linewidth = 0.84, alpha = 0.9) +
   # scale_color_brewer(palette = "Set2") +
   scale_colour_manual(values = restricted_cols) +
   ylab("Relative error") +
@@ -312,8 +315,6 @@ ggsave("figs/index-geo-restricted-re-highlights.pdf", width = 6.75, height = 8)
   scale_y_continuous(breaks = waiver(), n.breaks = 3) +
   facet_grid(species_common_name ~ survey_abbrev, scales = "free_x"))
 ggsave("figs/index-geo-restricted-re-highlights-fixed.pdf", width = 6.75, height = 8)
-
-
 
 # combine precision, accuracy and bias data from all surveys ----
 cvdata1 <- readRDS("data-generated/hbll-cv-w-lm-slopes.rds")
@@ -342,7 +343,6 @@ d[d$Response == "RE trend", ]$cv_index <- abs(d[d$Response == "RE trend", ]$cv_i
 
 # update labels
 d$Response <- factor(d$Response, labels = c("CV Ratio - 1", "MARE", "| RE trend |"))
-
 
 # function for scatterplots ----
 plot_scatter <- function(dat, x, y, col_var = "restr_clean",
@@ -496,7 +496,7 @@ if (length(unique(d$survey_abbrev)) > 3) { # makes sure all surveys
   d_shrunk <- filter(d, `Restriction type` == "re_shrunk")
   (g <- g <- ggplot(
     d_shrunk,
-    aes_string("prop_mpa", "cv_index", colour = "survey_abbrev")
+    aes(prop_mpa, cv_index, colour = survey_abbrev)
   ) +
     geom_point(alpha = 0.8) +
     xlab("Biomass proportion inside MPAs") +
