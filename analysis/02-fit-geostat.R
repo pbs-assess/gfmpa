@@ -1,268 +1,239 @@
-library(dplyr)
-library(future)
+library(tidyverse)
 library(sdmTMB)
-is_rstudio <- !is.na(Sys.getenv("RSTUDIO", unset = NA))
-is_unix <- .Platform$OS.type == "unix"
-if (!is_rstudio && is_unix) plan(multicore, workers = 5L) else plan(multisession, workers = 5L)
-options(future.rng.onMisuse = "ignore")
-options(dplyr.summarise.inform = FALSE)
-dir.create("figs", showWarnings = FALSE)
+theme_set(theme_light())
 
-# plan(sequential, split = TRUE)
-# plan(sequential) # don't crash!
+# spp <- "big skate"
+# spp <- "pacific cod"
+# survey <- "SYN WCHG"
+SILENT <- TRUE
 
-# source("analysis/load-data.R")
-source("analysis/functions.R")
+dir.create("figs/raw-data-maps", showWarnings = FALSE)
+dir.create("figs/indexes", showWarnings = FALSE)
+dir.create("data-generated/indexes", showWarnings = FALSE)
 
-survey <- "SYN"
-# survey <- "HBLL"
-fam <- "binomial_gamma"
-
-for (survey in c("HBLL", "SYN")) {
-  if (fam == "tweedie") {
-    family <- tweedie()
-  } else if (fam == "nbinom2") {
-    family <- nbinom2()
-  } else if (fam == "binomial_gamma") {
-    family <- sdmTMB::delta_gamma()
-  } else {
-    stop("Family not found.")
+calc_indices <- function(spp, survey) {
+  cat(spp, "\n")
+  cat(survey, "\n")
+  spp_file <- gsub(" ", "-", spp)
+  spp_file <- gsub("\\/", "-", spp_file)
+  surv_file <- gsub(" ", "-", survey)
+  if (file.exists(paste0("data-generated/indexes/", spp_file, "-", surv_file, ".rds"))) {
+    return(NULL)
   }
+  ggplot2::theme_set(ggplot2::theme_light())
 
-  cat("survey: ", survey, "\n")
-  cat("family: ", family$family, "\n")
-
-  # # Globals to set ------------------------------
-  # # survey <- "HBLL"
-  # survey <- "SYN"
-  # # family <- binomial_gamma()
-  # family <- tweedie()
-  # # family <- nbinom2
-  # ---------------------------------------------
-
-  if (survey == "HBLL") {
-    dat_to_fit <- readRDS("data-generated/dat_to_fit_hbll.rds")
-    # hooks <- readRDS("data-raw/HBLLOUTN-hooks.rds") %>%
-    #   mutate(count_animals = count_target_species + count_non_target_species) %>%
-    #   select(year, fishing_event_id, count_animals,
-    #          count_bait_only, count_empty_hooks, count_bent_broken) %>%
-    #   mutate(total_hooks = count_animals + count_bait_only + count_empty_hooks - count_bent_broken) %>%
-    #   mutate(count_bait_only2 = replace(count_bait_only, which(count_bait_only == 0), 1))
-    #
-    # hookmeans <- filter(hooks, total_hooks > 350) %>%
-    #   summarise(baited  = mean(count_bait_only),
-    #             prop_baited = mean(count_bait_only / total_hooks))
-    # # hist(hooks[hooks$total_hooks > 350,]$count_bait_only, breaks = 30)
-    #
-    # dat_to_fit <- left_join(dat_to_fit, hooks)  %>%
-    #   mutate(missing_hooks = hook_count - total_hooks) %>%
-    #   mutate(prop_bait_hooks = ifelse(total_hooks > 350, count_bait_only2 / total_hooks, hookmeans$prop_baited)) %>%
-    #   mutate(hook_adjust_factor = -log(prop_bait_hooks) / (1 - prop_bait_hooks),
-    #          adjusted_hooks = hook_count/hook_adjust_factor
-    #          )
-
-    # d <- filter(dat_to_fit, species_common_name == "pacific cod")
-    # hist(d$adjusted_hooks)
-
+  if (grepl("SYN", survey)) {
+    surv_dat <- readRDS("data-generated/dat_to_fit.rds")
+    grid <- readRDS("data-generated/syn-grid-w-restr.rds")
+    grid$area <- 4
+  } else {
+    surv_dat <- readRDS("data-generated/dat_to_fit_hbll.rds")
     grid <- readRDS("data-generated/hbll-n-grid-w-restr.rds")
     grid$survey_abbrev <- "HBLL OUT N"
     grid$area <- 4
-
-    # Petrale Sole errors out
-    highlights <- c(
-      # "petrale sole",
-      "arrowtooth flounder",
-      "big skate",
-      "canary rockfish",
-      "china rockfish", # 13% positive
-      "copper rockfish", # 11% positive
-      "lingcod",
-      "longnose skate",
-      "north pacific spiny dogfish",
-      "pacific cod",
-      "quillback rockfish",
-      "redbanded rockfish",
-      "rosethorn rockfish",
-      "rougheye/blackspotted rockfish complex",
-      "sandpaper skate", # 7.6 % positive, gets filtered out
-      "shortspine thornyhead", # only 6.7% of samples are positive, 8% pos restricted
-      "silvergray rockfish",
-      "southern rock sole",
-      "spotted ratfish",
-      "tiger rockfish",
-      "yelloweye rockfish"
-    ) %>%
-      tolower() %>%
-      sort() %>%
-      unique()
-    dat_to_fit <- filter(dat_to_fit, species_common_name %in% highlights)
-  }
-  if (survey == "SYN") {
-    dat_to_fit <- readRDS("data-generated/dat_to_fit.rds")
-    grid <- readRDS("data-generated/syn-grid-w-restr.rds")
-    grid$area <- 4
-
-    # "Copper"
-    ### indicates species added that Gabe asked about
-    #### more abundant species of potential interest
-    syn_highlights <- c(
-      "Harlequin Rockfish", ####
-      "Pacific Sanddab", #### abundant flatfish
-      "Sand Sole", #### abundant flatfish
-      "Big Skate",
-      "Longnose Skate",
-      "sandpaper skate", ###
-      "North Pacific Spiny Dogfish",
-      "Spotted Ratfish",
-      "kelp greenling", ###
-      "Lingcod",
-      "Pacific Cod",
-      "Walleye Pollock",
-      "Bocaccio",
-      "Canary Rockfish",
-      "darkblotched rockfish", ###
-      "greenstriped rockfish", ###
-      "Pacific Ocean Perch",
-      "Redstripe Rockfish",
-      "Redbanded Rockfish",
-      "rougheye/blackspotted rockfish complex",
-      "sharpchin rockfish", ###
-      "Shortraker Rockfish", # not fitting well! almost no data when restricted (9% pos)
-      "Shortspine Thornyhead",
-      "Silvergray Rockfish",
-      "Widow Rockfish",
-      "Yellowmouth Rockfish",
-      "Yellowtail Rockfish",
-      "Arrowtooth Flounder",
-      "Butter Sole", ###
-      "Curlfin Sole",
-      "Dover Sole",
-      "English Sole",
-      "Flathead Sole",
-      "Petrale Sole",
-      "Rex Sole",
-      "Slender Sole",
-      "southern rock sole"
-    ) %>%
-      tolower() %>%
-      sort() %>%
-      unique()
-    dat_to_fit <- filter(dat_to_fit, species_common_name %in% syn_highlights)
   }
 
-  # dat_to_fit <- filter(dat_to_fit, survey_abbrev == "SYN QCS")
+  surv_dat <- filter(surv_dat, survey_abbrev == survey, species_common_name == spp)
+  if (nrow(surv_dat) == 0L) return(NULL)
 
-  if (survey == "SYN") {
-    save_file <- paste0("data-generated/index-syn-geo-", fam, ".rds")
-    # trawl_removed <- readRDS("data-generated/Cat1_2_Dec2022.rds")
+  if (grepl("SYN", survey)) {
+    surv_dat$area_swept1 <- surv_dat$doorspread_m * surv_dat$tow_length_m
+    surv_dat$area_swept2 <- surv_dat$doorspread_m * surv_dat$duration_min * surv_dat$speed_mpm
+    surv_dat$area_swept <- ifelse(!is.na(surv_dat$tow_length_m),
+      surv_dat$area_swept1, surv_dat$area_swept2
+    )
+    surv_dat <- dplyr::filter(surv_dat, !is.na(area_swept))
+    surv_dat$offset <- log(surv_dat$area_swept * 0.00001)
+    surv_dat$response <- surv_dat$catch_weight
+  } else {
+    surv_dat$offset <- log(surv_dat$hook_count)
+    surv_dat$response <- surv_dat$catch_count
   }
-  if (survey == "HBLL") {
-    save_file <- paste0("data-generated/index-hbll-geo-", fam, ".rds")
-    # ll_removed <- readRDS("data-generated/Cat1_2_Dec2022.rds")
-  }
 
-  if (!file.exists(save_file)) {
-    index_restr <- dat_to_fit %>%
-      filter(!restricted) %>%
-      group_by(survey_abbrev, species_common_name) %>%
-      group_split() %>%
-      furrr::future_map_dfr(function(.x) {
-        # purrr::map_dfr(function(.x) {
-        out <- .x %>%
-          fit_geo_model(
-            pred_grid = grid, survey = survey, family = family,
-            mpa_dat_removed = TRUE
-          ) %>%
-          mutate(type = "Restricted")
-      }, .progress = TRUE)
-    # })
+  g <- ggplot(surv_dat, aes(X, Y, colour = restricted, size = response / exp(offset))) +
+    geom_point(pch = 21) +
+    facet_wrap(~year) +
+    coord_fixed() +
+    scale_colour_manual(values = c(`TRUE` = "red", `FALSE` = "grey60")) +
+    ggtitle(spp)
+  ggsave(paste0("figs/raw-data-maps/", spp_file, "-", surv_file, ".pdf"),
+    width = 10, height = 10)
 
-    index_orig <- dat_to_fit %>%
-      # filter(species_common_name == "pacific ocean perch", survey_abbrev == "SYN WCHG") |>
-      group_by(survey_abbrev, species_common_name) %>%
-      group_split() %>%
-      # furrr::future_map_dfr(function(.x) {
-        purrr::map_dfr(function(.x) {
-        out <- .x %>%
-          fit_geo_model(pred_grid = grid, survey = survey, family = family) %>%
-          mutate(type = "Status quo")
-      # }, .progress = TRUE)
-    })
-
-    index_shrunk <- dat_to_fit %>%
-      filter(!restricted) %>%
-      group_by(survey_abbrev, species_common_name) %>%
-      group_split() %>%
-      furrr::future_map_dfr(function(.x) {
-        # purrr::map_dfr(function(.x) {
-        out <- .x %>%
-          fit_geo_model(
-            pred_grid = filter(grid, !restricted), family = family,
-            survey = survey, mpa_dat_removed = TRUE, shrunk = TRUE
-          ) %>%
-          mutate(type = "Restricted and shrunk")
-      }, .progress = TRUE)
-    # })
-
-    index_all <- bind_rows(index_orig, index_restr, index_shrunk)
-    saveRDS(index_all, file = save_file)
-  }
-  plan(sequential) # don't crash!
-
-  # gg <- bind_rows(tw, dg) %>% filter(survey_abbrev != "SYN WCHG") %>% ggplot(aes(year, est, ymin = lwr, ymax = upr, colour = type, fill = type)) +
-  #   geom_line(lwd = 0.9) +
-  #   geom_ribbon(alpha = 0.2, colour = NA) +
-  #   labs(x = "Year", colour = "Type", fill = "Type") +  facet_grid(species_common_name~survey_abbrev, scales = "free_y")
-
-  index <- readRDS(save_file) %>% dplyr::filter(!(region == "mpa" & type %in% c("Restricted", "Restricted and shrunk")))
-  index <- filter(index, region != "mpa")
-
-  index <- filter(index, !is.na(est), !is.na(se)) # didn't fit
-  # index[index$region == "mpa", ]$type <- "MPA only"
-  index <- index %>% mutate(cv = sqrt(exp(se^2) - 1))
-  # stopifnot(max(index$max_gradient) < 0.01)
-
-  # how many didn't fit in orig?
-  .u1 <- distinct(index, survey_abbrev, species_common_name, type) %>%
-    group_by(species_common_name, survey_abbrev) %>%
-    summarise(
-      orig_converged = "Status quo" %in% type,
-      restr_converged = "Restricted" %in% type,
-      shrunk_converged = "Restricted and shrunk" %in% type
-    ) %>%
-    ungroup()
-
-  filter(.u1, !orig_converged & restr_converged)
-  filter(.u1, orig_converged & !restr_converged)
-
-  # which ones aren't in all 3?
-  filter(.u1, !orig_converged | !restr_converged | !shrunk_converged)
-
-  .u1 <- filter(.u1, restr_converged & orig_converged)
-  # remove ones with any non-converged
-  index <- left_join(.u1, index, multiple = "all", by = join_by(species_common_name, survey_abbrev))
-
-  ocv <- index |>
-    filter(type == "Status quo") |>
-    mutate(orig_cv = cv)
-
-  y <- left_join(index, select(ocv, species_common_name, survey_abbrev, year, orig_cv),
-    by = join_by(species_common_name, survey_abbrev, year), multiple = "all"
+  priors <- sdmTMBpriors(
+    matern_s = pc_matern(range_gt = 20, sigma_lt = 5),
+    matern_st = pc_matern(range_gt = 20, sigma_lt = 5)
   )
 
-  # y <- index %>%
-  #   group_by(survey_abbrev, species_common_name) %>%
-  #   mutate(orig_cv = rep(cv[type == "Status quo"], 3))
+  surv_dat_r <- filter(surv_dat, !restricted)
 
-  nrow(y)
-  high_cvs <- filter(y, orig_cv > 1) |>
-    select(species_common_name, survey_abbrev) |>
-    distinct()
-  y <- anti_join(y, high_cvs)
-  nrow(y)
+  mesh_all <- make_mesh(surv_dat, xy_cols = c("X", "Y"), cutoff = 8)
+  mesh_restr <- make_mesh(surv_dat_r, xy_cols = c("X", "Y"), mesh = mesh_all$mesh)
 
-  # if (survey == "HBLL") y <- filter(y, species_common_name != "sandpaper skate") # high CV
+  mi <- list(
+    spatiotemporal = list("iid", "iid"),
+    family = sdmTMB::delta_gamma()
+  )
 
-  if (survey == "HBLL") saveRDS(y, file = paste0("data-generated/index-hbll-geo-clean-", fam, ".rds"))
-  if (survey == "SYN") saveRDS(y, file = paste0("data-generated/index-syn-geo-clean-", fam, ".rds"))
+  fit_restr <- try({sdmTMB(
+    formula = response ~ 0 + as.factor(year),
+    data = surv_dat_r,
+    family = mi$family,
+    time = "year",
+    spatiotemporal = mi$spatiotemporal,
+    offset = "offset",
+    mesh = mesh_restr,
+    anisotropy = FALSE,
+    priors = priors,
+    silent = SILENT,
+    control = sdmTMBcontrol(newton_loops = 1L),
+  )})
+  s <- sanity(fit_restr)
+
+  if (!s$all_ok) {
+    mi$spatiotemporal <- list("off", "iid")
+    fit_restr <- try({update(fit_restr, spatiotemporal = mi$spatiotemporal, family = mi$family)})
+    s <- sanity(fit_restr)
+  }
+  if (!s$all_ok) {
+    mi$family <- sdmTMB::tweedie()
+    mi$spatiotemporal <- "iid"
+    fit_restr <- try({update(fit_restr, spatiotemporal = mi$spatiotemporal, family = mi$family)})
+    s <- sanity(fit_restr)
+  }
+  if (!s$all_ok) {
+    mi$family <- sdmTMB::delta_gamma()
+    mi$spatiotemporal <- list("off", "off")
+    fit_restr <- try({update(fit_restr, spatiotemporal = mi$spatiotemporal, family = mi$family)})
+    s <- sanity(fit_restr)
+  }
+  if (!s$all_ok) {
+    mi$spatiotemporal <- "off"
+    mi$family <- sdmTMB::tweedie()
+    fit_restr <- try({update(fit_restr, spatiotemporal = mi$spatiotemporal, family = mi$family)})
+  }
+  sanity_restr <- sanity(fit_restr)
+
+  fit_all <- try({sdmTMB(
+    formula = response ~ 0 + as.factor(year),
+    data = surv_dat,
+    family = mi$family,
+    time = "year",
+    spatiotemporal = mi$spatiotemporal,
+    offset = "offset",
+    mesh = mesh_all,
+    anisotropy = FALSE,
+    priors = priors,
+    silent = SILENT,
+    control = sdmTMBcontrol(newton_loops = 1L),
+  )})
+  sanity_all <- sanity(fit_all)
+
+  if (!sanity_all$all_ok || !sanity_restr$all_ok) {
+    saveRDS(NULL, paste0("data-generated/indexes/", spp_file, "-", surv_file, ".rds"))
+    return(NULL)
+  }
+
+  gr_full <- dplyr::filter(grid, year %in% surv_dat$year, survey_abbrev == survey)
+  gr_mpa <- dplyr::filter(grid, year %in% surv_dat$year, survey_abbrev == survey, restricted == TRUE)
+  gr_remaining <- dplyr::filter(grid, year %in% surv_dat$year, !restricted, survey_abbrev == survey)
+
+  p <- predict(fit_all, newdata = gr_full, return_tmb_object = TRUE)
+  ind <- get_index(p, bias_correct = TRUE)
+
+  pmpa <- predict(fit_all, newdata = gr_mpa, return_tmb_object = TRUE)
+  indmpa <- get_index(pmpa, bias_correct = TRUE)
+
+  pmpa_restr <- predict(fit_restr, newdata = gr_mpa, return_tmb_object = TRUE)
+  indmpa_restr <- get_index(pmpa_restr, bias_correct = TRUE)
+
+  pr <- predict(fit_restr, newdata = gr_full, return_tmb_object = TRUE)
+  indr <- get_index(pr, bias_correct = TRUE)
+
+  prs <- predict(fit_restr, newdata = gr_remaining, return_tmb_object = TRUE)
+  indrs <- get_index(prs, bias_correct = TRUE)
+
+  i <- bind_rows(
+    mutate(ind, type = "Status quo"),
+    mutate(indr, type = "Restricted"),
+    mutate(indrs, type = "Restricted and shrunk"),
+    mutate(indmpa, type = "MPA only"),
+    mutate(indmpa_restr, type = "MPA only restricted")
+  )
+
+  g <- i |>
+    filter(!grepl("MPA", type)) |>
+    ggplot(aes(year, est, ymin = lwr, ymax = upr, colour = type)) +
+    geom_pointrange(position = position_dodge(width = 0.55), pch = 21) +
+    scale_colour_manual(values =
+        c("Restricted" = "red", "Status quo" = "grey60", "Restricted and shrunk" = "purple")) +
+    ylab("Index") + xlab("Year") +
+    labs(colour = "Type") +
+    ggtitle(spp)
+
+  g1 <- g + coord_cartesian(expand = FALSE, ylim = c(0, NA))
+  g2 <- g + scale_y_log10() + ylab("Index (log distributed)")
+  g0 <- cowplot::plot_grid(g1, g2, nrow = 2)
+
+  ggsave(paste0("figs/indexes/", spp_file, "-", surv_file, ".pdf"),
+    width = 7, height = 7)
+
+  i$species_common_name <- spp
+  i$survey_abbrev <- survey
+
+  saveRDS(i, paste0("data-generated/indexes/", spp_file, "-", surv_file, ".rds"))
 }
+
+source("analysis/spp.R")
+
+syn_survs <- c("SYN WCHG", "SYN QCS", "SYN HS")
+
+library(future)
+is_rstudio <- !is.na(Sys.getenv("RSTUDIO", unset = NA))
+is_unix <- .Platform$OS.type == "unix"
+if (!is_rstudio && is_unix) plan(multicore, workers = 4L) else plan(multisession, workers = 4L)
+
+to_fit <- expand_grid(spp = syn_highlights, survey = syn_survs)
+# calc_indices(spp = syn_highlights[1], survey = syn_survs[1])
+# purrr::pmap(to_fit, calc_indices)
+# furrr::future_pmap(to_fit, calc_indices)
+
+to_fit <- expand_grid(spp = hbll_highlights, survey = "HBLL OUT N")
+# calc_indices(spp = hbll_highlights[1], survey = "HBLL OUT N")
+# purrr::pmap(to_fit, calc_indices)
+furrr::future_pmap(to_fit, calc_indices)
+
+f <- list.files("data-generated/indexes/", pattern = ".rds", full.names = TRUE)
+ind <- purrr::map_dfr(f, readRDS)
+ind$cv <- NULL
+ind$cv <- sqrt(exp(ind$se^2) - 1)
+
+table(ind$survey_abbrev, ind$type)
+
+ocv <- ind |>
+  filter(type == "Status quo") |>
+  mutate(orig_cv = cv) |>
+  select(year, orig_cv, species_common_name, survey_abbrev) |>
+  distinct()
+
+ind <- left_join(
+  ind,
+  ocv,
+  by = join_by(year, species_common_name, survey_abbrev)
+)
+
+hbll <- ind[grepl("HBLL", ind$survey_abbrev),]
+syn <- ind[grepl("SYN", ind$survey_abbrev),]
+saveRDS(hbll, "data-generated/index-hbll-geo-clean.rds")
+saveRDS(syn, "data-generated/index-syn-geo-clean.rds")
+
+g <- ind |>
+  # filter(grepl("SYN", survey_abbrev)) |>
+  ggplot(aes(year, est, ymin = lwr, ymax = upr, colour = type)) +
+  geom_pointrange(position = position_dodge(width = 0.55), pch = 21) +
+  scale_colour_manual(values =
+      c("Restricted" = "red", "Status quo" = "grey60", "Restricted and shrunk" = "purple")) +
+  ylab("Index") + xlab("Year") +
+  labs(colour = "Type") +
+  facet_grid(species_common_name~survey_abbrev, scales = "free_y")
+g <- g + scale_y_log10() + ylab("Index (log distributed)")
+ggsave("figs/giant-index-explore.pdf", width = 20, height = 50, limitsize = FALSE)
