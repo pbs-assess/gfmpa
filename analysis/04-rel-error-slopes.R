@@ -16,10 +16,12 @@ for (survey in c("HBLL", "SYN")) {
     "Rougheye/Blackspotted Rockfish", species_common_name
   ))
 
+  index <- index %>% dplyr::filter(type != "MPA only restricted")
+
   # get cv ratios and prop mpa
   cv2 <- index %>%
     group_by(species_common_name, survey_abbrev, year) %>%
-    summarise(
+    mutate(
       prop_mpa = est[type == "MPA only"] / est[type == "Status quo"],
       cv_ratio_restr = cv[type == "Restricted"] /
         cv[type == "Status quo"],

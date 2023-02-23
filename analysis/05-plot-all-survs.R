@@ -26,9 +26,9 @@ include_mpa <- FALSE
 # library(RColorBrewer)
 # brewer.pal(4, "Set2")
 restricted_cols <- c("#FC8D62", "#8DA0CB")
-if (include_mpa) colour_pal <- c("gray50", restricted_cols, "gray80")
+# if (include_mpa) colour_pal <- c("gray50", restricted_cols, "gray80")
 if (!include_mpa) colour_pal <- c("gray50", restricted_cols)
-if (include_mpa) line_pal <- c("dotted", "solid", "solid", "solid")
+# if (include_mpa) line_pal <- c("dotted", "solid", "solid", "solid")
 if (!include_mpa) line_pal <- c("dotted", "solid", "solid")
 
 .pal <- viridisLite::viridis(4, begin = 0, end = 0.95)
@@ -47,6 +47,9 @@ y2 <- readRDS(file = "data-generated/index-syn-geo-clean.rds") %>%
   mutate(est = est / 10000, lwr = lwr / 10000, upr = upr / 10000)
 y <- bind_rows(y1, y2)
 
+if (!include_mpa) y <- index %>% filter(type != "MPA only")
+if (!include_mpa) y <- index %>% filter(type != "MPA only restricted")
+
 ocv <- y |>
   filter(type == "Status quo") |>
   group_by(species_common_name, survey_abbrev) |>
@@ -58,7 +61,7 @@ ocv <- y |>
 y <- left_join(y, ocv)
 
 mean(y$orig_cv_mean < 1)
-filter(y, orig_cv_mean > 1) |> View()
+filter(y, orig_cv_mean > 1)
 filter(y, orig_cv_mean <= 1)
 index <- filter(y, orig_cv_mean < 1)
 
@@ -70,8 +73,6 @@ index <- filter(index, !species_common_name == "Shortraker Rockfish")
 index <- mutate(index, species_common_name = gsub("Rougheye/Blackspotted Rockfish Complex", "Rougheye/Blackspotted Rockfish", species_common_name))
 
 saveRDS(index, file = "data-generated/index-filtered.rds")
-
-if (!include_mpa) index <- index %>% filter(type != "MPA only")
 
 # choose labels for each index type ----
 restricted_labels <- c("Extrapolated", "Shrunk")
@@ -320,6 +321,9 @@ ggsave("figs/index-geo-restricted-re-highlights-fixed.pdf", width = 6.75, height
 cvdata1 <- readRDS("data-generated/hbll-cv-w-lm-slopes.rds")
 cvdata2 <- readRDS("data-generated/syn-cv-w-lm-slopes.rds")
 
+cvdata1 <- filter(cvdata1, !is.na(restr_clean))
+cvdata2 <- filter(cvdata2, !is.na(restr_clean))
+
 # glimpse(cvdata1)
 # glimpse(cvdata2)
 cvdata <- bind_rows(cvdata1, cvdata2)
@@ -357,7 +361,6 @@ plot_scatter <- function(dat, x, y, col_var = "restr_clean",
     geom_point() +
     theme(legend.position = "none", legend.title = element_blank()) +
     scale_colour_manual(values = col_vec, label = label_vec)
-  # browser()
   if (spp) {
     g <- g + ggrepel::geom_text_repel(
       data = filter(dat, `Restriction type` == "re_restr"),
@@ -369,84 +372,6 @@ plot_scatter <- function(dat, x, y, col_var = "restr_clean",
   }
   g
 }
-
-
-# HBLL - CV ratio and MARE by status quo CV and prop MPA ----
-#
-# d2 <- filter(d, survey_abbrev == "HBLL OUT N")
-#
-# (g1 <- plot_scatter(d2, "cv_orig", "cv_index") +
-#   xlab("CV of 'Status quo' index") +
-#   guides(shape = "none") +
-#   facet_grid(
-#     rows = vars(Response),
-#     # cols = vars(survey_abbrev),
-#     switch = "y",
-#     scales = "free_y"
-#   ) +
-#   theme(
-#     axis.title.y = element_blank(),
-#     legend.position = c(0.2, 0.93),
-#     strip.placement = "outside"
-#   ))
-#
-# (g2 <- plot_scatter(d2, "prop_mpa", "cv_index") +
-#   xlab("Biomass proportion inside MPAs") +
-#   guides(shape = "none") +
-#   facet_wrap(~Response, strip.position = "top", nrow = 2, scales = "free_y") +
-#   theme(
-#     strip.placement = "outside", strip.text.x = element_blank(),
-#     plot.margin = unit(c(0, 0, 0, 0), "cm"),
-#     axis.title.y = element_blank(),
-#     axis.text.y = element_blank(),
-#     axis.ticks.y = element_blank()
-#   ))
-#
-# g1 <- tag_facet(g1, tag_pool = c("a", "c"), hjust = -0.5, vjust = 2, fontface = 1)
-# g2 <- tag_facet(g2, tag_pool = c("b", "d"), hjust = -0.5, vjust = 2, fontface = 1)
-#
-# g1 + g2 + patchwork::plot_layout(nrow = 1)
-#
-# ggsave("figs/explore-hbll-cv.pdf", width = 7, height = 7)
-#
-# # QCS - CV ratio and MARE by status quo CV and prop MPA ----
-# d3 <- filter(d, survey_abbrev == "SYN QCS")
-#
-# (g1 <- plot_scatter(d3, "cv_orig", "cv_index") +
-#   xlab("CV of 'Status quo' index") +
-#   guides(shape = "none") +
-#   facet_grid(
-#     rows = vars(Response),
-#     # cols = vars(survey_abbrev),
-#     switch = "y",
-#     scales = "free_y"
-#   ) +
-#   theme(
-#     axis.title.y = element_blank(),
-#     # legend.position = c(0.2,0.95),
-#     strip.placement = "outside"
-#   ))
-#
-# (g2 <- plot_scatter(d3, "prop_mpa", "cv_index") +
-#   xlab("Biomass proportion inside MPAs") +
-#   guides(shape = "none") +
-#   facet_wrap(~Response, strip.position = "top", nrow = 2, scales = "free_y") +
-#   theme(
-#     strip.placement = "outside", strip.text.x = element_blank(),
-#     plot.margin = unit(c(0, 0, 0, 0), "cm"),
-#     legend.position = c(0.25, 0.97),
-#     axis.title.y = element_blank(),
-#     axis.text.y = element_blank(),
-#     axis.ticks.y = element_blank()
-#   ))
-#
-# g1 <- tag_facet(g1, tag_pool = c("a", "c"), hjust = -0.5, vjust = 2, fontface = 1)
-# g2 <- tag_facet(g2, tag_pool = c("b", "d"), hjust = -0.5, vjust = 2, fontface = 1)
-#
-# g1 + g2 + patchwork::plot_layout(nrow = 1)
-#
-# ggsave("figs/explore-qcs-cv.pdf", width = 7, height = 7)
-#
 
 ##  CV ratio and MARE by status quo CV for all surveys at once ----
 if (length(unique(d$survey_abbrev)) > 3) { # makes sure all surveys
@@ -569,7 +494,6 @@ cvdata2$cv_ratio <- cvdata2$cv_ratio - 1
 g <- tag_facet(g, hjust = -0.5, vjust = 2, fontface = 1)
 # g
 ggsave("figs/explore-all-mare-by-cv-ratio.pdf", width = 7, height = 7)
-
 
 # FIGURE 6: slopes ----
 #
