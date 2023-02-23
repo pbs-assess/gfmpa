@@ -88,30 +88,31 @@ calc_indices <- function(spp, survey) {
     control = sdmTMBcontrol(newton_loops = 1L),
   )})
   s <- sanity(fit_restr)
+  ok <- all(unlist(s))
 
-  if (!s$all_ok) {
+  if (!ok) {
     mi$spatiotemporal <- list("off", "iid")
     fit_restr <- try({update(fit_restr, spatiotemporal = mi$spatiotemporal, family = mi$family)})
-    s <- sanity(fit_restr)
+    s <- all(unlist(sanity(fit_restr)))
   }
-  if (!s$all_ok) {
+  if (!ok) {
     mi$family <- sdmTMB::tweedie()
     mi$spatiotemporal <- "iid"
     fit_restr <- try({update(fit_restr, spatiotemporal = mi$spatiotemporal, family = mi$family)})
-    s <- sanity(fit_restr)
+    s <- all(unlist(sanity(fit_restr)))
   }
-  if (!s$all_ok) {
+  if (!ok) {
     mi$family <- sdmTMB::delta_gamma()
     mi$spatiotemporal <- list("off", "off")
     fit_restr <- try({update(fit_restr, spatiotemporal = mi$spatiotemporal, family = mi$family)})
-    s <- sanity(fit_restr)
+    s <- all(unlist(sanity(fit_restr)))
   }
-  if (!s$all_ok) {
+  if (!ok) {
     mi$spatiotemporal <- "off"
     mi$family <- sdmTMB::tweedie()
     fit_restr <- try({update(fit_restr, spatiotemporal = mi$spatiotemporal, family = mi$family)})
   }
-  sanity_restr <- sanity(fit_restr)
+  sanity_restr <- all(unlist(sanity(fit_restr)))
 
   fit_all <- try({sdmTMB(
     formula = response ~ 0 + as.factor(year),
@@ -126,9 +127,9 @@ calc_indices <- function(spp, survey) {
     silent = SILENT,
     control = sdmTMBcontrol(newton_loops = 1L),
   )})
-  sanity_all <- sanity(fit_all)
+  sanity_all <- all(unlist(sanity(fit_all)))
 
-  if (!sanity_all$all_ok || !sanity_restr$all_ok) {
+  if (!sanity_all || !sanity_restr) {
     saveRDS(NULL, paste0("data-generated/indexes/", spp_file, "-", surv_file, ".rds"))
     return(NULL)
   }
@@ -190,12 +191,12 @@ syn_survs <- c("SYN WCHG", "SYN QCS", "SYN HS")
 library(future)
 is_rstudio <- !is.na(Sys.getenv("RSTUDIO", unset = NA))
 is_unix <- .Platform$OS.type == "unix"
-if (!is_rstudio && is_unix) plan(multicore, workers = 4L) else plan(multisession, workers = 4L)
+if (!is_rstudio && is_unix) plan(multicore, workers = 6L) else plan(multisession, workers = 6L)
 
 to_fit <- expand_grid(spp = syn_highlights, survey = syn_survs)
 # calc_indices(spp = syn_highlights[1], survey = syn_survs[1])
 # purrr::pmap(to_fit, calc_indices)
-# furrr::future_pmap(to_fit, calc_indices)
+furrr::future_pmap(to_fit, calc_indices)
 
 to_fit <- expand_grid(spp = hbll_highlights, survey = "HBLL OUT N")
 # calc_indices(spp = hbll_highlights[1], survey = "HBLL OUT N")
