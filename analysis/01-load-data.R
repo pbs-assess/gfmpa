@@ -7,6 +7,9 @@ library(sf)
 dir.create("data-generated", showWarnings = FALSE)
 dir.create("figs", showWarnings = FALSE)
 
+cat12_only <- TRUE
+# cat12_only <- FALSE
+
 source("analysis/functions.R")
 
 
@@ -35,7 +38,14 @@ table(x$SUBREGION)
 # CC  HG  NC NVI
 # 83  84  68 122
 
-trawl_removed <- dplyr::filter(x, Category_Detailed %in% c("Category 1", "Category 2"))
+if (cat12_only) {
+  trawl_removed <- dplyr::filter(x, Category_Detailed %in% c("Category 1", "Category 2"))
+} else {
+  .cat <- c("Category 1", "Category 2", "Existing MPA/RCA - 'as-is, where-is'",
+    "Existing MPA/RCA - 'as-is, where-is' *", "Existing MPA/RCA - 'as-is, where-is' **",
+    "Existing MPA/RCA - 'as-is, where-is' ***")
+  trawl_removed <- dplyr::filter(x, Category_Detailed %in% .cat)
+}
 
 # x |>
 #   dplyr::filter(Category_Detailed == "Category 1") |>
@@ -60,6 +70,7 @@ ensure_multipolygons <- function(X) {
   sf::st_sf(sf::st_drop_geometry(X), geom = sf::st_geometry(Y))
 }
 trawl_removed <- ensure_multipolygons(trawl_removed)
+
 saveRDS(trawl_removed, file = "data-generated/Cat1_2_Dec2022.rds")
 
 assign_restricted_tows <- function(trawl_dat) {
@@ -91,7 +102,7 @@ assign_restricted_tows <- function(trawl_dat) {
 # ggplot(aleut, aes(longitude, latitude, size = density_kgpm2, colour = restricted)) + geom_point()
 
 if (Sys.info()[["user"]] == "seananderson") {
-  f <- list.files("~/src/gfsynopsis-2021/report/data-cache-april-2022/",
+  f <- list.files("~/src/gfsynopsis-2021/report/data-cache-feb-2023/",
     full.names = TRUE
   )
   f <- f[!grepl("cpue", f)]
@@ -170,7 +181,7 @@ assign_restricted_tows_hbll <- function(dat) {
 # ggplot(aleut, aes(longitude, latitude, size = density_ppkm2, colour = restricted)) + geom_point()
 
 if (Sys.info()[["user"]] == "seananderson") {
-  f <- list.files("~/src/gfsynopsis-2021/report/data-cache-april-2022/",
+  f <- list.files("~/src/gfsynopsis-2021/report/data-cache-feb-2023/",
     full.names = TRUE
   )
   f <- f[!grepl("cpue", f)]

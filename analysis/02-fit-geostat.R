@@ -191,7 +191,8 @@ syn_survs <- c("SYN WCHG", "SYN QCS", "SYN HS")
 library(future)
 is_rstudio <- !is.na(Sys.getenv("RSTUDIO", unset = NA))
 is_unix <- .Platform$OS.type == "unix"
-if (!is_rstudio && is_unix) plan(multicore, workers = 6L) else plan(multisession, workers = 6L)
+cores <- parallel::detectCores() - 2L
+if (!is_rstudio && is_unix) plan(multicore, workers = cores) else plan(multisession, workers = cores)
 
 to_fit <- expand_grid(spp = syn_highlights, survey = syn_survs)
 # calc_indices(spp = syn_highlights[1], survey = syn_survs[1])
