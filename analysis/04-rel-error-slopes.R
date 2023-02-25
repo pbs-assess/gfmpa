@@ -78,12 +78,19 @@ for (survey in c("HBLL", "SYN")) {
   re <- index %>%
     group_by(species_common_name, survey_abbrev, type) %>%
     mutate(est = est / exp(mean(log(est)))) %>%
-    group_by(species_common_name, survey_abbrev, year) %>%
-    summarise(
-      prop_mpa = est[type == "MPA only"] / est[type == "Status quo"],
-      re_restr = (est[type == "Restricted"] - est[type == "Status quo"]) / est[type == "Status quo"],
-      re_shrunk = (est[type == "Restricted and shrunk"] - est[type == "Status quo"]) / est[type == "Status quo"]
-    )
+    ungroup() |>
+    group_by(species_common_name, survey_abbrev) %>%
+    group_split() |>
+    purrr::map_dfr(function(.x) {
+      data.frame(
+        species_common_name = unique(.x$species_common_name),
+        survey_abbrev = unique(.x$survey_abbrev),
+        year = .x$year,
+        prop_mpa = .x$est[.x$type == "Status quo"],
+        re_restr = (.x$est[.x$type == "Restricted"] - .x$est[.x$type == "Status quo"]) / .x$est[.x$type == "Status quo"],
+        re_shrunk = (.x$est[.x$type == "Restricted and shrunk"] - .x$est[.x$type == "Status quo"]) / .x$est[.x$type == "Status quo"]
+      )
+    })
 
   lu <- tibble(
     "Restriction type" = c("re_restr", "re_shrunk"),

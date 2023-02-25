@@ -47,8 +47,8 @@ y2 <- readRDS(file = "data-generated/index-syn-geo-clean.rds") %>%
   mutate(est = est / 10000, lwr = lwr / 10000, upr = upr / 10000)
 y <- bind_rows(y1, y2)
 
-if (!include_mpa) y <- index %>% filter(type != "MPA only")
-if (!include_mpa) y <- index %>% filter(type != "MPA only restricted")
+if (!include_mpa) y <- y %>% dplyr::filter(type != "MPA only")
+if (!include_mpa) y <- y %>% dplyr::filter(type != "MPA only restricted")
 
 ocv <- y |>
   filter(type == "Status quo") |>
@@ -332,7 +332,7 @@ cvdata <- mutate(cvdata, species_common_name = gsub("Rougheye/Blackspotted Rockf
 ## if wanting to filter out POP in WCHG this should happen here
 # cvdata <- cvdata %>% filter(cv_ratio < 1.6)
 ## but it's actually more of an outlier in terms of prop_mpa
-cvdata <- cvdata %>% mutate(prop_mpa = ifelse(prop_mpa < 0.4, prop_mpa, 0.4))
+cvdata <- cvdata %>% mutate(prop_mpa = ifelse(prop_mpa < 0.6, prop_mpa, 0.6))
 
 d <- cvdata %>%
   tidyr::pivot_longer(c("cv_ratio", "mare", "slope_re"), names_to = "Response", values_to = "cv_index") %>%
@@ -433,7 +433,7 @@ if (length(unique(d$survey_abbrev)) > 3) { # makes sure all surveys
       switch = "y",
       scales = "free_y"
     ) +
-    scale_x_continuous(labels = c(0.0, 0.1, 0.2, 0.3, ">0.4")) +
+    # scale_x_continuous(labels = c(0.0, 0.1, 0.2, 0.3, ">0.4")) +
     theme(
       axis.title.y = element_blank(),
       # legend.position = c(0.1, 0.95),
