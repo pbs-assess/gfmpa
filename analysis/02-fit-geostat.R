@@ -5,24 +5,22 @@ theme_set(theme_light())
 # spp <- "big skate"
 # spp <- "pacific cod"
 # survey <- "SYN WCHG"
-SILENT <- TRUE
+SILENT <- FALSE
 
 dir.create("figs/raw-data-maps", showWarnings = FALSE)
 dir.create("figs/indexes", showWarnings = FALSE)
 dir.create("data-generated/indexes", showWarnings = FALSE)
 
 calc_indices <- function(spp, survey) {
+  survey <- unlist(strsplit(survey, "\\|"))
   cat(spp, "\n")
   cat(survey, "\n")
   spp_file <- gsub(" ", "-", spp)
   spp_file <- gsub("\\/", "-", spp_file)
-  surv_file <- gsub(" ", "-", survey)
-  if (file.exists(paste0("data-generated/indexes/", spp_file, "-", surv_file, ".rds"))) {
-    return(NULL)
-  }
+  surv_file <- gsub(" ", "-", paste(survey, collapse = "-"))
   ggplot2::theme_set(ggplot2::theme_light())
 
-  if (grepl("SYN", survey)) {
+  if (grepl("SYN", survey[[1]])) {
     surv_dat <- readRDS("data-generated/dat_to_fit.rds")
     grid <- readRDS("data-generated/syn-grid-w-restr.rds")
     grid$area <- 4
@@ -33,10 +31,10 @@ calc_indices <- function(spp, survey) {
     grid$area <- 4
   }
 
-  surv_dat <- filter(surv_dat, survey_abbrev == survey, species_common_name == spp)
+  surv_dat <- filter(surv_dat, survey_abbrev %in% survey, species_common_name == spp)
   if (nrow(surv_dat) == 0L) return(NULL)
 
-  if (grepl("SYN", survey)) {
+  if (grepl("SYN", survey[[1]])) {
     surv_dat$area_swept1 <- surv_dat$doorspread_m * surv_dat$tow_length_m
     surv_dat$area_swept2 <- surv_dat$doorspread_m * surv_dat$duration_min * surv_dat$speed_mpm
     surv_dat$area_swept <- ifelse(!is.na(surv_dat$tow_length_m),
@@ -59,139 +57,148 @@ calc_indices <- function(spp, survey) {
   ggsave(paste0("figs/raw-data-maps/", spp_file, "-", surv_file, ".pdf"),
     width = 10, height = 10)
 
-  priors <- sdmTMBpriors(
-    matern_s = pc_matern(range_gt = 20, sigma_lt = 5),
-    matern_st = pc_matern(range_gt = 20, sigma_lt = 5)
-  )
+  if (!file.exists(paste0("data-generated/indexes/", spp_file, "-", surv_file, ".rds"))) {
 
-  surv_dat_r <- filter(surv_dat, !restricted)
+    priors <- sdmTMBpriors(
+      matern_s = pc_matern(range_gt = 20, sigma_lt = 5),
+      matern_st = pc_matern(range_gt = 20, sigma_lt = 5)
+    )
 
-  mesh_all <- make_mesh(surv_dat, xy_cols = c("X", "Y"), cutoff = 8)
-  mesh_restr <- make_mesh(surv_dat_r, xy_cols = c("X", "Y"), mesh = mesh_all$mesh)
+    surv_dat_r <- filter(surv_dat, !restricted)
 
-  mi <- list(
-    spatiotemporal = list("iid", "iid"),
-    family = sdmTMB::delta_gamma()
-  )
+    mesh_all <- make_mesh(surv_dat, xy_cols = c("X", "Y"), cutoff = 10)
+    mesh_restr <- make_mesh(surv_dat_r, xy_cols = c("X", "Y"), mesh = mesh_all$mesh)
 
-  fit_restr <- try({sdmTMB(
-    formula = response ~ 0 + as.factor(year),
-    data = surv_dat_r,
-    family = mi$family,
-    time = "year",
-    spatiotemporal = mi$spatiotemporal,
-    offset = "offset",
-    mesh = mesh_restr,
-    anisotropy = FALSE,
-    priors = priors,
-    silent = SILENT,
-    control = sdmTMBcontrol(newton_loops = 1L),
-  )})
-  s <- sanity(fit_restr)
-  ok <- all(unlist(s))
+    mi <- list(
+      spatiotemporal = list("iid", "iid"),
+      family = sdmTMB::delta_gamma()
+    )
 
-  if (!ok) {
-    mi$spatiotemporal <- list("off", "iid")
-    fit_restr <- try({update(fit_restr, spatiotemporal = mi$spatiotemporal, family = mi$family)})
-    s <- all(unlist(sanity(fit_restr)))
+    fit_restr <- try({sdmTMB(
+      formula = response ~ 0 + as.factor(year),
+      data = surv_dat_r,
+      family = mi$family,
+      time = "year",
+      spatiotemporal = mi$spatiotemporal,
+      offset = "offset",
+      mesh = mesh_restr,
+      anisotropy = FALSE,
+      priors = priors,
+      silent = SILENT,
+      control = sdmTMBcontrol(newton_loops = 1L),
+    )})
+    s <- sanity(fit_restr)
+    ok <- all(unlist(s))
+
+    if (!ok) {
+      mi$spatiotemporal <- list("off", "iid")
+      fit_restr <- try({update(fit_restr, spatiotemporal = mi$spatiotemporal, family = mi$family)})
+      s <- all(unlist(sanity(fit_restr)))
+    }
+    if (!ok) {
+      mi$family <- sdmTMB::tweedie()
+      mi$spatiotemporal <- "iid"
+      fit_restr <- try({update(fit_restr, spatiotemporal = mi$spatiotemporal, family = mi$family)})
+      s <- all(unlist(sanity(fit_restr)))
+    }
+    if (!ok) {
+      mi$family <- sdmTMB::delta_gamma()
+      mi$spatiotemporal <- list("off", "off")
+      fit_restr <- try({update(fit_restr, spatiotemporal = mi$spatiotemporal, family = mi$family)})
+      s <- all(unlist(sanity(fit_restr)))
+    }
+    if (!ok) {
+      mi$spatiotemporal <- "off"
+      mi$family <- sdmTMB::tweedie()
+      fit_restr <- try({update(fit_restr, spatiotemporal = mi$spatiotemporal, family = mi$family)})
+    }
+    sanity_restr <- all(unlist(sanity(fit_restr)))
+
+    fit_all <- try({sdmTMB(
+      formula = response ~ 0 + as.factor(year),
+      data = surv_dat,
+      family = mi$family,
+      time = "year",
+      spatiotemporal = mi$spatiotemporal,
+      offset = "offset",
+      mesh = mesh_all,
+      anisotropy = FALSE,
+      priors = priors,
+      silent = SILENT,
+      control = sdmTMBcontrol(newton_loops = 1L),
+    )})
+    sanity_all <- all(unlist(sanity(fit_all)))
+
+    if (!sanity_all || !sanity_restr) {
+      saveRDS(NULL, paste0("data-generated/indexes/", spp_file, "-", surv_file, ".rds"))
+      return(NULL)
+    }
+
+    gr_full <- dplyr::filter(grid, year %in% surv_dat$year, survey_abbrev %in% survey)
+    gr_mpa <- dplyr::filter(grid, year %in% surv_dat$year, survey_abbrev %in% survey, restricted == TRUE)
+    gr_remaining <- dplyr::filter(grid, year %in% surv_dat$year, !restricted, survey_abbrev %in% survey)
+
+    p <- predict(fit_all, newdata = gr_full, return_tmb_object = TRUE)
+    ind <- get_index(p, bias_correct = TRUE)
+
+    pmpa <- predict(fit_all, newdata = gr_mpa, return_tmb_object = TRUE)
+    indmpa <- get_index(pmpa, bias_correct = TRUE)
+
+    pmpa_restr <- predict(fit_restr, newdata = gr_mpa, return_tmb_object = TRUE)
+    indmpa_restr <- get_index(pmpa_restr, bias_correct = TRUE)
+
+    pr <- predict(fit_restr, newdata = gr_full, return_tmb_object = TRUE)
+    indr <- get_index(pr, bias_correct = TRUE)
+
+    prs <- predict(fit_restr, newdata = gr_remaining, return_tmb_object = TRUE)
+    indrs <- get_index(prs, bias_correct = TRUE)
+
+    i <- bind_rows(
+      mutate(ind, type = "Status quo"),
+      mutate(indr, type = "Restricted"),
+      mutate(indrs, type = "Restricted and shrunk"),
+      mutate(indmpa, type = "MPA only"),
+      mutate(indmpa_restr, type = "MPA only restricted")
+    )
+    i$species_common_name <- spp
+    i$survey_abbrev <- paste(survey, collapse = ", ")
+    saveRDS(i, paste0("data-generated/indexes/", spp_file, "-", surv_file, ".rds"))
+
+  } else {
+    i <- readRDS(paste0("data-generated/indexes/", spp_file, "-", surv_file, ".rds"))
   }
-  if (!ok) {
-    mi$family <- sdmTMB::tweedie()
-    mi$spatiotemporal <- "iid"
-    fit_restr <- try({update(fit_restr, spatiotemporal = mi$spatiotemporal, family = mi$family)})
-    s <- all(unlist(sanity(fit_restr)))
-  }
-  if (!ok) {
-    mi$family <- sdmTMB::delta_gamma()
-    mi$spatiotemporal <- list("off", "off")
-    fit_restr <- try({update(fit_restr, spatiotemporal = mi$spatiotemporal, family = mi$family)})
-    s <- all(unlist(sanity(fit_restr)))
-  }
-  if (!ok) {
-    mi$spatiotemporal <- "off"
-    mi$family <- sdmTMB::tweedie()
-    fit_restr <- try({update(fit_restr, spatiotemporal = mi$spatiotemporal, family = mi$family)})
-  }
-  sanity_restr <- all(unlist(sanity(fit_restr)))
 
-  fit_all <- try({sdmTMB(
-    formula = response ~ 0 + as.factor(year),
-    data = surv_dat,
-    family = mi$family,
-    time = "year",
-    spatiotemporal = mi$spatiotemporal,
-    offset = "offset",
-    mesh = mesh_all,
-    anisotropy = FALSE,
-    priors = priors,
-    silent = SILENT,
-    control = sdmTMBcontrol(newton_loops = 1L),
-  )})
-  sanity_all <- all(unlist(sanity(fit_all)))
+  if (!is.null(i)) {
+    g <- i |>
+      filter(!grepl("MPA", type)) |>
+      ggplot(aes(year, est, ymin = lwr, ymax = upr, colour = type)) +
+      geom_pointrange(position = position_dodge(width = 0.55), pch = 21) +
+      scale_colour_manual(values =
+          c("Restricted" = "red", "Status quo" = "grey60", "Restricted and shrunk" = "purple")) +
+      ylab("Index") + xlab("Year") +
+      labs(colour = "Type") +
+      ggtitle(spp)
 
-  if (!sanity_all || !sanity_restr) {
-    saveRDS(NULL, paste0("data-generated/indexes/", spp_file, "-", surv_file, ".rds"))
-    return(NULL)
+    g1 <- g + coord_cartesian(expand = FALSE, ylim = c(0, NA))
+    g2 <- g + scale_y_log10() + ylab("Index (log distributed)")
+    g0 <- cowplot::plot_grid(g1, g2, nrow = 2)
+
+    ggsave(paste0("figs/indexes/", spp_file, "-", surv_file, ".pdf"),
+      width = 7, height = 7)
   }
 
-  gr_full <- dplyr::filter(grid, year %in% surv_dat$year, survey_abbrev == survey)
-  gr_mpa <- dplyr::filter(grid, year %in% surv_dat$year, survey_abbrev == survey, restricted == TRUE)
-  gr_remaining <- dplyr::filter(grid, year %in% surv_dat$year, !restricted, survey_abbrev == survey)
-
-  p <- predict(fit_all, newdata = gr_full, return_tmb_object = TRUE)
-  ind <- get_index(p, bias_correct = TRUE)
-
-  pmpa <- predict(fit_all, newdata = gr_mpa, return_tmb_object = TRUE)
-  indmpa <- get_index(pmpa, bias_correct = TRUE)
-
-  pmpa_restr <- predict(fit_restr, newdata = gr_mpa, return_tmb_object = TRUE)
-  indmpa_restr <- get_index(pmpa_restr, bias_correct = TRUE)
-
-  pr <- predict(fit_restr, newdata = gr_full, return_tmb_object = TRUE)
-  indr <- get_index(pr, bias_correct = TRUE)
-
-  prs <- predict(fit_restr, newdata = gr_remaining, return_tmb_object = TRUE)
-  indrs <- get_index(prs, bias_correct = TRUE)
-
-  i <- bind_rows(
-    mutate(ind, type = "Status quo"),
-    mutate(indr, type = "Restricted"),
-    mutate(indrs, type = "Restricted and shrunk"),
-    mutate(indmpa, type = "MPA only"),
-    mutate(indmpa_restr, type = "MPA only restricted")
-  )
-
-  g <- i |>
-    filter(!grepl("MPA", type)) |>
-    ggplot(aes(year, est, ymin = lwr, ymax = upr, colour = type)) +
-    geom_pointrange(position = position_dodge(width = 0.55), pch = 21) +
-    scale_colour_manual(values =
-        c("Restricted" = "red", "Status quo" = "grey60", "Restricted and shrunk" = "purple")) +
-    ylab("Index") + xlab("Year") +
-    labs(colour = "Type") +
-    ggtitle(spp)
-
-  g1 <- g + coord_cartesian(expand = FALSE, ylim = c(0, NA))
-  g2 <- g + scale_y_log10() + ylab("Index (log distributed)")
-  g0 <- cowplot::plot_grid(g1, g2, nrow = 2)
-
-  ggsave(paste0("figs/indexes/", spp_file, "-", surv_file, ".pdf"),
-    width = 7, height = 7)
-
-  i$species_common_name <- spp
-  i$survey_abbrev <- survey
-
-  saveRDS(i, paste0("data-generated/indexes/", spp_file, "-", surv_file, ".rds"))
+  return(NULL)
 }
 
 source("analysis/spp.R")
 
-syn_survs <- c("SYN WCHG", "SYN QCS", "SYN HS")
+syn_survs <- c("SYN WCHG", "SYN QCS|SYN HS")
 
 library(future)
 is_rstudio <- !is.na(Sys.getenv("RSTUDIO", unset = NA))
 is_unix <- .Platform$OS.type == "unix"
-cores <- parallel::detectCores() - 2L
+# cores <- parallel::detectCores() - 2L
+cores <- 8L
 if (!is_rstudio && is_unix) plan(multicore, workers = cores) else plan(multisession, workers = cores)
 
 to_fit <- expand_grid(spp = syn_highlights, survey = syn_survs)
