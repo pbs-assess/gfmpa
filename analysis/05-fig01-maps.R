@@ -2,7 +2,7 @@
 library(dplyr)
 library(ggplot2)
 library(sf)
-
+ggplot2::theme_set(ggsidekick::theme_sleek())
 
 #### TRAWL ####
 

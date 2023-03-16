@@ -332,7 +332,7 @@ cvdata <- mutate(cvdata, species_common_name = gsub("Rougheye/Blackspotted Rockf
 ## if wanting to filter out POP in WCHG this should happen here
 # cvdata <- cvdata %>% filter(cv_ratio < 1.6)
 ## but it's actually more of an outlier in terms of prop_mpa
-cvdata <- cvdata %>% mutate(prop_mpa = ifelse(prop_mpa < 0.6, prop_mpa, 0.6))
+# cvdata <- cvdata %>% mutate(prop_mpa = ifelse(prop_mpa < 0.6, prop_mpa, 0.6))
 
 d <- cvdata %>%
   tidyr::pivot_longer(c("cv_ratio", "mare", "slope_re"), names_to = "Response", values_to = "cv_index") %>%

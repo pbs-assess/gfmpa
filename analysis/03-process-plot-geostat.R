@@ -130,10 +130,10 @@ for (survey in c("HBLL", "SYN")) {
   if (survey == "HBLL") ggsave("figs/index-geo-hbll-cv-ratio-dotplot.pdf", width = 7, height = 7)
   if (survey == "SYN") ggsave("figs/index-geo-syn-cv-ratio-dotplot.pdf", width = 10, height = 8)
 
-  # bad year in SYN
-  if (survey == "SYN") {
-    index <- filter(index, !(species_common_name == "deepsea sole" & survey_abbrev == "SYN WCHG" & year == 2020))
-  }
+  # # bad year in SYN
+  # if (survey == "SYN") {
+  #   index <- filter(index, !(species_common_name == "deepsea sole" & survey_abbrev == "SYN WCHG" & year == 2020))
+  # }
 
   x <- index %>%
     group_by(species_common_name, survey_abbrev, type) %>%
