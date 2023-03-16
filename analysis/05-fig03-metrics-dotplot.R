@@ -15,53 +15,78 @@ mround <- function(x, digits) {
   sprintf(paste0("%.", digits, "f"), round(x, digits))
 }
 
-g <- metrics_long |>
-  filter(prop_mpa > 0.1) |>
-  filter(restr_clean == "Shrunk survey domain") |>
-  # filter(!survey_abbrev %in% c("SYN HS", "SYN WCHG")) |>
-  mutate(abs_est_avg = abs(est_avg)) |>
-  mutate(survey_abbrev = factor(survey_abbrev,
-    levels = c(
-      "SYN WCHG",
-      "HBLL OUT N",
-      "SYN QCS, SYN HS"
-    ))) |>
-  arrange(survey_abbrev, prop_mpa, species_common_name) |>
-  ggplot(aes(
-    forcats::fct_inorder(
-      paste0(stringr::str_to_title(species_common_name), " (", mround(prop_mpa, 2), ")")
+make_dotplot <- function(prop_mpa_filter = 0.1, exclude_extrapolation = TRUE,
+  colour_var = survey_abbrev) {
+
+  dat <- metrics_long |> filter(prop_mpa > prop_mpa_filter)
+
+  if (exclude_extrapolation) {
+    dat <- filter(dat, restr_clean == "Shrunk survey domain")
+  } else { # show both types but exlcude some HUGE ones
+    dat <- dat |> mutate(est = ifelse(grepl("CV", measure) & est >= 5, 5, est)) |>
+      mutate(upr = ifelse(grepl("CV", measure) & upr >= 5, 5, upr)) |>
+      mutate(lwr = ifelse(grepl("CV", measure) & lwr >= 5, 5, lwr))
+  }
+
+  g <- dat |>
+    mutate(abs_est_avg = abs(est_avg)) |>
+    mutate(survey_abbrev = factor(survey_abbrev,
+      levels = c(
+        "SYN WCHG",
+        "HBLL OUT N",
+        "SYN QCS, SYN HS"
+      ))) |>
+    arrange(survey_abbrev, prop_mpa, species_common_name) |>
+    ggplot(aes(
+      forcats::fct_inorder(
+        paste0(stringr::str_to_title(species_common_name), " (", mround(prop_mpa, 2), ")")
       ),
-    est,
-    ymin = lwr, ymax = upr,
-    colour = survey_abbrev
-    # colour = as.factor(restr_clean)
-  )) +
-  geom_hline(yintercept = 0, lty = 2, col = "grey60") +
-  # geom_pointrange(position = position_dodge(width = 0.75), size = 0.35, na.rm = TRUE) +
+      est,
+      ymin = lwr, ymax = upr,
+      colour = {{colour_var}}
+      # colour = as.factor(restr_clean)
+    )) +
+    geom_hline(yintercept = 0, lty = 2, col = "grey60")
 
-  geom_linerange() +
-  geom_point(pch = 21, size = 1.8) +
-  geom_point(pch = 20, size = 1.8, alpha = 0.2) +
+  if (exclude_extrapolation) {
+    g <- g + geom_linerange() +
+      geom_point(pch = 21, size = 1.8) +
+      geom_point(pch = 20, size = 1.8, alpha = 0.2)
+  } else {
+    g <- g +
+      geom_linerange(position = position_dodge(width = 0.4)) +
+      geom_point(position = position_dodge(width = 0.4), pch = 21, size = 1.8) +
+      geom_point(position = position_dodge(width = 0.4), pch = 20, size = 1.8, alpha = 0.2)
+  }
 
-  coord_flip() +
-  scale_y_continuous(breaks = waiver(), n.breaks = 5, expand = c(0, 0)) +
-  scale_colour_manual(values = restricted_cols) +
-  labs(x = "", y = "", colour = "Survey", fill = "Survey") +
-  guides(colour = "none", fill = "none") +
-  theme(
-    strip.text = element_text(colour = "black"),
-    legend.position = "top", panel.grid.major.y = element_line(colour = "grey90"),
-    strip.placement = "outside",
-    axis.title = element_blank()
-  ) +
-  facet_grid(survey_abbrev ~ measure,
-    scales = "free",
-    space = "free_y", switch = "x"
-  )
-# g
-# not sure why but egg didn't work here
-# devtools::install_github("eliocamp/tagger")
-g <- g + tagger::tag_facets(tag_prefix = "(", position = "tl")
-# print(g)
+  g <- g +
+    scale_y_continuous(breaks = waiver(), n.breaks = 5, expand = c(0, 0)) +
+    coord_flip() +
+    scale_colour_manual(values = restricted_cols) +
+    labs(x = "", y = "", colour = "Survey", fill = "Survey") +
+    guides(colour = "none", fill = "none") +
+    theme(
+      strip.text = element_text(colour = "black"),
+      legend.position = "top", panel.grid.major.y = element_line(colour = "grey90"),
+      strip.placement = "outside",
+      axis.title = element_blank()
+    ) +
+    facet_grid(survey_abbrev ~ measure,
+      scales = "free",
+      space = "free_y", switch = "x"
+    )
+  # g
+  # not sure why but egg didn't work here
+  # devtools::install_github("eliocamp/tagger")
+  g <- g + tagger::tag_facets(tag_prefix = "(", position = "tl")
+  # print(g)
+  g
+}
 
+make_dotplot()
 ggsave("figs/index-geo-combined-dotplot.pdf", width = 7.8, height = 8)
+
+make_dotplot(prop_mpa_filter = 0, exclude_extrapolation = FALSE, colour_var = restr_clean) +
+  scale_colour_brewer(palette = "Set1")
+ggsave("figs/index-geo-combined-dotplot-both.pdf", width = 7.8, height = 12)
+
