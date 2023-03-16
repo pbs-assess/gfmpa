@@ -80,8 +80,6 @@ g <- ggplot(trawl) +
     )
 ggsave("figs/trawl-grid-by-year.png", width = 12, height = 12)
 
-
-
 #### HBLL ####
 dat_to_fit_hbll <- readRDS("data-generated/dat_to_fit_hbll.rds")
 hbll <- readRDS("data-generated/hbll-n-grid-w-restr.rds") %>% filter(year == 2019) %>% select(-year)
@@ -144,7 +142,6 @@ ggsave("figs/hbll-grid-by-year.png", width = 7, height = 7)
 
 # both? ------------
 
-
 all <- trawl %>%
   filter(survey_abbrev != "SYN WCVI") %>%
   bind_rows(mutate(hbll, survey_abbrev = "HBLL OUT N"))
@@ -155,13 +152,20 @@ dat_hbll_rest <- filter(dat_hbll, restricted)
 
 dat_hbll <- mutate(dat_hbll, survey_abbrev = "HBLL OUT N")
 
+#
+# all <- mutate(all, survey_abbrev = ifelse(survey_abbrev %in% c("SYN HS", "SYN QCS"), "SYN QCS, SYN HS", survey_abbrev))
+# dat <- mutate(dat, survey_abbrev = ifelse(survey_abbrev %in% c("SYN HS", "SYN QCS"), "SYN QCS, SYN HS", survey_abbrev))
+# dat_hbll <- mutate(dat_hbll, survey_abbrev = ifelse(survey_abbrev %in% c("SYN HS", "SYN QCS"), "SYN QCS, SYN HS", survey_abbrev))
+# dat_rest <- mutate(dat_rest, survey_abbrev = ifelse(survey_abbrev %in% c("SYN HS", "SYN QCS"), "SYN QCS, SYN HS", survey_abbrev))
+# dat_hbll_rest <- mutate(dat_hbll_rest, survey_abbrev = ifelse(survey_abbrev %in% c("SYN HS", "SYN QCS"), "SYN QCS, SYN HS", survey_abbrev))
+
 # r_col <- "#B2182B"
 r_col <- "black"
 
 # .pal <- RColorBrewer::brewer.pal(5, "Set1")[c(2, 3, 5, 4)]
 # .pal <- RColorBrewer::brewer.pal(5, "Set1")[c(1:4)]
 # .pal <- RColorBrewer::brewer.pal(5, "Set1")[c(2, 3, 5, 4)]
-.pal <- RColorBrewer::brewer.pal(5, "Dark2")[c(2, 3, 5, 4)]
+# .pal <- RColorBrewer::brewer.pal(5, "Dark2")[c(2, 3, 5, 4)]
 # .pal <- RColorBrewer::brewer.pal(4, "Paired")
 
 # .pal <- viridisLite::mako(4, begin = 0.3, end = 0.95)
@@ -172,31 +176,69 @@ r_col <- "black"
 #           "#DC267F",
 #           "#FE6100", "#FFB000")
 .pal <- viridisLite::viridis(4, begin = 0, end = 0.95)
-names(.pal) <- c("SYN HS", "SYN QCS", "HBLL OUT N", "SYN WCHG")
+# names(.pal) <- c("SYN HS", "SYN QCS", "HBLL OUT N", "SYN WCHG")
 # names(.pal) <- c("SYN QCS",  "HBLL OUT N", "SYN WCHG","SYN HS")
+source("analysis/theme.R")
+.pal <- c(restricted_cols, restricted_cols[3])
+names(.pal) <-
+  c(
+    "SYN WCHG",
+    "HBLL OUT N",
+    "SYN QCS",
+    "SYN HS")
 
 (g <- all %>%
-  ggplot() +
-  geom_tile(aes(X, Y, fill = survey_abbrev), alpha = 0.45, width=2, height=2) +
-  geom_tile(aes(X, Y), alpha = 0.45, width=2, height=2, data = all_rest, fill = r_col) +
-  # geom_tile(aes(X, Y, fill = restricted), alpha = 0.45, width=2, height=2) +
-  geom_polygon(
-    data = coast, aes(x = X, y = Y, group = PID),
-    fill = "grey87", col = "grey70", lwd = 0.2
-  ) +
-  geom_point(data = dat, aes(X, Y, colour = survey_abbrev), size = 0.1) +
-  geom_point(data = dat_hbll, aes(X, Y, colour = survey_abbrev), size = 0.1) +
-  geom_point(data = dat_rest, aes(X, Y), size = 0.1, col = r_col) +
-  geom_point(data = dat_hbll_rest, aes(X, Y), size = 0.1, col = r_col) +
-  # scale_fill_brewer("Restricted", palette = "Set3", direction = -1) +
-  scale_fill_manual("Survey", values = .pal) +
-  # scale_colour_manual("Restricted", values = c("#2166AC", "#B2182B")) +
-  scale_colour_manual("Survey", values = .pal) +
-  coord_fixed(xlim = c(180, 590), ylim = c(5640, 6050)) +
-  gfplot::theme_pbs() + theme(legend.position=c(0.15,0.15)) +
-  xlab("Easting (km)") + ylab("Northing (km)"))
+    ggplot() +
+    geom_tile(aes(X, Y, fill = survey_abbrev), alpha = 0.45, width=2, height=2) +
+    geom_tile(aes(X, Y), alpha = 0.45, width=2, height=2, data = all_rest, fill = r_col) +
+    # geom_tile(aes(X, Y, fill = restricted), alpha = 0.45, width=2, height=2) +
+    geom_polygon(
+      data = coast, aes(x = X, y = Y, group = PID),
+      fill = "grey87", col = "grey70", lwd = 0.2
+    ) +
+    geom_point(data = dat, aes(X, Y, colour = survey_abbrev), size = 0.1) +
+    geom_point(data = dat_hbll, aes(X, Y, colour = survey_abbrev), size = 0.1) +
+    geom_point(data = dat_rest, aes(X, Y), size = 0.1, col = r_col) +
+    geom_point(data = dat_hbll_rest, aes(X, Y), size = 0.1, col = r_col) +
+    # scale_fill_brewer("Restricted", palette = "Set3", direction = -1) +
+    scale_fill_manual("Survey", values = .pal) +
+    # scale_colour_manual("Restricted", values = c("#2166AC", "#B2182B")) +
+    scale_colour_manual("Survey", values = .pal) +
+    coord_fixed(xlim = c(180, 590), ylim = c(5640, 6050)) +
+    theme(legend.position=c(0.15,0.15)) +
+    xlab("Easting (km)") + ylab("Northing (km)"))
 
 ggsave("figs/restricted-grid.png", width = 6, height = 6)
+
+# asis
+trawl_asis <- readRDS("data-generated-ALL/syn-grid-w-restr.rds") %>% filter(year == 2018) %>% select(-year) |> filter(restricted)
+hbll_asis <- readRDS("data-generated-ALL/hbll-n-grid-w-restr.rds") %>% filter(year == 2019) %>% select(-year)|> filter(restricted)
+all_asis <- bind_rows(trawl_asis, hbll_asis)
+
+asis <- all_asis |> anti_join(select(all_rest, X, Y))
+
+(g <- all %>%
+    ggplot() +
+    geom_tile(aes(X, Y, fill = survey_abbrev), alpha = 0.45, width=2, height=2) +
+    geom_tile(aes(X, Y), alpha = 0.75, width=2, height=2, data = asis, fill = r_col) +
+    # geom_tile(aes(X, Y, fill = restricted), alpha = 0.45, width=2, height=2) +
+    geom_polygon(
+      data = coast, aes(x = X, y = Y, group = PID),
+      fill = "grey87", col = "grey70", lwd = 0.2
+    ) +
+    geom_point(data = dat, aes(X, Y, colour = survey_abbrev), size = 0.1) +
+    geom_point(data = dat_hbll, aes(X, Y, colour = survey_abbrev), size = 0.1) +
+    # geom_point(data = dat_rest, aes(X, Y), size = 0.1, col = r_col) +
+    # geom_point(data = dat_hbll_rest, aes(X, Y), size = 0.1, col = r_col) +
+    # scale_fill_brewer("Restricted", palette = "Set3", direction = -1) +
+    scale_fill_manual("Survey", values = .pal) +
+    # scale_colour_manual("Restricted", values = c("#2166AC", "#B2182B")) +
+    scale_colour_manual("Survey", values = .pal) +
+    coord_fixed(xlim = c(180, 590), ylim = c(5640, 6050)) +
+    theme(legend.position=c(0.15,0.15)) +
+    xlab("Easting (km)") + ylab("Northing (km)"))
+
+ggsave("figs/asis-grid.png", width = 6, height = 6)
 
 # without the proposed restrictions
 # add existing restrictions
