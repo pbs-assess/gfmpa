@@ -10,8 +10,6 @@ m <- select(metrics_wide, survey_abbrev, species_common_name, cv_orig, prop_mpa)
 metrics_long <- metrics_long |>
   left_join(m, by = join_by(species_common_name, survey_abbrev))
 
-restricted_cols <- RColorBrewer::brewer.pal(4, "Dark2")[-3][c(2, 3, 1)]
-
 metrics_long <- metrics_long |>
   mutate(survey_abbrev = factor(survey_abbrev,
     levels = c(
@@ -48,6 +46,11 @@ g <- metrics_long |>
   mutate(est = ifelse(grepl("trend", measure), abs(est), est)) |>
   mutate(measure = ifelse(grepl("trend", measure), "| RE trend |\n(Absolute trend bias)", measure)) |>
   mutate(est = ifelse(grepl("CV", measure) & est <= 0, 0.01, est)) |>
+  mutate(measure = factor(measure, levels =
+      c("% increase CV\n(precision loss)",
+        "MARE\n(accuracy loss)",
+        "| RE trend |\n(Absolute trend bias)"
+        ))) |>
   ggplot(
     aes(prop_mpa, est, colour = survey_abbrev)
   ) +
@@ -72,7 +75,6 @@ g <- metrics_long |>
 
 g <- g + tagger::tag_facets(tag_prefix = "(", position = "tl")
 
-# print(g)
 ggsave("figs/prop-mpa-vs-metrics.pdf", width = 3.70, height = 6)
 
 

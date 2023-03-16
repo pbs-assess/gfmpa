@@ -1,3 +1,5 @@
+restricted_cols <- RColorBrewer::brewer.pal(4, "Dark2")[-3][c(3, 2, 1)]
+
 ggplot2::theme_set(ggsidekick::theme_sleek() +
     theme(panel.grid = element_line(colour = "grey87"),
       panel.grid.major = element_line(linewidth = rel(0.5)),

@@ -9,8 +9,6 @@ m <- select(metrics_wide, survey_abbrev, species_common_name, cv_orig, prop_mpa)
 
 metrics_long <- metrics_long |> left_join(m, by = join_by(species_common_name, survey_abbrev))
 
-restricted_cols <- RColorBrewer::brewer.pal(4, "Dark2")[-3][c(2, 3, 1)]
-
 mround <- function(x, digits) {
   sprintf(paste0("%.", digits, "f"), round(x, digits))
 }

@@ -58,7 +58,6 @@ fig2_keep <-
 
 dodge_width <- 1
 
-restricted_cols <- RColorBrewer::brewer.pal(4, "Dark2")[-3][c(2, 3, 1)]
 colour_pal <- c("gray50", restricted_cols)
 
 m <- select(metrics, survey_abbrev, species_common_name, cv_orig, prop_mpa) |>

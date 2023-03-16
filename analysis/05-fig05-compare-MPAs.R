@@ -2,6 +2,7 @@ library(dplyr)
 library(ggplot2)
 dall <- readRDS("data-generated-ALL/metrics-wide.rds")
 d12 <- readRDS("data-generated/metrics-wide.rds")
+source("analysis/theme.R")
 
 dall <- dall |> select(survey_abbrev, species_common_name, restr_clean,
   prop_mpa_all = prop_mpa, mare_all = mare)
@@ -11,8 +12,6 @@ d12 <- d12 |> select(survey_abbrev, species_common_name, restr_clean,
 d <- left_join(dall, d12, by = join_by(survey_abbrev, species_common_name, restr_clean))
 
 d <- mutate(d, mare_inc = mare_all / mare_cat12)
-
-restricted_cols <- RColorBrewer::brewer.pal(4, "Dark2")[-3][c(2, 3, 1)]
 
 d <- d |>
   mutate(survey_abbrev = factor(survey_abbrev,
@@ -29,7 +28,6 @@ ggplot(d, aes(prop_mpa_cat12, prop_mpa_all, colour = survey_abbrev, size = mare_
   scale_colour_manual(values = restricted_cols) +
   xlab("Proportion species in MPA\n(NSB category 1 + 2 only)") +
   ylab("Proportion species in MPA\n(NSB category 1 + 2 + 'as-is where-is')") +
-  theme_light() +
   labs(colour = "Survey") +
   coord_equal() +
   scale_x_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.02))) +
