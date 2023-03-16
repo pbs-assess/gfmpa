@@ -1,6 +1,6 @@
 library(dplyr)
 library(ggplot2)
-ggplot2::theme_set(ggsidekick::theme_sleek())
+source("analysis/theme.R")
 metrics_long <- readRDS("data-generated/metrics-long.rds")
 metrics_wide <- readRDS("data-generated/metrics-wide.rds")
 
@@ -15,40 +15,55 @@ mround <- function(x, digits) {
   sprintf(paste0("%.", digits, "f"), round(x, digits))
 }
 
-make_dotplot <- function(prop_mpa_filter = 0.1, exclude_extrapolation = TRUE,
-  colour_var = survey_abbrev) {
-
-  dat <- metrics_long |> filter(prop_mpa > prop_mpa_filter)
+make_dotplot <- function(
+    .data, prop_mpa_filter = 0.1, exclude_extrapolation = TRUE,
+    colour_var = survey_abbrev, show_prop_mpa = TRUE, dodge_points = FALSE) {
+  dat <- .data |> dplyr::filter(prop_mpa > prop_mpa_filter)
 
   if (exclude_extrapolation) {
-    dat <- filter(dat, restr_clean == "Shrunk survey domain")
+    dat <- filter(dat, restr_clean != "Same survey domain")
   } else { # show both types but exlcude some HUGE ones
-    dat <- dat |> mutate(est = ifelse(grepl("CV", measure) & est >= 5, 5, est)) |>
+    dat <- dat |>
+      mutate(est = ifelse(grepl("CV", measure) & est >= 5, 5, est)) |>
       mutate(upr = ifelse(grepl("CV", measure) & upr >= 5, 5, upr)) |>
       mutate(lwr = ifelse(grepl("CV", measure) & lwr >= 5, 5, lwr))
   }
 
-  g <- dat |>
+  dat <- dat |>
     mutate(abs_est_avg = abs(est_avg)) |>
     mutate(survey_abbrev = factor(survey_abbrev,
       levels = c(
         "SYN WCHG",
         "HBLL OUT N",
         "SYN QCS, SYN HS"
-      ))) |>
-    arrange(survey_abbrev, prop_mpa, species_common_name) |>
-    ggplot(aes(
-      forcats::fct_inorder(
-        paste0(stringr::str_to_title(species_common_name), " (", mround(prop_mpa, 2), ")")
-      ),
-      est,
-      ymin = lwr, ymax = upr,
-      colour = {{colour_var}}
-      # colour = as.factor(restr_clean)
-    )) +
+      )
+    )) |>
+    arrange(survey_abbrev, prop_mpa, species_common_name)
+
+  if (show_prop_mpa) {
+    dat <- mutate(dat,
+      spp_lab_plot =
+        paste0(
+          stringr::str_to_title(species_common_name), " (",
+          mround(prop_mpa, 2), ")"
+        )
+    )
+  } else {
+    dat <- mutate(dat,
+      spp_lab_plot =
+        stringr::str_to_title(species_common_name)
+    )
+  }
+
+  g <- ggplot(dat, aes(
+    x = forcats::fct_inorder(spp_lab_plot),
+    y = est,
+    ymin = lwr, ymax = upr,
+    colour = {{ colour_var }}
+  )) +
     geom_hline(yintercept = 0, lty = 2, col = "grey60")
 
-  if (exclude_extrapolation) {
+  if (exclude_extrapolation && !dodge_points) {
     g <- g + geom_linerange() +
       geom_point(pch = 21, size = 1.8) +
       geom_point(pch = 20, size = 1.8, alpha = 0.2)
@@ -83,10 +98,34 @@ make_dotplot <- function(prop_mpa_filter = 0.1, exclude_extrapolation = TRUE,
   g
 }
 
-make_dotplot()
-ggsave("figs/index-geo-combined-dotplot.pdf", width = 7.8, height = 8)
+make_dotplot(metrics_long)
+ggsave("figs/metric-dotplot.pdf", width = 7.8, height = 7.3)
 
-make_dotplot(prop_mpa_filter = 0, exclude_extrapolation = FALSE, colour_var = restr_clean) +
-  scale_colour_brewer(palette = "Set1")
-ggsave("figs/index-geo-combined-dotplot-both.pdf", width = 7.8, height = 12)
+make_dotplot(metrics_long, prop_mpa_filter = 0, exclude_extrapolation = FALSE, colour_var = restr_clean) +
+  scale_colour_brewer(palette = "Set1", labels = c("Extrapolate into MPAs", "Shrink survey domain")) +
+  guides(colour = guide_legend()) +
+  labs(colour = "Scenario")
+ggsave("figs/metric-dotplot-extrapolate.pdf", width = 7.8, height = 11)
 
+# Compare to worst case scenario with 'as-is-where-is'
+mla <- readRDS("data-generated-ALL/metrics-long.rds")
+mla_wide <- readRDS("data-generated-ALL/metrics-wide.rds")
+m <- select(mla_wide, survey_abbrev, species_common_name, cv_orig, prop_mpa) |>
+  distinct()
+mla <- mla |> left_join(m, by = join_by(species_common_name, survey_abbrev))
+
+mla <- filter(mla, restr_clean == "Shrunk survey domain")
+mla <- filter(mla, prop_mpa > 0.1)
+mla <- mla |> mutate(restr_clean = "Shrunk ALL")
+
+metrics_long_keep <- semi_join(metrics_long, select(mla, survey_abbrev, species_common_name))
+.dat <- bind_rows(metrics_long_keep, mla)
+
+.dat <- filter(.dat, !(survey_abbrev == "SYN WCHG" & restr_clean == "Shrunk ALL")) # same!
+
+make_dotplot(.dat, prop_mpa_filter = 0, exclude_extrapolation = TRUE, colour_var = restr_clean, show_prop_mpa = FALSE, dodge_points = TRUE) +
+  scale_colour_brewer(palette = "Set1", labels = c("Restrict within all existing MPAs", "Restrict only within Cat. 1 + 2 MPAs")) +
+  guides(colour = guide_legend()) +
+  labs(colour = "Scenario")
+
+ggsave("figs/metric-dotplot-all-vs-cat12.pdf", width = 7.8, height = 9)

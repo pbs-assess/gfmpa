@@ -1,6 +1,6 @@
 library(dplyr)
 library(ggplot2)
-ggplot2::theme_set(ggsidekick::theme_sleek())
+source("analysis/theme.R")
 
 index <- readRDS("data-generated/index-filtered.rds")
 metrics <- readRDS("data-generated/metrics-wide.rds")

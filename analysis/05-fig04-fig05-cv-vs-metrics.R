@@ -1,6 +1,6 @@
 library(dplyr)
 library(ggplot2)
-ggplot2::theme_set(ggsidekick::theme_sleek())
+source("analysis/theme.R")
 metrics_long <- readRDS("data-generated/metrics-long.rds")
 metrics_wide <- readRDS("data-generated/metrics-wide.rds")
 
