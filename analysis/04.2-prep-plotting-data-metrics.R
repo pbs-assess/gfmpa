@@ -45,9 +45,9 @@ x_long <- x |>
 dd1b <- cv_long2 |>
   group_by(survey_abbrev, species_common_name, `Restriction type`) |>
   summarise(
-    lwr = quantile(`CV change`, 0.025),
-    upr = quantile(`CV change`, 0.975),
-    est = mean(`CV change`),
+    lwr = quantile(`CV change` * 100, 0.025),
+    upr = quantile(`CV change` * 100, 0.975),
+    est = median(`CV change` * 100),
     .groups = "drop_last"
   ) |>
   ungroup() |>
@@ -79,6 +79,10 @@ cvdata2 <- filter(cvdata2, !is.na(restr_clean))
 
 cvdata <- bind_rows(cvdata1, cvdata2)
 cvdata <- mutate(cvdata, species_common_name = gsub("Rougheye/Blackspotted Rockfish Complex", "Rougheye/Blackspotted Rockfish", species_common_name))
+
+# exclude any that were filtered on orig CV > 1
+incl <- select(index, species_common_name, survey_abbrev) |> distinct()
+cvdata <- semi_join(cvdata, incl)
 
 saveRDS(cvdata, file = "data-generated/metrics-wide.rds")
 

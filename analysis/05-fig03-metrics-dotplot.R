@@ -13,6 +13,8 @@ mround <- function(x, digits) {
   sprintf(paste0("%.", digits, "f"), round(x, digits))
 }
 
+metrics_long$survey_abbrev <- gsub("SYN QCS, SYN HS", "SYN QCS/HS", metrics_long$survey_abbrev)
+
 make_dotplot <- function(
     .data, prop_mpa_filter = 0.1, exclude_extrapolation = TRUE,
     colour_var = survey_abbrev, show_prop_mpa = TRUE, dodge_points = FALSE) {
@@ -33,7 +35,7 @@ make_dotplot <- function(
       levels = c(
         "SYN WCHG",
         "HBLL OUT N",
-        "SYN QCS, SYN HS"
+        "SYN QCS/HS"
       )
     )) |>
     arrange(survey_abbrev, prop_mpa, species_common_name)
@@ -43,7 +45,7 @@ make_dotplot <- function(
       spp_lab_plot =
         paste0(
           stringr::str_to_title(species_common_name), " (",
-          mround(prop_mpa, 2), ")"
+          mround(max(prop_mpa), 2), ")"
         )
     )
   } else {
@@ -91,7 +93,7 @@ make_dotplot <- function(
   # g
   # not sure why but egg didn't work here
   # devtools::install_github("eliocamp/tagger")
-  g <- g + tagger::tag_facets(tag_prefix = "(", position = "tl")
+  g <- g + tagger::tag_facets(tag_prefix = "(", position = "tl", tag = "panel", tag_pool = letters[c(1, 4, 7, 2, 5, 8, 3, 6, 9)])
   # print(g)
   g
 }
@@ -113,17 +115,18 @@ m <- select(mla_wide, survey_abbrev, species_common_name, cv_orig, prop_mpa) |>
 mla <- mla |> left_join(m, by = join_by(species_common_name, survey_abbrev))
 
 mla <- filter(mla, restr_clean == "Shrunk survey domain")
-mla <- filter(mla, prop_mpa > 0.1)
+# mla <- filter(mla, prop_mpa > 0.1)
 mla <- mla |> mutate(restr_clean = "Shrunk ALL")
+mla$survey_abbrev <- gsub("SYN QCS, SYN HS", "SYN QCS/HS", mla$survey_abbrev)
 
 metrics_long_keep <- semi_join(metrics_long, select(mla, survey_abbrev, species_common_name))
 .dat <- bind_rows(metrics_long_keep, mla)
 
 .dat <- filter(.dat, !(survey_abbrev == "SYN WCHG" & restr_clean == "Shrunk ALL")) # same!
 
-make_dotplot(.dat, prop_mpa_filter = 0, exclude_extrapolation = TRUE, colour_var = restr_clean, show_prop_mpa = FALSE, dodge_points = TRUE) +
+make_dotplot(.dat, prop_mpa_filter = 0, exclude_extrapolation = TRUE, colour_var = restr_clean, show_prop_mpa = TRUE, dodge_points = TRUE) +
   scale_colour_brewer(palette = "Set1", labels = c("Restrict within all existing MPAs", "Restrict only within Cat. 1 + 2 MPAs")) +
   guides(colour = guide_legend()) +
   labs(colour = "Scenario")
 
-ggsave("figs/metric-dotplot-all-vs-cat12.pdf", width = 7.8, height = 9)
+ggsave("figs/metric-dotplot-all-vs-cat12.pdf", width = 7.8, height = 11)

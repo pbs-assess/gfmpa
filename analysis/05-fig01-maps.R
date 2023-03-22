@@ -187,58 +187,121 @@ names(.pal) <-
     "SYN QCS",
     "SYN HS")
 
-(g <- all %>%
+
+
+pt_size <- 0.15
+all %>%
     ggplot() +
-    geom_tile(aes(X, Y, fill = survey_abbrev), alpha = 0.45, width=2, height=2) +
-    geom_tile(aes(X, Y), alpha = 0.45, width=2, height=2, data = all_rest, fill = r_col) +
-    # geom_tile(aes(X, Y, fill = restricted), alpha = 0.45, width=2, height=2) +
+    geom_tile(aes(X, Y, fill = survey_abbrev), alpha = 0.2, width=2, height=2) +
+    geom_tile(aes(X, Y), alpha = 1, width=2, height=2, data = all_rest, fill = "black") +
+    # geom_tile(aes(X, Y, fill = restricted), alpha = 0.4, width=2, height=2) +
     geom_polygon(
       data = coast, aes(x = X, y = Y, group = PID),
-      fill = "grey87", col = "grey70", lwd = 0.2
+      fill = "grey70", col = "grey70", lwd = 0
     ) +
-    geom_point(data = dat, aes(X, Y, colour = survey_abbrev), size = 0.1) +
-    geom_point(data = dat_hbll, aes(X, Y, colour = survey_abbrev), size = 0.1) +
-    geom_point(data = dat_rest, aes(X, Y), size = 0.1, col = r_col) +
-    geom_point(data = dat_hbll_rest, aes(X, Y), size = 0.1, col = r_col) +
+    geom_point(data = dat, aes(X, Y, colour = survey_abbrev), size = pt_size) +
+    geom_point(data = dat_hbll, aes(X, Y, colour = survey_abbrev), size = pt_size) +
+    # geom_point(data = dat_rest, aes(X, Y), size = pt_size * 1, col = "white") +
+    geom_point(data = dat_rest, aes(X, Y, colour = survey_abbrev), size = pt_size * 0.5) +
+    # geom_point(data = dat_hbll_rest, aes(X, Y), size = pt_size * 1, col = "white") +
+    geom_point(data = dat_hbll_rest, aes(X, Y, colour = survey_abbrev), size = pt_size * 0.5) +
     # scale_fill_brewer("Restricted", palette = "Set3", direction = -1) +
     scale_fill_manual("Survey", values = .pal) +
     # scale_colour_manual("Restricted", values = c("#2166AC", "#B2182B")) +
     scale_colour_manual("Survey", values = .pal) +
     coord_fixed(xlim = c(180, 590), ylim = c(5640, 6050)) +
     theme(legend.position=c(0.15,0.15)) +
-    xlab("Easting (km)") + ylab("Northing (km)"))
+    xlab("Easting (km)") + ylab("Northing (km)")
 
-ggsave("figs/restricted-grid.png", width = 6, height = 6)
+# ggsave("figs/restricted-grid.png", width = 6, height = 6, dpi = 180)
+# ggsave("figs/restricted-grid.pdf", width = 6, height = 6)
+
+# pretty version?
+
+map_data <- rnaturalearth::ne_countries(
+  scale = "large",
+  returnclass = "sf", country = "canada")
+bc_coast <- suppressWarnings(suppressMessages(
+  st_crop(map_data,
+    c(xmin = -134, ymin = 50, xmax = -127, ymax = 55))))
+utm_zone9 <- 3156
+bc_coast_proj <- sf::st_transform(bc_coast, crs = utm_zone9)
+
+.padding <- 1000
+.xlim <- range(all$X) * 1000 + c(-.padding, .padding)
+.ylim <- range(all$Y) * 1000 + c(-.padding, .padding)
+
+make_map <- function(.dat) {
+  ggplot() +
+    geom_tile(data = all, mapping = aes(X * 1000, Y * 1000, fill = survey_abbrev), alpha = 0.3, width = 2000, height = 2000) +
+    geom_tile(data = .dat, mapping = aes(X * 1000, Y * 1000), alpha = 1, width = 2000, height = 2000, fill = "black") +
+    geom_point(data = dat, aes(X * 1000, Y * 1000, colour = survey_abbrev), size = pt_size) +
+    geom_point(data = dat_hbll, aes(X * 1000, Y * 1000, colour = survey_abbrev), size = pt_size) +
+    geom_point(data = dat_rest, aes(X * 1000, Y * 1000, colour = survey_abbrev), size = pt_size * 0.5, alpha = 0.6) +
+    geom_point(data = dat_hbll_rest, aes(X * 1000, Y * 1000, colour = survey_abbrev), size = pt_size * 0.5, alpha = 0.6) +
+    theme_light() +
+    geom_sf(data = bc_coast_proj, colour = "grey80", fill = "grey80", linewidth = 0.25) +
+    coord_sf(xlim = .xlim, ylim = .ylim, crs = 3156) +
+    labs(fill = "Predicted\ndensity") +
+    labs(x = "Longitude", y = "Latitude") +
+    scale_fill_manual("Survey", values = .pal) +
+    scale_colour_manual("Survey", values = .pal) +
+    theme(legend.position = c(0.15, 0.15)) +
+    annotate(geom = "text", x = max(.xlim) - 100000, y = max(.ylim) - 50000, label = "British Columbia", size = 4, colour = "grey10", hjust = 0, vjust = 1) +
+    annotate(geom = "text", x = max(.xlim) - 310000, y = max(.ylim) - 85000, label = "Haida Gwaii", size = 4, colour = "grey10", hjust = 0.5, vjust = 0.5) +
+    ggspatial::annotation_scale(
+      location = "bl",
+      pad_x = unit(1.5, "in"), pad_y = unit(0.2, "in"),
+      bar_cols = c("grey80", "white"), line_width = 0.5
+    ) +
+    ggspatial::annotation_north_arrow(
+      location = "tr", which_north = "true",
+      pad_x = unit(0, "in"), pad_y = unit(0.05, "in"),
+      height = unit(1.2, "cm"),
+      width = unit(1.2, "cm"),
+      style = ggspatial::north_arrow_nautical(
+        fill = c("grey40", "white"),
+        line_col = "grey20"
+      ))
+}
+g <- make_map(all_rest)
+ggsave("figs/restricted-grid.pdf", width = 5.4, height = 5.4)
+
+
+###########################################
 
 # asis
 trawl_asis <- readRDS("data-generated-ALL/syn-grid-w-restr.rds") %>% filter(year == 2018) %>% select(-year) |> filter(restricted)
 hbll_asis <- readRDS("data-generated-ALL/hbll-n-grid-w-restr.rds") %>% filter(year == 2019) %>% select(-year)|> filter(restricted)
 all_asis <- bind_rows(trawl_asis, hbll_asis)
-
 asis <- all_asis |> anti_join(select(all_rest, X, Y))
 
-(g <- all %>%
-    ggplot() +
-    geom_tile(aes(X, Y, fill = survey_abbrev), alpha = 0.45, width=2, height=2) +
-    geom_tile(aes(X, Y), alpha = 0.75, width=2, height=2, data = asis, fill = r_col) +
-    # geom_tile(aes(X, Y, fill = restricted), alpha = 0.45, width=2, height=2) +
-    geom_polygon(
-      data = coast, aes(x = X, y = Y, group = PID),
-      fill = "grey87", col = "grey70", lwd = 0.2
-    ) +
-    geom_point(data = dat, aes(X, Y, colour = survey_abbrev), size = 0.1) +
-    geom_point(data = dat_hbll, aes(X, Y, colour = survey_abbrev), size = 0.1) +
-    # geom_point(data = dat_rest, aes(X, Y), size = 0.1, col = r_col) +
-    # geom_point(data = dat_hbll_rest, aes(X, Y), size = 0.1, col = r_col) +
-    # scale_fill_brewer("Restricted", palette = "Set3", direction = -1) +
-    scale_fill_manual("Survey", values = .pal) +
-    # scale_colour_manual("Restricted", values = c("#2166AC", "#B2182B")) +
-    scale_colour_manual("Survey", values = .pal) +
-    coord_fixed(xlim = c(180, 590), ylim = c(5640, 6050)) +
-    theme(legend.position=c(0.15,0.15)) +
-    xlab("Easting (km)") + ylab("Northing (km)"))
+g <- make_map(asis)
+ggsave("figs/asis-grid.pdf", width = 5.4, height = 5.4)
 
-ggsave("figs/asis-grid.png", width = 6, height = 6)
+g <- all %>%
+  ggplot() +
+  geom_tile(aes(X, Y, fill = survey_abbrev), alpha = 0.45, width=2, height=2) +
+  geom_tile(aes(X, Y), alpha = 0.75, width=2, height=2, data = asis, fill = r_col) +
+  # geom_tile(aes(X, Y, fill = restricted), alpha = 0.45, width=2, height=2) +
+  geom_polygon(
+    data = coast, aes(x = X, y = Y, group = PID),
+    fill = "grey87", col = "grey70", lwd = 0.2
+  ) +
+  geom_point(data = dat, aes(X, Y, colour = survey_abbrev), size = 0.1) +
+  geom_point(data = dat_hbll, aes(X, Y, colour = survey_abbrev), size = 0.1) +
+  # geom_point(data = dat_rest, aes(X, Y), size = 0.1, col = r_col) +
+  # geom_point(data = dat_hbll_rest, aes(X, Y), size = 0.1, col = r_col) +
+  # scale_fill_brewer("Restricted", palette = "Set3", direction = -1) +
+  scale_fill_manual("Survey", values = .pal) +
+  # scale_colour_manual("Restricted", values = c("#2166AC", "#B2182B")) +
+  scale_colour_manual("Survey", values = .pal) +
+  coord_fixed(xlim = c(180, 590), ylim = c(5640, 6050)) +
+  theme(legend.position=c(0.15,0.15)) +
+  xlab("Easting (km)") + ylab("Northing (km)")
+
+ggsave("figs/asis-grid.png", width = 6, height = 6, dpi = 180)
+ggsave("figs/asis-grid.pdf", width = 6, height = 6)
 
 # without the proposed restrictions
 # add existing restrictions
