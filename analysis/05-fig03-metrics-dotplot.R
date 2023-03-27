@@ -24,9 +24,9 @@ make_dotplot <- function(
     dat <- filter(dat, restr_clean != "Same survey domain")
   } else { # show both types but exlcude some HUGE ones
     dat <- dat |>
-      mutate(est = ifelse(grepl("CV", measure) & est >= 5, 5, est)) |>
-      mutate(upr = ifelse(grepl("CV", measure) & upr >= 5, 5, upr)) |>
-      mutate(lwr = ifelse(grepl("CV", measure) & lwr >= 5, 5, lwr))
+      mutate(est = ifelse(grepl("CV", measure) & est >= 500, 500, est)) |>
+      mutate(upr = ifelse(grepl("CV", measure) & upr >= 500, 500, upr)) |>
+      mutate(lwr = ifelse(grepl("CV", measure) & lwr >= 500, 500, lwr))
   }
 
   dat <- dat |>
