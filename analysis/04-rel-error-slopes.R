@@ -272,6 +272,18 @@ for (survey in c("HBLL", "SYN")) {
     left_join(., cvraw) %>%
     left_join(., prop_mpa)
 
+  # grab trend for each species:
+  trends_squo <- filter(index, type == "Status quo") |>
+    group_by(species_common_name, survey_abbrev) |>
+    group_split() |>
+    purrr::map_dfr(function(.x) {
+      m <- lm(log_est ~ I(year * 10), data = .x)
+      data.frame(species_common_name = unique(.x$species_common_name), survey_abbrev = unique(.x$survey_abbrev), slope_squo_decade = coef(m)[[2]])
+    })
+
+  cvdata <- left_join(cvdata, trends_squo)
+
+
   if (survey == "HBLL") saveRDS(cvdata, "data-generated/hbll-cv-w-lm-slopes.rds")
   if (survey == "SYN") saveRDS(cvdata, "data-generated/syn-cv-w-lm-slopes.rds")
 

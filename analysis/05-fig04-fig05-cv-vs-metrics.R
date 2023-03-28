@@ -4,7 +4,7 @@ source("analysis/theme.R")
 metrics_long <- readRDS("data-generated/metrics-long.rds")
 metrics_wide <- readRDS("data-generated/metrics-wide.rds")
 
-m <- select(metrics_wide, survey_abbrev, species_common_name, cv_orig, prop_mpa) |>
+m <- select(metrics_wide, survey_abbrev, species_common_name, cv_orig, prop_mpa, slope_squo_decade) |>
   distinct()
 
 metrics_long <- metrics_long |>
@@ -85,3 +85,30 @@ x <- metrics_long |>
   filter(restr_clean %in% "Shrunk survey domain") |>
   filter(grepl("CV", measure) & est <= 0)
 min(x$est)
+
+# metrics_long |>
+#   filter(restr_clean %in% "Shrunk survey domain") |>
+#   # mutate(est = ifelse(grepl("trend", measure), abs(est), est)) |>
+#   mutate(measure = ifelse(grepl("trend", measure), "RE trend\n(absolute trend bias)", measure)) |>
+#   # mutate(est = ifelse(grepl("CV", measure) & est <= 0, 0.01, est)) |>
+#   # filter(est = ifelse(grepl("CV", measure) & est <= 0) |>
+#   # mutate(est = ifelse(grepl("CV", measure) & est <= 0, 999, est)) |>
+#   mutate(measure = factor(measure, levels =
+#       c("% increase CV\n(precision loss)",
+#         "MARE\n(accuracy loss)",
+#         "RE trend\n(absolute trend bias)"
+#       ))) |>
+#   ggplot(
+#     aes(slope_squo_decade, est, colour = survey_abbrev)
+#   ) +
+#   geom_point(pch = 21, alpha = 1) +
+#   scale_y_continuous(lim = c(0, NA), expand = expansion(mult = c(0.015, .04))) +
+#   geom_point(pch = 19, alpha = 0.2) +
+#   xlab("Slope status quo per decade") +
+#   guides(shape = "none") +
+#   scale_colour_manual(name = "Survey", values = restricted_cols) +
+#   facet_grid(
+#     rows = vars(measure),
+#     switch = "y",
+#     scales = "free_y"
+#   )
