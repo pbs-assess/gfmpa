@@ -162,6 +162,8 @@ calc_indices <- function(spp, survey) {
     )
     i$species_common_name <- spp
     i$survey_abbrev <- paste(survey, collapse = ", ")
+    i$family <- paste(as.character(mi$family$family), collapse = "-")
+    i$spatiotemporal <- paste(as.character(mi$spatiotemporal), collapse = ", ")
     saveRDS(i, paste0("data-generated/indexes/", spp_file, "-", surv_file, ".rds"))
 
   } else {
