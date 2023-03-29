@@ -1,0 +1,170 @@
+library(ggplot2)
+library(sf)
+library(dplyr)
+
+# calculate design-based biomass estimate from output of get_survey_sets()
+calc_bio <- function(dat, i = seq_len(nrow(dat))) {
+  dat[i, ] |>
+    group_by(year, survey_abbrev, area_km2, grouping_code) |>
+    summarise(density = mean(density_kgpm2 * 1e6), .groups = "drop_last") |>
+    group_by(year) |>
+    summarise(
+      survey_abbrev = dat$survey_abbrev[1],
+      species_common_name = dat$species_common_name[1],
+      est = sum(density * area_km2), .groups = "drop"
+    )
+}
+
+calc_bio_one_year <- function(dat, i = seq_len(nrow(dat))) {
+  d <- dat[i, ] |>
+    group_by(grouping_code, area_km2) |>
+    summarise(density = mean(density_kgpm2), .groups = "drop")
+  sum(d$density * d$area_km2)
+}
+
+bootstrap_one_year <- function(x, reps) {
+  b <- boot::boot(x,
+    statistic = calc_bio_one_year, strata = x$grouping_code,
+    R = reps
+  )
+  suppressWarnings(bci <- boot::boot.ci(b, type = "perc"))
+  tibble::tibble(
+    survey_abbrev = x$survey_abbrev[1],
+    year = x$year[1],
+    est = mean(b$t),
+    lwr = bci$percent[[4]],
+    upr = bci$percent[[5]],
+    cv = sd(b$t) / mean(b$t)
+  )
+}
+
+boot_biomass_furrr <- function(dat, reps = 500L) {
+  dat |>
+    group_split(year) %>%
+    furrr::future_map_dfr(bootstrap_one_year,
+      reps = reps,
+      .options = furrr::furrr_options(seed = TRUE)
+    )
+}
+
+surv_dat <- readRDS("data-generated/dat_to_fit.rds")
+# surv_dat <- readRDS("data-generated/dat_to_fit_hbll.rds")
+
+areas <- readRDS("data-generated/stratum-areas.rds") |>
+  rename(status_quo_area = area, post_nsb_area = area_nsb)
+surv_dat <- left_join(surv_dat, areas)
+surv_dat$area_km2 <- NULL # filled later
+
+dat_status_quo_list <- surv_dat |>
+  rename(area_km2 = status_quo_area) |>
+  group_by(species_common_name, survey_abbrev) |>
+  group_split()
+
+dat_nsb_list <- surv_dat |>
+  rename(area_km2 = post_nsb_area) |>
+  filter(!restricted) |>
+  group_by(species_common_name, survey_abbrev) |>
+  group_split()
+
+boot_status_quo <- purrr::map_dfr(dat_status_quo_list, function(.x) {
+  out <- boot_biomass_furrr(.x, reps = 1000L)
+  out$species_common_name <- .x$species_common_name[1]
+  select(out, survey_abbrev, species_common_name, everything())
+})
+
+boot_nsb <- purrr::map_dfr(dat_nsb_list, function(.x) {
+  out <- boot_biomass_furrr(.x, reps = 2000L)
+  out$species_common_name <- .x$species_common_name[1]
+  select(out, survey_abbrev, species_common_name, everything())
+})
+
+# Design-based estimators:
+
+# working through Cochran 1977:
+# https://ia801409.us.archive.org/35/items/Cochran1977SamplingTechniques_201703/Cochran_1977_Sampling%20Techniques.pdf
+# p. 95
+# https://umaine.edu/chenlab/wp-content/uploads/sites/185/2016/08/Xu-et-al-2015.pdf
+library(survey)
+d <- dat_status_quo_list[[2]]
+d <- filter(d, year == 2005)
+d$dens <- d$density_kgpm2 * 1e6
+mydesign <- svydesign(id = ~ 1, strata = ~ grouping_code, data = d, fpc = ~ area_km2)
+s <- svymean(~ dens, design = mydesign)
+
+tot_area <- distinct(select(d, area_km2)) |> pull(area_km2) |> sum()
+
+d |>
+  group_by(year, survey_abbrev, area_km2, grouping_code) |>
+  summarise(density = mean(density_kgpm2 * 1e6), .groups = "drop_last") |>
+  group_by(year) |>
+  summarise(
+    est = sum(density * area_km2), .groups = "drop"
+  )
+
+s[[1]] * tot_area
+
+svytotal(~dens, design = mydesign)
+
+
+n_h <- group_by(d, grouping_code) |>
+  summarise(n_h = n()) |> pull(n_h)
+
+N_h <- group_by(d, grouping_code) |>
+  summarise(area = area_km2[1]) |> pull(area)
+
+var_h <- group_by(d, grouping_code) |>
+  summarise(v = var(dens)) |> pull(v)
+
+cochran_var <- function(N_h, n_h, var_h, total = FALSE) {
+  N <- sum(N_h)
+  e1 <- 1 / N^2
+  e2 <- 0
+  for (i in seq_along(N_h)) {
+    e2 <- e2 + N_h[i] * (N_h[i] - n_h[i]) * (var_h[i] / n_h[i])
+  }
+  if (total) {
+    return(e2)
+  } else {
+    return(e1 * e2)
+  }
+}
+
+svymean(~dens, design = mydesign)
+sqrt(cochran_var(N_h, n_h, var_h))
+
+svytotal(~dens, design = mydesign)
+W_h <- N_h / sum(N_h)
+co <- cochran_var(N_h, n_h, var_h)
+sqrt(co * sum(N_h)^2)
+sqrt(cochran_var(N_h, n_h, var_h, total = TRUE))
+
+run_cochran_var <- function(dat) {
+  n_h <- group_by(dat, grouping_code) |>
+    summarise(n_h = n()) |> pull(n_h)
+  N_h <- group_by(dat, grouping_code) |>
+    summarise(area = area_km2[1]) |> pull(area)
+  var_h <- group_by(dat, grouping_code) |>
+    summarise(v = var(dens)) |> pull(v)
+  sqrt(cochran_var(N_h, n_h, var_h, total = TRUE))
+}
+run_cochran_var(d)
+
+run_strat_stats <- function(dat) {
+  dat <- mutate(dat, dens = density_kgpm2 * 1e6)
+  mydesign <- survey::svydesign(id = ~ 1,
+    strata = ~ grouping_code, data = dat, fpc = ~ area_km2)
+  x <- survey::svytotal(~ dens, design = mydesign)
+  data.frame(total = x[[1]], se = as.numeric(sqrt(attr(x, "var"))))
+}
+
+out <- surv_dat |>
+  rename(area_km2 = status_quo_area) |>
+  group_by(species_common_name, survey_abbrev, year) |>
+  group_split() |>
+  purrr::map_dfr(~ {
+    tibble(run_strat_stats(.x), species_common_name = .x$species_common_name[1], survey_abbrev = .x$survey_abbrev[1],
+      year = .x$year[1])
+  }) |>
+  mutate(cv = se / total) |>
+  select(survey_abbrev, species_common_name, year, everything())
+
