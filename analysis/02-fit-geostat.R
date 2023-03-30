@@ -5,7 +5,7 @@ theme_set(theme_light())
 # spp <- "big skate"
 # spp <- "pacific cod"
 # survey <- "SYN WCHG"
-SILENT <- FALSE
+SILENT <- TRUE
 
 dir.create("figs/raw-data-maps", showWarnings = FALSE)
 dir.create("figs/indexes", showWarnings = FALSE)

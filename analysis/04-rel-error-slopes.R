@@ -203,6 +203,9 @@ coefs <- re_long |> group_by(survey_abbrev, species_common_name) |>
       )
     })
 
+cvraw <- filter(cvraw, !is.na(restr_clean))
+cvratio2 <- filter(cvratio2, !is.na(restr_clean))
+
 # join everything together
 cvdata <- left_join(cvratio2, mare2) |>
     left_join(coefs) |>
