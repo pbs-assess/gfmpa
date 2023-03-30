@@ -224,13 +224,13 @@ ggplot(together, aes(cv_orig_boot, cv_orig_geo, colour = survey_abbrev)) +
   labs(colour = "Survey", fill = "Survey")
 ggsave("figs/boot-vs-geo-cv.pdf", width = 5, height = 4)
 
-compare_geo_boot <- function(compare_col, restr_type = "re_shrunk") {
+compare_geo_boot <- function(compare_col, dat = metrics_wide, restr_type = "re_shrunk") {
 
-  geo <- filter(metrics_wide, est_type == "geostat", `Restriction type` == restr_type) |>
+  geo <- filter(dat, est_type == "geostat", `Restriction type` == restr_type) |>
     select(survey_abbrev, species_common_name, cv_orig_geo = cv_orig, geo = {{compare_col}}) |>
     filter(survey_abbrev != "SYN QCS, SYN HS") |>
     distinct()
-  bootstrap <- filter(metrics_wide, est_type == "bootstrap", `Restriction type` == restr_type) |>
+  bootstrap <- filter(dat, est_type == "bootstrap", `Restriction type` == restr_type) |>
     select(survey_abbrev, species_common_name, design = {{compare_col}}) |> distinct()
   together <- left_join(geo, bootstrap)
   together <- together[together$cv_orig_geo < 0.6, ] # FIXME!?
@@ -246,16 +246,46 @@ compare_geo_boot <- function(compare_col, restr_type = "re_shrunk") {
     coord_fixed() +
     labs(colour = "Survey", fill = "Survey") +
     ggrepel::geom_text_repel(aes(label = species_common_name),
-      show.legend = FALSE, size = 3)
+      show.legend = FALSE, size = 2.5, alpha = 0.6) +
+    theme(legend.position = c(0.2,0.8))
+    # theme(legend.position = "bottom", legend.direction = "vet")
 }
+
+
+ind <- readRDS("data-generated/index-filtered.rds")
+ind$est_type <- "geostat"
+ind_des <- readRDS("data-generated/stratified-random-design-all.rds")
+ind <- bind_rows(ind, ind_des) |>
+  filter(type == "Restricted and shrunk") |>
+  group_by(survey_abbrev, species_common_name, est_type) |>
+  summarise(mean_cv = mean(cv, na.rm = TRUE), cv_orig = mean(orig_cv, na.rm = TRUE)) |>
+  filter(survey_abbrev != "SYN QCS, SYN HS")
+ind
+ind$`Restriction type` <- "re_shrunk"
+ind$species_common_name <- stringr::str_to_title(ind$species_common_name)
+ind$cv_ratio <- ind$mean_cv / ind$cv_orig
 
 metrics_wide <- mutate(metrics_wide, abs_slope_re = abs(slope_re))
 
-compare_geo_boot(slope_re)
-compare_geo_boot(abs_slope_re)
-compare_geo_boot(cv_orig)
-compare_geo_boot(mare)
-compare_geo_boot(cv_ratio) + coord_fixed(ylim = c(0.8, 1.6))
+# compare_geo_boot(slope_re)
+g1 <- compare_geo_boot(abs_slope_re) +
+  ggtitle("Absolute RE slope")
+g2 <- compare_geo_boot(mare)+
+  ggtitle("MARE")
+# compare_geo_boot(cv_ratio, dat = ind)+ coord_fixed(ylim = c(0.9, 1.5), xlim = c(0.9, 1.5))
+g3 <- compare_geo_boot(cv_ratio) +
+  coord_fixed(ylim = c(0.9, 1.7), xlim = c(0.9, 1.7))+
+  ggtitle("Mean CV ratio")
+g4 <- compare_geo_boot(cv_orig) +
+  coord_fixed(ylim = c(0.08, 0.65), xlim = c(0.08, 0.65))+
+  ggtitle("CV status quo")
+g5 <- compare_geo_boot(mean_cv, dat = ind)+coord_fixed(ylim = c(0.08, 0.65), xlim = c(0.08, 0.65))+
+  ggtitle("CV restricted and shrunk")
 
+cowplot::plot_grid(g3, g2, g1, ncol = 3)
+ggsave("figs/boot-vs-geo-metrics.pdf", width = 12, height = 4)
+
+cowplot::plot_grid(g4, g5, ncol = 2)
+ggsave("figs/boot-vs-geo-cv.pdf", width = 9, height = 4)
 
 # ggsave("figs/boot-vs-geo-cv.pdf", width = 5, height = 4)
