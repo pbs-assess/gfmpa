@@ -1,6 +1,7 @@
 library(ggplot2)
-library(sf)
 library(dplyr)
+library(future)
+plan(multisession, workers = 8L)
 
 # calculate design-based biomass estimate from output of get_survey_sets()
 calc_bio <- function(dat, i = seq_len(nrow(dat))) {
@@ -23,6 +24,7 @@ calc_bio_one_year <- function(dat, i = seq_len(nrow(dat))) {
 }
 
 bootstrap_one_year <- function(x, reps) {
+  out <- tryCatch({
   b <- boot::boot(x,
     statistic = calc_bio_one_year, strata = x$grouping_code,
     R = reps
@@ -36,9 +38,21 @@ bootstrap_one_year <- function(x, reps) {
     upr = bci$percent[[5]],
     cv = sd(b$t) / mean(b$t)
   )
+  }, error = function(e) {
+    tibble::tibble(
+      survey_abbrev = x$survey_abbrev[1],
+      year = x$year[1],
+      est = mean(b$t),
+      lwr = NA_real_,
+      upr = NA_real_,
+      cv = NA_real_
+    )
+  })
+  out
 }
 
 boot_biomass_furrr <- function(dat, reps = 500L) {
+  set.seed(12830)
   dat |>
     group_split(year) %>%
     furrr::future_map_dfr(bootstrap_one_year,
@@ -47,8 +61,18 @@ boot_biomass_furrr <- function(dat, reps = 500L) {
     )
 }
 
+boot_biomass_purrr <- function(dat, reps = 500L) {
+  set.seed(12830)
+  dat |>
+    group_split(year) %>%
+    purrr::map_dfr(bootstrap_one_year,
+      reps = reps
+    )
+}
+
 surv_dat <- readRDS("data-generated/dat_to_fit.rds")
-# surv_dat <- readRDS("data-generated/dat_to_fit_hbll.rds")
+hbll <- readRDS("data-generated/dat_to_fit_hbll.rds")
+surv_dat <- bind_rows(surv_dat, hbll)
 
 areas <- readRDS("data-generated/stratum-areas.rds") |>
   rename(status_quo_area = area, post_nsb_area = area_nsb)
@@ -66,17 +90,44 @@ dat_nsb_list <- surv_dat |>
   group_by(species_common_name, survey_abbrev) |>
   group_split()
 
-boot_status_quo <- purrr::map_dfr(dat_status_quo_list, function(.x) {
-  out <- boot_biomass_furrr(.x, reps = 1000L)
-  out$species_common_name <- .x$species_common_name[1]
-  select(out, survey_abbrev, species_common_name, everything())
-})
+# boot_status_quo <- purrr::map_dfr(dat_status_quo_list, function(.x) {
+#   cat(.x$species_common_name[1], .x$survey_abbrev[1], "\n")
+#   out <- boot_biomass_furrr(.x, reps = 1000L)
+#   out$species_common_name <- .x$species_common_name[1]
+#   select(out, survey_abbrev, species_common_name, everything())
+# })
+#
+# boot_nsb <- purrr::map_dfr(dat_nsb_list, function(.x) {
+#   out <- boot_biomass_furrr(.x, reps = 1000L)
+#   out$species_common_name <- .x$species_common_name[1]
+#   select(out, survey_abbrev, species_common_name, everything())
+# })
 
-boot_nsb <- purrr::map_dfr(dat_nsb_list, function(.x) {
-  out <- boot_biomass_furrr(.x, reps = 2000L)
+# -----------
+
+xx <- system.time(boot_biomass_purrr(dat_status_quo_list[[1]], reps = 500L))
+cat("Expectation:",
+  round(length(dat_status_quo_list) * xx[[3]] / 60 / 6, 2),
+  "minutes\n"
+)
+
+tictoc::tic()
+boot_status_quo <- furrr::future_map_dfr(dat_status_quo_list, function(.x) {
+  out <- boot_biomass_purrr(.x, reps = 500L)
   out$species_common_name <- .x$species_common_name[1]
   select(out, survey_abbrev, species_common_name, everything())
-})
+}, .options = furrr::furrr_options(seed = TRUE), .progress = TRUE)
+tictoc::toc()
+
+tictoc::tic()
+boot_nsb <- furrr::future_map_dfr(dat_nsb_list, function(.x) {
+  out <- boot_biomass_purrr(.x, reps = 500L)
+  out$species_common_name <- .x$species_common_name[1]
+  select(out, survey_abbrev, species_common_name, everything())
+}, .options = furrr::furrr_options(seed = TRUE), .progress = TRUE)
+tictoc::toc()
+
+plan(sequential)
 
 # Design-based estimators:
 
@@ -84,6 +135,8 @@ boot_nsb <- purrr::map_dfr(dat_nsb_list, function(.x) {
 # https://ia801409.us.archive.org/35/items/Cochran1977SamplingTechniques_201703/Cochran_1977_Sampling%20Techniques.pdf
 # p. 95
 # https://umaine.edu/chenlab/wp-content/uploads/sites/185/2016/08/Xu-et-al-2015.pdf
+
+# testing:
 library(survey)
 d <- dat_status_quo_list[[2]]
 d <- filter(d, year == 2005)
@@ -104,7 +157,6 @@ d |>
 s[[1]] * tot_area
 
 svytotal(~dens, design = mydesign)
-
 
 n_h <- group_by(d, grouping_code) |>
   summarise(n_h = n()) |> pull(n_h)
@@ -154,7 +206,7 @@ run_strat_stats <- function(dat) {
   mydesign <- survey::svydesign(id = ~ 1,
     strata = ~ grouping_code, data = dat, fpc = ~ area_km2)
   x <- survey::svytotal(~ dens, design = mydesign)
-  data.frame(total = x[[1]], se = as.numeric(sqrt(attr(x, "var"))))
+  data.frame(est = x[[1]], se = as.numeric(sqrt(attr(x, "var"))))
 }
 
 out <- surv_dat |>
@@ -162,9 +214,13 @@ out <- surv_dat |>
   group_by(species_common_name, survey_abbrev, year) |>
   group_split() |>
   purrr::map_dfr(~ {
-    tibble(run_strat_stats(.x), species_common_name = .x$species_common_name[1], survey_abbrev = .x$survey_abbrev[1],
+    tibble(run_strat_stats(.x),
+      species_common_name = .x$species_common_name[1],
+      survey_abbrev = .x$survey_abbrev[1],
       year = .x$year[1])
   }) |>
-  mutate(cv = se / total) |>
+  mutate(cv = se / est, lwr = est - qnorm(0.975) * se, upr = est + qnorm(0.975)) |>
   select(survey_abbrev, species_common_name, year, everything())
 
+saveRDS(out, "data-generated/stratified-random-design-var.rds")
+saveRDS(out, "data-generated/stratified-random-design-var.rds")
