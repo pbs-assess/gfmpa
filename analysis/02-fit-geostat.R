@@ -30,22 +30,40 @@ calc_indices <- function(spp, survey) {
     grid$survey_abbrev <- "HBLL OUT N"
     grid$area <- 4
   }
+  updat <- readRDS("data-generated/upsampled-fitting-data.rds")
+  downdat <- readRDS("data-generated/downsampled-fitting-data.rds")
 
   surv_dat <- filter(surv_dat, survey_abbrev %in% survey, species_common_name == spp)
+  surv_dat_up <- filter(updat, survey_abbrev %in% survey, species_common_name == spp, upsample_seed == 1)
+  surv_dat_down <- filter(downdat, survey_abbrev %in% survey, species_common_name == spp, downsample_seed == 1)
+
   if (nrow(surv_dat) == 0L) return(NULL)
 
-  if (grepl("SYN", survey[[1]])) {
-    surv_dat$area_swept1 <- surv_dat$doorspread_m * surv_dat$tow_length_m
-    surv_dat$area_swept2 <- surv_dat$doorspread_m * surv_dat$duration_min * surv_dat$speed_mpm
-    surv_dat$area_swept <- ifelse(!is.na(surv_dat$tow_length_m),
-      surv_dat$area_swept1, surv_dat$area_swept2
+  prep_cols_syn <- function(d) {
+    d$area_swept1 <- d$doorspread_m * d$tow_length_m
+    d$area_swept2 <- d$doorspread_m * d$duration_min * d$speed_mpm
+    d$area_swept <- ifelse(!is.na(d$tow_length_m),
+      d$area_swept1, d$area_swept2
     )
-    surv_dat <- dplyr::filter(surv_dat, !is.na(area_swept))
-    surv_dat$offset <- log(surv_dat$area_swept * 0.00001)
-    surv_dat$response <- surv_dat$catch_weight
+    d <- dplyr::filter(d, !is.na(area_swept))
+    d$offset <- log(d$area_swept * 0.00001)
+    d$response <- d$catch_weight
+    d
+  }
+  prep_cols_hbll <- function(d) {
+    d$offset <- log(d$hook_count)
+    d$response <- d$catch_count
+    d
+  }
+
+  if (grepl("SYN", survey[[1]])) {
+    surv_dat <- prep_cols_syn(surv_dat)
+    surv_dat_up <- prep_cols_syn(surv_dat_up)
+    surv_dat_down <- prep_cols_syn(surv_dat_down)
   } else {
-    surv_dat$offset <- log(surv_dat$hook_count)
-    surv_dat$response <- surv_dat$catch_count
+    surv_dat <- prep_cols_hbll(surv_dat)
+    surv_dat_up <- prep_cols_hbll(surv_dat_up)
+    surv_dat_down <- prep_cols_hbll(surv_dat_down)
   }
 
   g <- ggplot(surv_dat, aes(X, Y, colour = restricted, size = response / exp(offset))) +
@@ -68,6 +86,8 @@ calc_indices <- function(spp, survey) {
 
     mesh_all <- make_mesh(surv_dat, xy_cols = c("X", "Y"), cutoff = 10)
     mesh_restr <- make_mesh(surv_dat_r, xy_cols = c("X", "Y"), mesh = mesh_all$mesh)
+    mesh_up <- make_mesh(surv_dat_up, xy_cols = c("X", "Y"), mesh = mesh_all$mesh)
+    mesh_down <- make_mesh(surv_dat_down, xy_cols = c("X", "Y"), mesh = mesh_all$mesh)
 
     mi <- list(
       spatiotemporal = list("iid", "iid"),
@@ -129,7 +149,37 @@ calc_indices <- function(spp, survey) {
     )})
     sanity_all <- all(unlist(sanity(fit_all)))
 
-    if (!sanity_all || !sanity_restr) {
+    fit_up <- try({sdmTMB(
+      formula = response ~ 0 + as.factor(year),
+      data = surv_dat_up,
+      family = mi$family,
+      time = "year",
+      spatiotemporal = mi$spatiotemporal,
+      offset = "offset",
+      mesh = mesh_up,
+      anisotropy = FALSE,
+      priors = priors,
+      silent = SILENT,
+      control = sdmTMBcontrol(newton_loops = 1L),
+    )})
+    sanity_up <- all(unlist(sanity(fit_up)))
+
+    # fit_down <- try({sdmTMB(
+    #   formula = response ~ 0 + as.factor(year),
+    #   data = surv_dat_down,
+    #   family = mi$family,
+    #   time = "year",
+    #   spatiotemporal = mi$spatiotemporal,
+    #   offset = "offset",
+    #   mesh = mesh_down,
+    #   anisotropy = FALSE,
+    #   priors = priors,
+    #   silent = SILENT,
+    #   control = sdmTMBcontrol(newton_loops = 1L),
+    # )})
+    # sanity_down <- all(unlist(sanity(fit_down)))
+
+    if (!sanity_all || !sanity_restr || !sanity_up) {
       saveRDS(NULL, paste0("data-generated/indexes/", spp_file, "-", surv_file, ".rds"))
       return(NULL)
     }
@@ -153,11 +203,19 @@ calc_indices <- function(spp, survey) {
     prs <- predict(fit_restr, newdata = gr_remaining, return_tmb_object = TRUE)
     indrs <- get_index(prs, bias_correct = TRUE)
 
+    # p_down <- predict(fit_down, newdata = gr_remaining, return_tmb_object = TRUE)
+    # ind_down <- get_index(p_down, bias_correct = TRUE)
+
+    p_up <- predict(fit_up, newdata = gr_remaining, return_tmb_object = TRUE)
+    ind_up <- get_index(p_up, bias_correct = TRUE)
+
     i <- bind_rows(
       mutate(ind, type = "Status quo"),
       mutate(indr, type = "Restricted"),
       mutate(indrs, type = "Restricted and shrunk"),
       mutate(indmpa, type = "MPA only"),
+      mutate(ind_up, type = "Restricted, shrunk, up-sampled"),
+      # mutate(ind_down, type = "Restricted, shrunk, random down-sampled"),
       mutate(indmpa_restr, type = "MPA only restricted")
     )
     i$species_common_name <- spp
@@ -194,28 +252,36 @@ calc_indices <- function(spp, survey) {
 
 source("analysis/spp.R")
 
-syn_survs <- c("SYN WCHG", "SYN QCS|SYN HS")
-syn_survs2 <- c("SYN WCHG", "SYN QCS", "SYN HS")
+syn_survs <- c("SYN WCHG", "SYN QCS|SYN HS", "SYN QCS", "SYN HS")
 
 library(future)
 is_rstudio <- !is.na(Sys.getenv("RSTUDIO", unset = NA))
 is_unix <- .Platform$OS.type == "unix"
-# cores <- parallel::detectCores() - 2L
-cores <- 8L
+cores <- round(parallel::detectCores()/2) + 2
 if (!is_rstudio && is_unix) plan(multicore, workers = cores) else plan(multisession, workers = cores)
 
 to_fit <- expand_grid(spp = syn_highlights, survey = syn_survs)
-# calc_indices(spp = syn_highlights[1], survey = syn_survs[1])
-# purrr::pmap(to_fit, calc_indices)
-furrr::future_pmap(to_fit, calc_indices)
 
-to_fit <- expand_grid(spp = syn_highlights, survey = syn_survs2)
+## test:
+# calc_indices(spp = syn_highlights[1], survey = syn_survs[1])
+# x <- readRDS("data-generated/indexes/arrowtooth-flounder-SYN-WCHG.rds")
+# x |> filter(type != "MPA only", type != "MPA only restricted", type != "Restricted") |>
+#   ggplot(aes(year, se, colour = type)) + geom_point() + geom_line()
+
+# purrr::pmap(to_fit, calc_indices)
 furrr::future_pmap(to_fit, calc_indices)
 
 to_fit <- expand_grid(spp = hbll_highlights, survey = "HBLL OUT N")
+## test:
 # calc_indices(spp = hbll_highlights[1], survey = "HBLL OUT N")
+# x <- readRDS("data-generated/indexes/arrowtooth-flounder-HBLL-OUT-N.rds")
+# x |> filter(type != "MPA only", type != "MPA only restricted", type != "Restricted") |>
+#   ggplot(aes(year, se, colour = type)) + geom_point() + geom_line()
+
 # purrr::pmap(to_fit, calc_indices)
 furrr::future_pmap(to_fit, calc_indices)
+
+plan(sequential)
 
 f <- list.files("data-generated/indexes/", pattern = ".rds", full.names = TRUE)
 
@@ -242,14 +308,14 @@ syn <- ind[grepl("SYN", ind$survey_abbrev),]
 saveRDS(hbll, "data-generated/index-hbll-geo-clean.rds")
 saveRDS(syn, "data-generated/index-syn-geo-clean.rds")
 
-g <- ind |>
-  # filter(grepl("SYN", survey_abbrev)) |>
-  ggplot(aes(year, est, ymin = lwr, ymax = upr, colour = type)) +
-  geom_pointrange(position = position_dodge(width = 0.55), pch = 21) +
-  scale_colour_manual(values =
-      c("Restricted" = "red", "Status quo" = "grey60", "Restricted and shrunk" = "purple")) +
-  ylab("Index") + xlab("Year") +
-  labs(colour = "Type") +
-  facet_grid(species_common_name~survey_abbrev, scales = "free_y")
-g <- g + scale_y_log10() + ylab("Index (log distributed)")
-ggsave("figs/giant-index-explore.pdf", width = 20, height = 50, limitsize = FALSE)
+# g <- ind |>
+#   # filter(grepl("SYN", survey_abbrev)) |>
+#   ggplot(aes(year, est, ymin = lwr, ymax = upr, colour = type)) +
+#   geom_pointrange(position = position_dodge(width = 0.55), pch = 21) +
+#   scale_colour_manual(values =
+#       c("Restricted" = "red", "Status quo" = "grey60", "Restricted and shrunk" = "purple")) +
+#   ylab("Index") + xlab("Year") +
+#   labs(colour = "Type") +
+#   facet_grid(species_common_name~survey_abbrev, scales = "free_y")
+# g <- g + scale_y_log10() + ylab("Index (log distributed)")
+# ggsave("figs/giant-index-explore.pdf", width = 20, height = 50, limitsize = FALSE)
