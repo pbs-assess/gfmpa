@@ -22,12 +22,13 @@ metrics_long_boot <- filter(metrics_long, grepl("boot", est_type))
 
 metrics_long <- filter(metrics_long, grepl("geo", est_type)) # main
 metrics_long$survey_abbrev <- gsub("SYN QCS, SYN HS", "SYN QCS/HS", metrics_long$survey_abbrev)
+metrics_long <- filter(metrics_long, survey_abbrev != "SYN QCS/HS")
 
 prop_mpa <- select(metrics_long, survey_abbrev, species_common_name, prop_mpa) |>
   distinct()
-prop_mpa$survey_abbrev <- gsub("SYN QCS/HS", "SYN QCS", prop_mpa$survey_abbrev)
-hs_hack <- filter(prop_mpa, survey_abbrev == "SYN QCS") |> mutate(survey_abbrev = "SYN HS")
-prop_mpa <- bind_rows(prop_mpa, hs_hack) |> distinct()
+# prop_mpa$survey_abbrev <- gsub("SYN QCS/HS", "SYN QCS", prop_mpa$survey_abbrev)
+# hs_hack <- filter(prop_mpa, survey_abbrev == "SYN QCS") |> mutate(survey_abbrev = "SYN HS")
+# prop_mpa <- bind_rows(prop_mpa, hs_hack) |> distinct()
 
 metrics_long_cochran$prop_mpa <- NULL
 metrics_long_boot$prop_mpa <- NULL
@@ -120,38 +121,57 @@ make_dotplot <- function(
   g
 }
 
-make_dotplot(metrics_long)
-ggsave("figs/metric-dotplot.pdf", width = 7.8, height = 7.3)
+# make_dotplot(metrics_long)
+# ggsave("figs/metric-dotplot.pdf", width = 7.8, height = 7.3)
 
-make_dotplot(metrics_long, prop_mpa_filter = 0, exclude_extrapolation = FALSE, colour_var = restr_clean) +
-  scale_colour_brewer(palette = "Set1", labels = c("Extrapolate into MPAs", "Shrink survey domain")) +
-  guides(colour = guide_legend()) +
-  labs(colour = "Scenario")
-ggsave("figs/metric-dotplot-extrapolate.pdf", width = 7.8, height = 11)
+metrics_long |>
+  arrange(survey_abbrev, prop_mpa) |>
+  make_dotplot(standard_plot = FALSE, pal = RColorBrewer::brewer.pal(4, "Dark2")) +
+  tagger::tag_facets(tag_prefix = "(", position = "tl", tag = "panel",
+    tag_pool = letters[c(1, 4, 7, 10, 2, 5, 8, 11, 3, 6, 9, 12)])
+ggsave("figs/metric-dotplot2.pdf", width = 7.8, height = 8.4)
 
-# Compare to worst case scenario with 'as-is-where-is'
-mla <- readRDS("data-generated-ALL/metrics-long.rds")
-mla_wide <- readRDS("data-generated-ALL/metrics-wide.rds")
-m <- select(mla_wide, survey_abbrev, species_common_name, cv_orig, prop_mpa) |>
-  distinct()
-mla <- mla |> left_join(m, by = join_by(species_common_name, survey_abbrev))
+mm <- metrics_long |> bind_rows(metrics_long_boot)
+mm |>
+  arrange(survey_abbrev, prop_mpa) |>
+  make_dotplot(prop_mpa_filter = 0.1, standard_plot = FALSE,
+    colour_var = est_type, dodge_points = TRUE) +
+    scale_colour_brewer(palette = "Set1", labels = c("Design-based bootstrap", "Geostatistical")) +
+    guides(colour = guide_legend()) +
+    labs(colour = "Scenario") +
+  tagger::tag_facets(tag_prefix = "(", position = "tl", tag = "panel",
+    tag_pool = letters[c(1, 4, 7, 10, 2, 5, 8, 11, 3, 6, 9, 12)])
+ggsave("figs/metric-geo-vs-boot.pdf", width = 7.8, height = 8.4)
 
-mla <- filter(mla, restr_clean == "Shrunk survey domain")
-# mla <- filter(mla, prop_mpa > 0.1)
-mla <- mla |> mutate(restr_clean = "Shrunk ALL")
-mla$survey_abbrev <- gsub("SYN QCS, SYN HS", "SYN QCS/HS", mla$survey_abbrev)
+# make_dotplot(metrics_long, prop_mpa_filter = 0, exclude_extrapolation = FALSE, colour_var = restr_clean) +
+#   scale_colour_brewer(palette = "Set1", labels = c("Extrapolate into MPAs", "Shrink survey domain")) +
+#   guides(colour = guide_legend()) +
+#   labs(colour = "Scenario")
+# ggsave("figs/metric-dotplot-extrapolate.pdf", width = 7.8, height = 11)
 
-metrics_long_keep <- semi_join(metrics_long, select(mla, survey_abbrev, species_common_name))
-.dat <- bind_rows(metrics_long_keep, mla)
-
-.dat <- filter(.dat, !(survey_abbrev == "SYN WCHG" & restr_clean == "Shrunk ALL")) # same!
-
-make_dotplot(.dat, prop_mpa_filter = 0, exclude_extrapolation = TRUE, colour_var = restr_clean, show_prop_mpa = TRUE, dodge_points = TRUE) +
-  scale_colour_brewer(palette = "Set1", labels = c("Restrict within all existing MPAs", "Restrict only within Cat. 1 + 2 MPAs")) +
-  guides(colour = guide_legend()) +
-  labs(colour = "Scenario")
-
-ggsave("figs/metric-dotplot-all-vs-cat12.pdf", width = 7.8, height = 11)
+# # Compare to worst case scenario with 'as-is-where-is'
+# mla <- readRDS("data-generated-ALL/metrics-long.rds")
+# mla_wide <- readRDS("data-generated-ALL/metrics-wide.rds")
+# m <- select(mla_wide, survey_abbrev, species_common_name, cv_orig, prop_mpa) |>
+#   distinct()
+# mla <- mla |> left_join(m, by = join_by(species_common_name, survey_abbrev))
+#
+# mla <- filter(mla, restr_clean == "Shrunk survey domain")
+# # mla <- filter(mla, prop_mpa > 0.1)
+# mla <- mla |> mutate(restr_clean = "Shrunk ALL")
+# mla$survey_abbrev <- gsub("SYN QCS, SYN HS", "SYN QCS/HS", mla$survey_abbrev)
+#
+# metrics_long_keep <- semi_join(metrics_long, select(mla, survey_abbrev, species_common_name))
+# .dat <- bind_rows(metrics_long_keep, mla)
+#
+# .dat <- filter(.dat, !(survey_abbrev == "SYN WCHG" & restr_clean == "Shrunk ALL")) # same!
+#
+# make_dotplot(.dat, prop_mpa_filter = 0, exclude_extrapolation = TRUE, colour_var = restr_clean, show_prop_mpa = TRUE, dodge_points = TRUE) +
+#   scale_colour_brewer(palette = "Set1", labels = c("Restrict within all existing MPAs", "Restrict only within Cat. 1 + 2 MPAs")) +
+#   guides(colour = guide_legend()) +
+#   labs(colour = "Scenario")
+#
+# ggsave("figs/metric-dotplot-all-vs-cat12.pdf", width = 7.8, height = 11)
 
 # design-cochran
 metrics_long_cochran |>
@@ -181,12 +201,61 @@ group_by(metrics_long, survey_abbrev, measure) |>
 # check diff between geo/design:
 
 geo <- filter(metrics_wide, est_type == "geostat", `Restriction type` == "re_shrunk") |>
-  select(survey_abbrev, species_common_name, cv_orig_geo = cv_orig) |> distinct()
+  select(survey_abbrev, species_common_name, cv_orig_geo = cv_orig) |>
+  filter(survey_abbrev != "SYN QCS, SYN HS") |>
+  distinct()
 bootstrap <- filter(metrics_wide, est_type == "bootstrap", `Restriction type` == "re_shrunk") |>
   select(survey_abbrev, species_common_name, cv_orig_boot = cv_orig) |> distinct()
 together <- left_join(geo, bootstrap)
 together <- together[together$cv_orig_geo < 0.6, ]
-plot(together$cv_orig_geo, together$cv_orig_boot);abline(0, 1)
+# plot(together$cv_orig_geo, together$cv_orig_boot);abline(0, 1)
 mean((together$cv_orig_geo - together$cv_orig_boot) / together$cv_orig_boot * 100, na.rm = TRUE)
 cat("percent lower CV")
 
+ggplot(together, aes(cv_orig_boot, cv_orig_geo, colour = survey_abbrev)) +
+  geom_linerange(aes(x = cv_orig_boot, ymin = cv_orig_geo, ymax = cv_orig_boot), colour = "grey70", alpha = 0.5) +
+  geom_abline(intercept = 0, slope = 1, lty = 2, alpha = 0.5) +
+  geom_point(na.rm = TRUE, pch = 21, fill = "white") +
+  geom_point(na.rm = TRUE, pch = 21, mapping = aes(fill = survey_abbrev), alpha = 0.18) +
+  scale_colour_brewer(palette = "Dark2") +
+  scale_fill_brewer(palette = "Dark2") +
+  xlab("CV design-based bootstrap") + ylab("CV geostatistical model") +
+  coord_fixed() +
+  labs(colour = "Survey", fill = "Survey")
+ggsave("figs/boot-vs-geo-cv.pdf", width = 5, height = 4)
+
+compare_geo_boot <- function(compare_col, restr_type = "re_shrunk") {
+
+  geo <- filter(metrics_wide, est_type == "geostat", `Restriction type` == restr_type) |>
+    select(survey_abbrev, species_common_name, cv_orig_geo = cv_orig, geo = {{compare_col}}) |>
+    filter(survey_abbrev != "SYN QCS, SYN HS") |>
+    distinct()
+  bootstrap <- filter(metrics_wide, est_type == "bootstrap", `Restriction type` == restr_type) |>
+    select(survey_abbrev, species_common_name, design = {{compare_col}}) |> distinct()
+  together <- left_join(geo, bootstrap)
+  together <- together[together$cv_orig_geo < 0.6, ] # FIXME!?
+
+  ggplot(together, aes(design, geo, colour = survey_abbrev)) +
+    geom_linerange(aes(x = design, ymin = geo, ymax = design), colour = "grey70", alpha = 0.5) +
+    geom_abline(intercept = 0, slope = 1, lty = 2, alpha = 0.5) +
+    geom_point(na.rm = TRUE, pch = 21, fill = "white") +
+    geom_point(na.rm = TRUE, pch = 21, mapping = aes(fill = survey_abbrev), alpha = 0.18) +
+    scale_colour_brewer(palette = "Dark2") +
+    scale_fill_brewer(palette = "Dark2") +
+    xlab("Design-based") + ylab("Geostatistical model") +
+    coord_fixed() +
+    labs(colour = "Survey", fill = "Survey") +
+    ggrepel::geom_text_repel(aes(label = species_common_name),
+      show.legend = FALSE, size = 3)
+}
+
+metrics_wide <- mutate(metrics_wide, abs_slope_re = abs(slope_re))
+
+compare_geo_boot(slope_re)
+compare_geo_boot(abs_slope_re)
+compare_geo_boot(cv_orig)
+compare_geo_boot(mare)
+compare_geo_boot(cv_ratio) + coord_fixed(ylim = c(0.8, 1.6))
+
+
+# ggsave("figs/boot-vs-geo-cv.pdf", width = 5, height = 4)

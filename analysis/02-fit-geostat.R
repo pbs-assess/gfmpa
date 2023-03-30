@@ -195,6 +195,7 @@ calc_indices <- function(spp, survey) {
 source("analysis/spp.R")
 
 syn_survs <- c("SYN WCHG", "SYN QCS|SYN HS")
+syn_survs2 <- c("SYN WCHG", "SYN QCS", "SYN HS")
 
 library(future)
 is_rstudio <- !is.na(Sys.getenv("RSTUDIO", unset = NA))
@@ -208,12 +209,16 @@ to_fit <- expand_grid(spp = syn_highlights, survey = syn_survs)
 # purrr::pmap(to_fit, calc_indices)
 furrr::future_pmap(to_fit, calc_indices)
 
+to_fit <- expand_grid(spp = syn_highlights, survey = syn_survs2)
+furrr::future_pmap(to_fit, calc_indices)
+
 to_fit <- expand_grid(spp = hbll_highlights, survey = "HBLL OUT N")
 # calc_indices(spp = hbll_highlights[1], survey = "HBLL OUT N")
 # purrr::pmap(to_fit, calc_indices)
 furrr::future_pmap(to_fit, calc_indices)
 
 f <- list.files("data-generated/indexes/", pattern = ".rds", full.names = TRUE)
+
 ind <- purrr::map_dfr(f, readRDS)
 ind$cv <- NULL
 ind$cv <- sqrt(exp(ind$se^2) - 1)

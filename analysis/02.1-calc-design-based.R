@@ -125,6 +125,7 @@ tictoc::toc()
 boot_status_quo$est_type <- "bootstrap"
 boot_status_quo$type <- "Status quo"
 saveRDS(boot_status_quo, "data-generated/stratified-random-design-boot.rds")
+boot_status_quo <- readRDS("data-generated/stratified-random-design-boot.rds")
 
 tictoc::tic()
 boot_nsb <- furrr::future_map_dfr(dat_nsb_list, function(.x) {
@@ -136,6 +137,7 @@ tictoc::toc()
 boot_nsb$est_type <- "bootstrap"
 boot_nsb$type <- "Restricted and shrunk"
 saveRDS(boot_nsb, "data-generated/stratified-random-design-boot-nsb.rds")
+boot_nsb <- readRDS("data-generated/stratified-random-design-boot-nsb.rds")
 
 # Design-based estimators:
 
@@ -146,7 +148,7 @@ saveRDS(boot_nsb, "data-generated/stratified-random-design-boot-nsb.rds")
 
 # testing:
 library(survey)
-d <- dat_status_quo_list[[2]]
+d <- dat_status_quo_list[[5]]
 d <- filter(d, year == min(d$year))
 d$dens <- d$density_kgpm2 * 1e6
 mydesign <- svydesign(id = ~ 1, strata = ~ grouping_code, data = d, fpc = ~ area_km2)
@@ -217,9 +219,16 @@ run_strat_stats <- function(dat) {
   x <- survey::svytotal(~ dens, design = mydesign)
   data.frame(est = x[[1]], se = as.numeric(sqrt(attr(x, "var"))))
   }, error = function(e) {
-    data.frame(est = NA_real_, se = NA_real_)
+    est <- dat |>
+      group_by(area_km2, grouping_code) |>
+      summarise(density = mean(dens), .groups = "drop") |>
+      summarise(est = sum(density * area_km2), .groups = "drop") |> pull(est)
+    data.frame(est = est, se = NA_real_)
   })
+  .out
 }
+
+run_strat_stats(d)
 
 out <- surv_dat |>
   rename(area_km2 = status_quo_area) |> #<

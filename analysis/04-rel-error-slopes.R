@@ -33,7 +33,8 @@ for (survey in c("HBLL", "SYN", "design-boot", "design-cochran")) {
       cv_ratio_restr = if (has_prop_mpa) cv[type == "Restricted"] /
         cv[type == "Status quo"] else NA_real_,
       cv_ratio_shrunk = cv[type == "Restricted and shrunk"] /
-        cv[type == "Status quo"]
+        cv[type == "Status quo"],
+      cv_shrunk = cv[type == "Restricted and shrunk"]
     )
 
   cv_long <- cv2 |>
@@ -74,7 +75,7 @@ for (survey in c("HBLL", "SYN", "design-boot", "design-cochran")) {
       cv_mean = mean(cv),
       .groups = "drop_last"
     ) |>
-    filter(type != "Status quo") |>
+    # filter(type != "Status quo") |>
     left_join(lu)
 
 
@@ -157,86 +158,6 @@ for (survey in c("HBLL", "SYN", "design-boot", "design-cochran")) {
     ggplot(aes(year, cv, colour = species_common_name)) +
     geom_line() +
     facet_wrap(~survey_abbrev, dir = "v")
-
-  # # calculate slope from fig 2 relative error plots using random effects
-  # library(lme4)
-  #
-  # by_surv <- list()
-  # for (j in seq_along(survs)){
-  #
-  # restr <- re_long |> filter(survey_abbrev == survs[j]) |>
-  #   filter(`Restriction type` == "re_restr")
-  # m_restr <- lmer(re100 ~ 1 + decade + (decade|species_common_name), data = restr)
-  # m_restr
-  #
-  # shrunk <- re_long |> filter(survey_abbrev == survs[j]) |>
-  #   filter(`Restriction type` == "re_shrunk")
-  # m_shrunk  <- lmer(re100 ~ 1 + decade + (decade|species_common_name), data = shrunk)
-  # m_shrunk
-  #
-  # # These values are a combination of the fixed effects and the variance components
-  # restr_coefs <- coef(m_restr)$species_common_name |>
-  #   tibble::rownames_to_column(., "species_common_name") |> rename(slope = decade)
-  # restr_coefs$restr_clean <- "Same survey domain"
-  # restr_coefs$survey_abbrev <- survs[j]
-  #
-  # shrunk_coefs <- coef(m_shrunk)$species_common_name |>
-  #   tibble::rownames_to_column(., "species_common_name") |> rename(slope = decade)
-  # shrunk_coefs$restr_clean <- "Shrunk survey domain"
-  # shrunk_coefs$survey_abbrev <- survs[j]
-  #
-  # by_surv[[j]] <- bind_rows(restr_coefs, shrunk_coefs)
-  # }
-  # coefs <- do.call(rbind, by_surv)
-  #
-  # # join everything together
-  # cvdata <- left_join(cvratio2, mare2) |> left_join(., coefs) |>
-  #   left_join(., cvraw) |> left_join(., prop_mpa)
-  #
-  # if (survey == "HBLL") saveRDS(cvdata, "data-generated/hbll-cv-w-re-slopes.rds")
-  # if (survey == "SYN") saveRDS(cvdata, "data-generated/syn-cv-w-re-slopes.rds")
-
-  # OR use simple linear models
-
-  survs <- unique(re_long$survey_abbrev)
-  spp <- unique(re_long$species_common_name)
-  sps <- list()
-
-  # get_slopes <- function(dat) {
-  #   d1 <- filter(dat, `Restriction type` == "re_restr")
-  #   m1 <- tryCatch(lm(re100 ~ 1 + decade, data = d1), error = function(err) NA)
-  #
-  #   d2 <- filter(dat, `Restriction type` == "re_shrunk")
-  #   m2 <- tryCatch(lm(re100 ~ 1 + decade, data = d2), error = function(err) NA)
-  #
-  #   m3 <- tryCatch(lm(prop_mpa ~ 1 + decade, data = d1), error = function(err) NA)
-  #   m4 <- tryCatch(lm(prop_mpa ~ 1 + decade, data = d2), error = function(err) NA)
-  #
-  #   tibble(
-  #     survey_abbrev = c(survs[j], survs[j]),
-  #     species_common_name = c(spp[i], spp[i]),
-  #     `(Intercept)` = c(
-  #       tryCatch(m1$coefficients[[1]], error = function(err) NA),
-  #       tryCatch(m2$coefficients[[1]], error = function(err) NA)
-  #     ),
-  #     slope_re = c(
-  #       tryCatch(m1$coefficients[["decade"]], error = function(err) NA),
-  #       tryCatch(m2$coefficients[["decade"]], error = function(err) NA)
-  #     ),
-  #     se_slope_re = c(
-  #       tryCatch(summary(m1)$coefficients[2,2], error = function(err) NA),
-  #       tryCatch(summary(m2)$coefficients[2,2], error = function(err) NA)
-  #     ),
-  #     slope_mpa = c(
-  #       tryCatch(m3$coefficients[["decade"]], error = function(err) NA),
-  #       tryCatch(m4$coefficients[["decade"]], error = function(err) NA)
-  #     ),
-  #     restr_clean = c("Same survey domain", "Shrunk survey domain")
-  #   )
-  # }
-  # coefs <- group_by(re_long, survey_abbrev, species_common_name) |>
-  #   group_split() |>
-  #   purrr::map_dfr(get_slopes)
 
 coefs <- re_long |> group_by(survey_abbrev, species_common_name) |>
     group_split() |>

@@ -73,7 +73,7 @@ dd2 <- x_long |>
   group_by(survey_abbrev, species_common_name, est_type, `Restriction type`) |>
   summarise(
     lwr = quantile(abs(re), 0.025, na.rm = TRUE),
-    upr = ifelse(quantile(abs(re), 0.975, na.rm = TRUE) > 0.5, 0.5, quantile(abs(re), 0.975, na.rm = TRUE)),
+    upr = ifelse(quantile(abs(re), 0.975, na.rm = TRUE) > 0.9, 0.9, quantile(abs(re), 0.975, na.rm = TRUE)),
     est = median(abs(re), na.rm = TRUE),
     .groups = "drop_last"
   ) |>
