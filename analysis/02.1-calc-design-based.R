@@ -106,13 +106,13 @@ dat_nsb_list <- surv_dat |>
 
 # -----------
 
-boot_biomass_purrr(dat_status_quo_list[[2]], reps = 10L)
-
-xx <- system.time(boot_biomass_purrr(dat_status_quo_list[[1]], reps = 900L))
-cat("Expectation:",
-  round(length(dat_status_quo_list) * xx[[3]] / 60 / 6, 2),
-  "minutes\n"
-)
+# boot_biomass_purrr(dat_status_quo_list[[2]], reps = 10L)
+#
+# xx <- system.time(boot_biomass_purrr(dat_status_quo_list[[1]], reps = 900L))
+# cat("Expectation:",
+#   round(length(dat_status_quo_list) * xx[[3]] / 60 / 6, 2),
+#   "minutes\n"
+# )
 
 tictoc::tic()
 boot_status_quo <- furrr::future_map_dfr(dat_status_quo_list, function(.x) {
@@ -122,6 +122,10 @@ boot_status_quo <- furrr::future_map_dfr(dat_status_quo_list, function(.x) {
 }, .options = furrr::furrr_options(seed = TRUE), .progress = TRUE)
 tictoc::toc()
 
+boot_status_quo$est_type <- "bootstrap"
+boot_status_quo$type <- "Status quo"
+saveRDS(boot_status_quo, "data-generated/stratified-random-design-boot.rds")
+
 tictoc::tic()
 boot_nsb <- furrr::future_map_dfr(dat_nsb_list, function(.x) {
   out <- boot_biomass_purrr(.x, reps = 900L)
@@ -129,8 +133,9 @@ boot_nsb <- furrr::future_map_dfr(dat_nsb_list, function(.x) {
   select(out, survey_abbrev, species_common_name, everything())
 }, .options = furrr::furrr_options(seed = TRUE), .progress = TRUE)
 tictoc::toc()
-
-plan(sequential)
+boot_nsb$est_type <- "bootstrap"
+boot_nsb$type <- "Restricted and shrunk"
+saveRDS(boot_nsb, "data-generated/stratified-random-design-boot-nsb.rds")
 
 # Design-based estimators:
 
@@ -142,7 +147,7 @@ plan(sequential)
 # testing:
 library(survey)
 d <- dat_status_quo_list[[2]]
-d <- filter(d, year == 2005)
+d <- filter(d, year == min(d$year))
 d$dens <- d$density_kgpm2 * 1e6
 mydesign <- svydesign(id = ~ 1, strata = ~ grouping_code, data = d, fpc = ~ area_km2)
 s <- svymean(~ dens, design = mydesign)
@@ -206,17 +211,21 @@ run_cochran_var(d)
 
 run_strat_stats <- function(dat) {
   dat <- mutate(dat, dens = density_kgpm2 * 1e6)
+  .out <- tryCatch({
   mydesign <- survey::svydesign(id = ~ 1,
     strata = ~ grouping_code, data = dat, fpc = ~ area_km2)
   x <- survey::svytotal(~ dens, design = mydesign)
   data.frame(est = x[[1]], se = as.numeric(sqrt(attr(x, "var"))))
+  }, error = function(e) {
+    data.frame(est = NA_real_, se = NA_real_)
+  })
 }
 
 out <- surv_dat |>
-  rename(area_km2 = status_quo_area) |>
+  rename(area_km2 = status_quo_area) |> #<
   group_by(species_common_name, survey_abbrev, year) |>
   group_split() |>
-  purrr::map_dfr(~ {
+  furrr::future_map_dfr(~ {
     tibble(run_strat_stats(.x),
       species_common_name = .x$species_common_name[1],
       survey_abbrev = .x$survey_abbrev[1],
@@ -224,6 +233,44 @@ out <- surv_dat |>
   }) |>
   mutate(cv = se / est, lwr = est - qnorm(0.975) * se, upr = est + qnorm(0.975)) |>
   select(survey_abbrev, species_common_name, year, everything())
+sum(is.na(out$est))
 
+out_nsb <- surv_dat |>
+  filter(!restricted) |> #<
+  rename(area_km2 = post_nsb_area) |> #<
+  group_by(species_common_name, survey_abbrev, year) |>
+  group_split() |>
+  furrr::future_map_dfr(~ {
+    tibble(run_strat_stats(.x),
+      species_common_name = .x$species_common_name[1],
+      survey_abbrev = .x$survey_abbrev[1],
+      year = .x$year[1])
+  }) |>
+  mutate(cv = se / est, lwr = est - qnorm(0.975) * se, upr = est + qnorm(0.975)) |>
+  select(survey_abbrev, species_common_name, year, everything())
+sum(is.na(out_nsb$est))
+
+out$est_type <- "cochran"
+out_nsb$est_type <- "cochran"
+out$type <- "Status quo"
+out_nsb$type <- "Restricted and shrunk"
 saveRDS(out, "data-generated/stratified-random-design-var.rds")
-saveRDS(out, "data-generated/stratified-random-design-var.rds")
+saveRDS(out_nsb, "data-generated/stratified-random-design-var-nsb.rds")
+
+ind <- bind_rows(list(boot_status_quo, boot_nsb, out, out_nsb))
+
+ocv <- ind |>
+  filter(type == "Status quo") |>
+  mutate(orig_cv = cv) |>
+  select(year, orig_cv, species_common_name, survey_abbrev, est_type) |>
+  distinct()
+
+ind <- left_join(
+  ind,
+  ocv,
+  by = join_by(year, species_common_name, survey_abbrev, est_type)
+)
+
+saveRDS(ind, "data-generated/stratified-random-design-all.rds")
+
+plan(sequential)

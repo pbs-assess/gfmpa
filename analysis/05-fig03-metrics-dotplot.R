@@ -4,20 +4,39 @@ source("analysis/theme.R")
 metrics_long <- readRDS("data-generated/metrics-long.rds")
 metrics_wide <- readRDS("data-generated/metrics-wide.rds")
 
-m <- select(metrics_wide, survey_abbrev, species_common_name, cv_orig, prop_mpa) |>
+m <- select(metrics_wide, survey_abbrev, species_common_name, est_type, cv_orig, prop_mpa) |>
+  filter(est_type == "geostat") |>
   distinct()
+metrics_long <- distinct(metrics_long)
 
-metrics_long <- metrics_long |> left_join(m, by = join_by(species_common_name, survey_abbrev))
+metrics_long <- metrics_long |> left_join(m) |> ungroup()
+
+metrics_long$species_common_name <- stringr::str_to_title(metrics_long$species_common_name)
 
 mround <- function(x, digits) {
   sprintf(paste0("%.", digits, "f"), round(x, digits))
 }
 
+metrics_long_cochran <- filter(metrics_long, grepl("cochran", est_type))
+metrics_long_boot <- filter(metrics_long, grepl("boot", est_type))
+
+metrics_long <- filter(metrics_long, grepl("geo", est_type)) # main
 metrics_long$survey_abbrev <- gsub("SYN QCS, SYN HS", "SYN QCS/HS", metrics_long$survey_abbrev)
+
+prop_mpa <- select(metrics_long, survey_abbrev, species_common_name, prop_mpa) |>
+  distinct()
+prop_mpa$survey_abbrev <- gsub("SYN QCS/HS", "SYN QCS", prop_mpa$survey_abbrev)
+hs_hack <- filter(prop_mpa, survey_abbrev == "SYN QCS") |> mutate(survey_abbrev = "SYN HS")
+prop_mpa <- bind_rows(prop_mpa, hs_hack) |> distinct()
+
+metrics_long_cochran$prop_mpa <- NULL
+metrics_long_boot$prop_mpa <- NULL
+metrics_long_cochran <- left_join(metrics_long_cochran, prop_mpa)
+metrics_long_boot <- left_join(metrics_long_boot, prop_mpa)
 
 make_dotplot <- function(
     .data, prop_mpa_filter = 0.1, exclude_extrapolation = TRUE,
-    colour_var = survey_abbrev, show_prop_mpa = TRUE, dodge_points = FALSE) {
+    colour_var = survey_abbrev, show_prop_mpa = TRUE, dodge_points = FALSE, standard_plot = TRUE, pal = restricted_cols) {
   dat <- .data |> dplyr::filter(prop_mpa > prop_mpa_filter)
 
   if (exclude_extrapolation) {
@@ -29,19 +48,22 @@ make_dotplot <- function(
       mutate(lwr = ifelse(grepl("CV", measure) & lwr >= 500, 500, lwr))
   }
 
-  dat <- dat |>
-    mutate(abs_est_avg = abs(est_avg)) |>
-    mutate(survey_abbrev = factor(survey_abbrev,
-      levels = c(
-        "SYN WCHG",
-        "HBLL OUT N",
-        "SYN QCS/HS"
-      )
-    )) |>
-    arrange(survey_abbrev, prop_mpa, species_common_name)
+  if (standard_plot) {
+    dat <- dat |>
+      mutate(abs_est_avg = abs(est_avg)) |>
+      mutate(survey_abbrev = factor(survey_abbrev,
+        levels = c(
+          "SYN WCHG",
+          "HBLL OUT N",
+          "SYN QCS/HS"
+        )
+      )) |>
+      arrange(survey_abbrev, prop_mpa, species_common_name)
+  }
 
   if (show_prop_mpa) {
-    dat <- mutate(dat,
+    dat <- dat |> group_by(species_common_name, survey_abbrev) |>
+      mutate(
       spp_lab_plot =
         paste0(
           stringr::str_to_title(species_common_name), " (",
@@ -77,7 +99,7 @@ make_dotplot <- function(
   g <- g +
     scale_y_continuous(breaks = waiver(), n.breaks = 5, expand = c(0, 0)) +
     coord_flip() +
-    scale_colour_manual(values = restricted_cols) +
+    scale_colour_manual(values = pal) +
     labs(x = "", y = "", colour = "Survey", fill = "Survey") +
     guides(colour = "none", fill = "none") +
     theme(
@@ -130,3 +152,41 @@ make_dotplot(.dat, prop_mpa_filter = 0, exclude_extrapolation = TRUE, colour_var
   labs(colour = "Scenario")
 
 ggsave("figs/metric-dotplot-all-vs-cat12.pdf", width = 7.8, height = 11)
+
+# design-cochran
+metrics_long_cochran |>
+  arrange(survey_abbrev, prop_mpa) |>
+  make_dotplot(standard_plot = FALSE, pal = RColorBrewer::brewer.pal(4, "Dark2")) +
+  tagger::tag_facets(tag_prefix = "(", position = "tl", tag = "panel",
+    tag_pool = letters[c(1, 4, 7, 10, 2, 5, 8, 11, 3, 6, 9, 12)])
+ggsave("figs/metric-dotplot-cochran.pdf", width = 7.8, height = 7.8)
+
+metrics_long_boot |>
+  arrange(survey_abbrev, prop_mpa) |>
+  make_dotplot(standard_plot = FALSE, pal = RColorBrewer::brewer.pal(4, "Dark2")) +
+  tagger::tag_facets(tag_prefix = "(", position = "tl", tag = "panel",
+    tag_pool = letters[c(1, 4, 7, 10, 2, 5, 8, 11, 3, 6, 9, 12)])
+ggsave("figs/metric-dotplot-boot.pdf", width = 7.8, height = 7.8)
+
+group_by(metrics_long_cochran, survey_abbrev, measure) |>
+  summarise(m = mean(est, na.rm = TRUE))
+
+group_by(metrics_long_boot, survey_abbrev, measure) |>
+  summarise(m = mean(est, na.rm = TRUE))
+
+group_by(metrics_long, survey_abbrev, measure) |>
+  summarise(m = mean(est, na.rm = TRUE))
+
+# ------------------
+# check diff between geo/design:
+
+geo <- filter(metrics_wide, est_type == "geostat", `Restriction type` == "re_shrunk") |>
+  select(survey_abbrev, species_common_name, cv_orig_geo = cv_orig) |> distinct()
+bootstrap <- filter(metrics_wide, est_type == "bootstrap", `Restriction type` == "re_shrunk") |>
+  select(survey_abbrev, species_common_name, cv_orig_boot = cv_orig) |> distinct()
+together <- left_join(geo, bootstrap)
+together <- together[together$cv_orig_geo < 0.6, ]
+plot(together$cv_orig_geo, together$cv_orig_boot);abline(0, 1)
+mean((together$cv_orig_geo - together$cv_orig_boot) / together$cv_orig_boot * 100, na.rm = TRUE)
+cat("percent lower CV")
+
