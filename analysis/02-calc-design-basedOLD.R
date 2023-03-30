@@ -82,7 +82,7 @@ bl2 <- select(d, BLOCK_DESIG, GROUPING_CO) |>
   as.data.frame() |> select(1:2) |>
   rename(
     block_designation = BLOCK_DESIG, grouping_code = GROUPING_CO)
-hbll <- left_join(hbll, bl2)
+# hbll <- left_join(hbll, bl2)
 sum(is.na(bl2$grouping_code))
 
 locs <- select(hbll, longitude, latitude) |> distinct()
@@ -108,10 +108,13 @@ d_points <- data.frame(
   st_as_sf(coords = c("long", "lat"), crs = 4326) %>%
   st_transform(crs = st_crs(d))
 
-ggplot(d) + geom_sf() + geom_sf(data = d_points, pch = 21, colour = "red")
+ggplot(d) + geom_sf(aes(colour = as.factor(GROUPING_CO))) + geom_sf(data = d_points, pch = 21, colour = "red")
 
 st_within(d_points, d)
 
+
+gg <- gfplot::hbll_grid$grid
+head(gg)
 
 library(future)
 plan(multisession)
@@ -129,7 +132,7 @@ locs_found <- furrr::future_map_dbl(seq_len(nrow(locs)), function(.x) {
     # out <- NA
   # }
   # out
-  as.numeric(d[as.numeric(sf::st_within(pt, d)), "GROUPING_CO"][[1]])
+  as.numeric(d[as.numeric(sf::st_within(pt, d)), "BLOCK_DESIG"][[1]])
 })
 plan(sequential)
 
