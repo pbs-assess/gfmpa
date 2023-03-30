@@ -72,6 +72,7 @@ boot_biomass_purrr <- function(dat, reps = 500L) {
 
 surv_dat <- readRDS("data-generated/dat_to_fit.rds")
 hbll <- readRDS("data-generated/dat_to_fit_hbll.rds")
+hbll$density_kgpm2 <- hbll$density_ppkm2 / 1e6 # hack; 1e6 gets reversed
 surv_dat <- bind_rows(surv_dat, hbll)
 
 areas <- readRDS("data-generated/stratum-areas.rds") |>
@@ -105,7 +106,9 @@ dat_nsb_list <- surv_dat |>
 
 # -----------
 
-xx <- system.time(boot_biomass_purrr(dat_status_quo_list[[1]], reps = 500L))
+boot_biomass_purrr(dat_status_quo_list[[2]], reps = 10L)
+
+xx <- system.time(boot_biomass_purrr(dat_status_quo_list[[1]], reps = 900L))
 cat("Expectation:",
   round(length(dat_status_quo_list) * xx[[3]] / 60 / 6, 2),
   "minutes\n"
@@ -113,7 +116,7 @@ cat("Expectation:",
 
 tictoc::tic()
 boot_status_quo <- furrr::future_map_dfr(dat_status_quo_list, function(.x) {
-  out <- boot_biomass_purrr(.x, reps = 500L)
+  out <- boot_biomass_purrr(.x, reps = 900L)
   out$species_common_name <- .x$species_common_name[1]
   select(out, survey_abbrev, species_common_name, everything())
 }, .options = furrr::furrr_options(seed = TRUE), .progress = TRUE)
@@ -121,7 +124,7 @@ tictoc::toc()
 
 tictoc::tic()
 boot_nsb <- furrr::future_map_dfr(dat_nsb_list, function(.x) {
-  out <- boot_biomass_purrr(.x, reps = 500L)
+  out <- boot_biomass_purrr(.x, reps = 900L)
   out$species_common_name <- .x$species_common_name[1]
   select(out, survey_abbrev, species_common_name, everything())
 }, .options = furrr::furrr_options(seed = TRUE), .progress = TRUE)
