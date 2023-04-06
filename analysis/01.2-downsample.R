@@ -1,7 +1,7 @@
 library(dplyr)
 library(ggplot2)
-library(future)
-plan(multisession)
+# library(future)
+# plan(multisession)
 
 survey_data <- readRDS("data-generated/dat_to_fit.rds")
 hbll <- readRDS("data-generated/dat_to_fit_hbll.rds")
@@ -16,19 +16,19 @@ down_sample <- function(x, seed = 1) {
   new |> mutate(downsample_seed = seed)
 }
 
-z1 <- group_by(survey_data, grouping_code, species_common_name, year) %>%
+z1 <- group_by(survey_data, species_common_name, year) %>%
   group_split() %>%
-  furrr::future_map_dfr(down_sample, seed = 1, .options = furrr::furrr_options(seed = TRUE))
+  purrr::map_dfr(down_sample, seed = 1)
 
-z2 <- group_by(survey_data, grouping_code, species_common_name, year) %>%
+z2 <- group_by(survey_data, species_common_name, year) %>%
   group_split() %>%
-  furrr::future_map_dfr(down_sample, seed = 2, .options = furrr::furrr_options(seed = TRUE))
+  purrr::map_dfr(down_sample, seed = 2)
 
-z3 <- group_by(survey_data, grouping_code, species_common_name, year) %>%
+z3 <- group_by(survey_data, species_common_name, year) %>%
   group_split() %>%
-  furrr::future_map_dfr(down_sample, seed = 3, .options = furrr::furrr_options(seed = TRUE))
+  purrr::map_dfr(down_sample, seed = 3)
 
-plan(sequential)
+# plan(sequential)
 
 s <- "SYN WCHG"
 s <- "HBLL OUT N"
@@ -44,6 +44,6 @@ z2 |>
 
 nrow(z2) / nrow(survey_data)
 
-# bind_rows(list(z1, z2, z3)) |>
-bind_rows(list(z1)) |>
+bind_rows(list(z1, z2)) |>
+# bind_rows(list(z1)) |>
   saveRDS("data-generated/downsampled-fitting-data.rds")
