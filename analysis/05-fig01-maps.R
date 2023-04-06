@@ -121,7 +121,7 @@ ggplot(hbll) +
   xlab("Easting (km)") + ylab("Northing (km)")
 ggsave("figs/hbll-grid.png", width = 6, height = 6)
 
-ggplot(hbll) +
+g <- ggplot(hbll) +
   geom_tile(aes(X, Y, fill = restricted), alpha = 0.2, width=2, height=2) +
   geom_polygon(
     data = coast, aes(x = X, y = Y, group = PID),
@@ -180,13 +180,15 @@ r_col <- "black"
 # names(.pal) <- c("SYN QCS",  "HBLL OUT N", "SYN WCHG","SYN HS")
 source("analysis/theme.R")
 .pal <- c(restricted_cols, restricted_cols[3])
+
+.pal <- RColorBrewer::brewer.pal(4, "Set2")[c(2, 3, 1, 4)]
+
 names(.pal) <-
   c(
     "SYN WCHG",
     "HBLL OUT N",
     "SYN QCS",
     "SYN HS")
-
 
 
 pt_size <- 0.15
@@ -239,14 +241,15 @@ make_map <- function(.dat) {
     geom_point(data = dat_hbll, aes(X * 1000, Y * 1000, colour = survey_abbrev), size = pt_size) +
     geom_point(data = dat_rest, aes(X * 1000, Y * 1000, colour = survey_abbrev), size = pt_size * 0.5, alpha = 0.6) +
     geom_point(data = dat_hbll_rest, aes(X * 1000, Y * 1000, colour = survey_abbrev), size = pt_size * 0.5, alpha = 0.6) +
+    geom_tile(data = .dat, mapping = aes(X * 1000, Y * 1000), width = 2000, height = 2000, fill = "#00000050") +
     theme_light() +
-    geom_sf(data = bc_coast_proj, colour = "grey80", fill = "grey80", linewidth = 0.25) +
+    geom_sf(data = bc_coast_proj, colour = "grey40", fill = "grey80", linewidth = 0.25) +
     coord_sf(xlim = .xlim, ylim = .ylim, crs = 3156) +
     labs(fill = "Predicted\ndensity") +
     labs(x = "Longitude", y = "Latitude") +
     scale_fill_manual("Survey", values = .pal) +
     scale_colour_manual("Survey", values = .pal) +
-    theme(legend.position = c(0.15, 0.15)) +
+    theme(legend.position = c(0.14, 0.15)) +
     annotate(geom = "text", x = max(.xlim) - 100000, y = max(.ylim) - 50000, label = "British Columbia", size = 4, colour = "grey10", hjust = 0, vjust = 1) +
     annotate(geom = "text", x = max(.xlim) - 310000, y = max(.ylim) - 85000, label = "Haida Gwaii", size = 4, colour = "grey10", hjust = 0.5, vjust = 0.5) +
     ggspatial::annotation_scale(
@@ -266,6 +269,60 @@ make_map <- function(.dat) {
 }
 g <- make_map(all_rest)
 ggsave("figs/restricted-grid.pdf", width = 5.4, height = 5.4)
+
+# nsb ----------------
+nsb <- sf::read_sf("data-raw/mpatt_survey_overlaps.gdb", type = 7, layer = "MPATT_Q1_full_march2023_Cat1_Cat2_GH_singlepart")
+unique(x$SurveyOverlap)
+nsb <- sf::st_transform(nsb, crs = 3156)
+
+lu <- tribble(
+  ~SurveyOverlap,  ~SO,
+  "Category 1", "Category 1",
+  "Category 2", "Category 2",
+  "Gwaii Haanas Site- Multi Use - RCA overlap", "Gwaii Haanas Multi Use",
+  "Gwaii Haanas Site- Multi Use", "Gwaii Haanas Multi Use",
+  "Gwaii Haanas Site- Strict Protection", "Gwaii Haanas Strict",
+  "Gwaii Haanas Site- Strict Protection - RCA overlap", "Gwaii Haanas Strict+RCA"
+)
+nsb <- left_join(nsb, lu)
+
+pal <- c(as.character(colorBlindness::availableColors())[-1], c("grey60"))[c(1, 4, 3, 5, 2)]
+
+
+.dat <- all_rest
+
+pt_size <- 0.25
+g2 <- ggplot() +
+  geom_sf(data = nsb, linewidth = 0.55, mapping = aes(colour = SO, fill = SO)) +
+  geom_sf(data = bc_coast_proj, colour = "grey40", fill = "grey80", linewidth = 0.25) +
+  theme_light() +
+  geom_tile(data = all, mapping = aes(X * 1000, Y * 1000), width = 2000, height = 2000, fill = NA, colour = "#00000020", linewidth = 0.2) +
+  coord_sf(xlim = .xlim, ylim = .ylim, crs = 3156) +
+  theme() +
+  scale_fill_manual(values = pal) +
+  scale_colour_manual(values = pal) +
+  # geom_point(data = dat, aes(X * 1000, Y * 1000), size = pt_size, pch = 21, alpha = 0.2, fill = NA, colour = "grey10") +
+  # geom_point(data = dat_hbll, aes(X * 1000, Y * 1000), size = pt_size, pch = 21, alpha = 0.2, fill = NA, colour = "grey10") +
+  # geom_point(data = dat_rest, aes(X * 1000, Y * 1000), size = pt_size * 0.5, alpha = 0.6) +
+  # geom_point(data = dat_hbll_rest, aes(X * 1000, Y * 1000), size = pt_size * 0.5, alpha = 0.6)
+  labs(fill = "Zone category", colour = "Zone category") +
+  labs(x = "Longitude", y = "Latitude") +
+  theme(legend.position = c(0.21, 0.17)) +
+  annotate(geom = "text", x = max(.xlim) - 100000, y = max(.ylim) - 50000, label = "British Columbia", size = 4, colour = "grey10", hjust = 0, vjust = 1) +
+  annotate(geom = "text", x = max(.xlim) - 310000, y = max(.ylim) - 85000, label = "Haida Gwaii", size = 4, colour = "grey10", hjust = 0.5, vjust = 0.5) +
+  ggspatial::annotation_north_arrow(
+    location = "tr", which_north = "true",
+    pad_x = unit(0, "in"), pad_y = unit(0.05, "in"),
+    height = unit(1.2, "cm"),
+    width = unit(1.2, "cm"),
+    style = ggspatial::north_arrow_nautical(
+      fill = c("grey40", "white"),
+      line_col = "grey20"
+    ))
+
+g0 <- cowplot::plot_grid(g2,g)
+ggsave("figs/fig1.png", width = 10.5, height = 5.4, dpi = 190, plot = g0)
+
 
 
 ###########################################
@@ -352,10 +409,6 @@ RCA <- sf::read_sf("data-raw/RCA2019") %>%
     xlab("Easting (km)") + ylab("Northing (km)"))
 
 ggsave("figs/map-existing-restrictions.png", width = 6, height = 6)
-
-
-
-
 
 
 # gg <- g + facet_wrap(~year)
