@@ -89,6 +89,7 @@ metrics <- s |>
   ) |>
   ungroup()
 
-metrics <- left_join(metrics, re_slopes)
+metrics <- left_join(metrics, re_slopes) |>
+  mutate(abs_slope_re = abs(slope_re_med))
 
-
+glimpse(metrics)
