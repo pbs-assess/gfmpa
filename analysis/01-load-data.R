@@ -12,40 +12,77 @@ cat12_only <- TRUE
 
 source("analysis/functions.R")
 
+x <- sf::read_sf("data-raw/mpatt_survey_overlaps.gdb", type = 7)
+table(x$Category_Simple)
+table(x$Common_site_name_Site_Profile)
+table(x$Desig_Tool_Detail)
+table(x$SurveyOverlap)
 
-x <- sf::read_sf("data-raw/MPATT_P2_Nov25_limited_attributes.gdb/", type = 7)
-table(x$Category_Detailed)
-# Category 1
-# 171
-# Category 2
-# 12
-# Existing MPA/RCA - 'as-is, where-is'
-# 54
-# Existing MPA/RCA - 'as-is, where-is' *
-#   24
-# Existing MPA/RCA - 'as-is, where-is' **
-#   29
-# Existing MPA/RCA - 'as-is, where-is' ***
-#   67
-table(x$Prop_Desig_Tool)
-# BC WMA Fisheries Act + BC tools
-# 2                        7                        9
-# Fisheries Act tool                     MNWA                    NMCAR
-# 17                       51                       76
-# Oceans Act MPA                      TBD
-# 18                       12
-table(x$SUBREGION)
-# CC  HG  NC NVI
-# 83  84  68 122
+f <- list.files("~/src/gfsynopsis-2021/report/data-cache-feb-2023/",
+  full.names = TRUE
+)
+s <- readRDS(f[grep("arrow", f)])$survey_sets
+s <- filter(s,survey_abbrev %in% c("SYN QCS", "SYN HS", "SYN WCHG"))
 
-if (cat12_only) {
-  trawl_removed <- dplyr::filter(x, Category_Detailed %in% c("Category 1", "Category 2"))
-} else {
-  .cat <- c("Category 1", "Category 2", "Existing MPA/RCA - 'as-is, where-is'",
-    "Existing MPA/RCA - 'as-is, where-is' *", "Existing MPA/RCA - 'as-is, where-is' **",
-    "Existing MPA/RCA - 'as-is, where-is' ***")
-  trawl_removed <- dplyr::filter(x, Category_Detailed %in% .cat)
-}
+trawl_removed <- dplyr::filter(x, SurveyOverlap %in% c("Category 1", "Category 2", "Gwaii Haanas Site- Strict Protection"))
+
+g <- ggplot(trawl_removed, aes(colour = SurveyOverlap)) + geom_sf() +
+  theme_light() +
+  theme(legend.position = "top")
+  # geom_point(data = s, mapping = aes())
+ggsave("figs/rough-map-trawl.png", width = 7, height = 7)
+
+# filter(x, SurveyOverlap %in% "Gwaii Haanas Site- Strict Protection") |>
+#   ggplot() + geom_sf(mapping = aes(colour = SurveyOverlap))
+#
+# filter(x, SurveyOverlap %in% "Category 1") |>
+#   ggplot() + geom_sf(mapping = aes(colour = SurveyOverlap))
+#
+# filter(x, SurveyOverlap %in% "Category 2") |>
+#   ggplot() + geom_sf(mapping = aes(colour = SurveyOverlap))
+#
+# g <- filter(x, SurveyOverlap %in% c("Category 1", "Category 2")) |>
+#   ggplot() + geom_sf(mapping = aes(colour = SurveyOverlap))
+# ggsave("~/Desktop/map.png", width = 8, height = 8)
+#
+# filter(x, SurveyOverlap %in% "Category 2") |>
+#   ggplot() + geom_sf(mapping = aes(colour = SurveyOverlap))
+#
+#
+# x <- sf::read_sf("data-raw/MPATT_P2_Nov25_limited_attributes.gdb/", type = 7)
+# table(x$Category_Detailed)
+# # Category 1
+# # 171
+# # Category 2
+# # 12
+# # Existing MPA/RCA - 'as-is, where-is'
+# # 54
+# # Existing MPA/RCA - 'as-is, where-is' *
+# #   24
+# # Existing MPA/RCA - 'as-is, where-is' **
+# #   29
+# # Existing MPA/RCA - 'as-is, where-is' ***
+# #   67
+# table(x$Prop_Desig_Tool)
+# # BC WMA Fisheries Act + BC tools
+# # 2                        7                        9
+# # Fisheries Act tool                     MNWA                    NMCAR
+# # 17                       51                       76
+# # Oceans Act MPA                      TBD
+# # 18                       12
+# table(x$SUBREGION)
+# # CC  HG  NC NVI
+# # 83  84  68 122
+
+# if (cat12_only) {
+#   trawl_removed <- dplyr::filter(x, SurveyOverlap %in% c("Category 1", "Category 2", "Gwaii Haanas Site- Strict Protection", "Gwaii Haanas Site- Multi Use Gwaii"))
+# } else {
+#   stop("Not implemented")
+#   # .cat <- c("Category 1", "Category 2", "Existing MPA/RCA - 'as-is, where-is'",
+#   #   "Existing MPA/RCA - 'as-is, where-is' *", "Existing MPA/RCA - 'as-is, where-is' **",
+#   #   "Existing MPA/RCA - 'as-is, where-is' ***")
+#   # trawl_removed <- dplyr::filter(x, Category_Detailed %in% .cat)
+# }
 
 # x |>
 #   dplyr::filter(Category_Detailed == "Category 1") |>
@@ -71,7 +108,7 @@ ensure_multipolygons <- function(X) {
 }
 trawl_removed <- ensure_multipolygons(trawl_removed)
 
-saveRDS(trawl_removed, file = "data-generated/Cat1_2_Dec2022.rds")
+saveRDS(trawl_removed, file = "data-generated/Cat1_2_GH_Apr2023.rds")
 
 assign_restricted_tows <- function(trawl_dat) {
   orig <- trawl_dat
@@ -96,10 +133,15 @@ assign_restricted_tows <- function(trawl_dat) {
   trawl_dat %>% as_tibble()
 }
 
-# aleut <- readRDS(f[grep("aleut", f)])$survey_sets
-# aleut <- filter(aleut, survey_abbrev == "SYN HS", year == 2015)
-# aleut <- assign_restricted_tows(aleut)
-# ggplot(aleut, aes(longitude, latitude, size = density_kgpm2, colour = restricted)) + geom_point()
+f <- list.files("~/src/gfsynopsis-2021/report/data-cache-feb-2023/",
+  full.names = TRUE
+)
+aleut <- readRDS(f[grep("arrow", f)])$survey_sets
+aleut <- filter(aleut, year %in% c(2021, 2022))
+# aleut <- filter(aleut, survey_abbrev == "SYN WCHG", year == 2015)
+# aleut <- filter(aleut, survey_abbrev == "SYN WCHG", year == 2015)
+aleut <- assign_restricted_tows(aleut)
+ggplot(aleut, aes(longitude, latitude, size = density_kgpm2, colour = restricted)) + geom_point()
 
 if (Sys.info()[["user"]] == "seananderson") {
   f <- list.files("~/src/gfsynopsis-2021/report/data-cache-feb-2023/",
@@ -141,9 +183,29 @@ saveRDS(dat_to_fit, file = "data-generated/dat_to_fit.rds")
 
 # HBLL -----------------
 
-x <- sf::read_sf("data-raw/Spatial_N1_May17_2021.gdb")
+# x <- sf::read_sf("data-raw/Spatial_N1_May17_2021.gdb")
+x <- sf::read_sf("data-raw/mpatt_survey_overlaps.gdb", type = 7, layer = "MPATT_Q1_full_march2023_Cat1_Cat2_GH_singlepart")
+unique(x$SurveyOverlap)
 
-ll_removed <- trawl_removed
+g <- ggplot(x, aes(colour = SurveyOverlap)) + geom_sf() +
+  theme_light() +
+  theme(legend.position = "right")
+# geom_point(data = s, mapping = aes())
+ggsave("figs/rough-map-rca.png", width = 10, height = 7)
+
+hbll_removed <- dplyr::filter(x, SurveyOverlap %in% c("Category 1", "Category 2", "Gwaii Haanas Site- Strict Protection - RCA overlap"))
+
+g <- ggplot(hbll_removed, aes(colour = SurveyOverlap)) + geom_sf() +
+  theme_light() +
+  theme(legend.position = "top")
+ggsave("figs/rough-map-hbll.png", width = 7, height = 7)
+
+hbll_removed <- ensure_multipolygons(hbll_removed)
+ll_removed <- hbll_removed
+
+saveRDS(ll_removed, file = "data-generated/LL_Cat1_2_GH_Apr2023.rds")
+
+# ll_removed <- trawl_removed
 # plot(x["hu_co_demersalfishing_bottomlongline_d"])
 # ll_removed <- dplyr::filter(x, hu_co_demersalfishing_bottomlongline_d %in% c("X"))
 # ll_removed <- sf::st_cast(ll_removed, "MULTIPOLYGON")
