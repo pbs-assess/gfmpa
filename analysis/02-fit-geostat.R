@@ -9,6 +9,8 @@ SILENT <- TRUE
 
 dir.create("figs/raw-data-maps", showWarnings = FALSE)
 dir.create("figs/indexes", showWarnings = FALSE)
+dir.create("figs/sim-data", showWarnings = FALSE)
+dir.create("data-generated/sim-data", showWarnings = FALSE)
 dir.create("data-generated/indexes", showWarnings = FALSE)
 
 calc_indices <- function(spp, survey, force = FALSE) {
@@ -268,8 +270,8 @@ calc_indices <- function(spp, survey, force = FALSE) {
     # }
 
     if (isTRUE(mi$family$delta)) {
-      pred1 <- predict(fit_all, newdata = up_sampled_dat, model = 1L, type = "response", nsim = 1L)
-      pred2 <- predict(fit_all, newdata = up_sampled_dat, model = 2L, type = "response", nsim = 1L)
+      pred1 <- predict(fit_all, newdata = up_sampled_dat, model = 1L, type = "response", nsim = 1L, offset = up_sampled_dat$offset)
+      pred2 <- predict(fit_all, newdata = up_sampled_dat, model = 2L, type = "response", nsim = 1L, offset = up_sampled_dat$offset)
       s1 <- rbinom(nrow(pred1), size = 1L, prob = pred1)
       shape <- exp(fit_all$model$par[["ln_phi"]])
       scale <- pred2 / shape
@@ -291,11 +293,15 @@ calc_indices <- function(spp, survey, force = FALSE) {
     }
     up_sampled_dat$simulated_response <- sim
 
-    filter(up_sampled_dat, !up_sample) |>
+    g <- filter(up_sampled_dat, !up_sample) |>
       ggplot(aes(response + 1, simulated_response + 1)) +
       geom_point() +
       scale_x_log10() +
-      scale_y_log10()
+      scale_y_log10() +
+      coord_fixed()
+    ggsave(paste0("figs/sim-data/", spp_file, "-", surv_file, ".pdf"),
+      width = 7, height = 7
+    )
     group_by(up_sampled_dat, up_sample, year) |>
       summarise(v = var(response/exp(offset)), vsim = var(simulated_response/exp(offset)))
     group_by(up_sampled_dat, up_sample, year) |>
@@ -304,6 +310,8 @@ calc_indices <- function(spp, survey, force = FALSE) {
 
     up_sampled_dat$response <- ifelse(up_sampled_dat$up_sample, up_sampled_dat$simulated_response, up_sampled_dat$response)
     stopifnot(sum(is.na(up_sampled_dat$response)) == 0L)
+
+    saveRDS(up_sampled_dat, paste0("data-generated/sim-data/", spp_file, "-", surv_file, ".rds"))
 
     mesh_up <- make_mesh(up_sampled_dat, xy_cols = c("X", "Y"), mesh = mesh_all$mesh)
     fit_up <- try({
@@ -380,6 +388,9 @@ calc_indices <- function(spp, survey, force = FALSE) {
     if (sanity_up) {
       p_up <- predict(fit_up, newdata = gr_remaining, return_tmb_object = TRUE)
       ind_up <- get_index(p_up, bias_correct = TRUE)
+
+      p_up <- predict(fit_up, newdata = gr_full, return_tmb_object = TRUE)
+      ind_up_full <- get_index(p_up, bias_correct = TRUE)
     }
 
     # p_up <- predict(fit_up, newdata = gr_remaining, return_tmb_object = TRUE)
@@ -395,30 +406,16 @@ calc_indices <- function(spp, survey, force = FALSE) {
     )
 
     if (sanity_down) {
-      i <- bind_rows(
-        i,
-        mutate(ind_down, type = "Random down-sampled and shrunk")
-      )
-      i <- bind_rows(
-        i,
-        mutate(ind_down_full, type = "Random down-sampled")
-      )
+      i <- bind_rows(i, mutate(ind_down, type = "Random down-sampled and shrunk"))
+      i <- bind_rows(i, mutate(ind_down_full, type = "Random down-sampled"))
     }
     if (sanity_down2) {
-      i <- bind_rows(
-        i,
-        mutate(ind_down2, type = "Random down-sampled and shrunk 2")
-      )
-      i <- bind_rows(
-        i,
-        mutate(ind_down2_full, type = "Random down-sampled 2")
-      )
+      i <- bind_rows(i, mutate(ind_down2, type = "Random down-sampled and shrunk 2"))
+      i <- bind_rows(i, mutate(ind_down2_full, type = "Random down-sampled 2"))
     }
     if (sanity_up) {
-      i <- bind_rows(
-        i,
-        mutate(ind_up, type = "Random up-sampled and shrunk")
-      )
+      i <- bind_rows(i, mutate(ind_up, type = "Random up-sampled and shrunk"))
+      i <- bind_rows(i, mutate(ind_up, type = "Random up-sampled"))
     }
 
     i$species_common_name <- spp
@@ -438,7 +435,7 @@ calc_indices <- function(spp, survey, force = FALSE) {
       geom_pointrange(position = position_dodge(width = 1), pch = 21) +
       # scale_colour_manual(values =
       #     c("Restricted" = "red", "Status quo" = "grey60", "Restricted and shrunk" = "purple")) +
-      scale_colour_brewer(palette = "Dark2") +
+      scale_colour_brewer(palette = "Set1") +
       ylab("Index") +
       xlab("Year") +
       labs(colour = "Type") +
@@ -449,7 +446,7 @@ calc_indices <- function(spp, survey, force = FALSE) {
     g0 <- cowplot::plot_grid(g1, g2, nrow = 2)
 
     ggsave(paste0("figs/indexes/", spp_file, "-", surv_file, ".pdf"),
-      width = 10, height = 7
+      width = 11, height = 7
     )
   }
 
@@ -470,15 +467,15 @@ to_fit <- expand_grid(spp = syn_highlights, survey = syn_survs)
 
 ## test:
 calc_indices(spp = syn_highlights[17], survey = syn_survs[4], force = TRUE)
-x <- readRDS("data-generated/indexes/arrowtooth-flounder-SYN-WCHG.rds")
-x |>
-  filter(type != "MPA only", type != "MPA only restricted", type != "Restricted") |>
-  ggplot(aes(year, se, colour = type)) +
-  geom_point() +
-  geom_line()
+# x <- readRDS("data-generated/indexes/arrowtooth-flounder-SYN-WCHG.rds")
+# x |>
+#   filter(type != "MPA only", type != "MPA only restricted", type != "Restricted") |>
+#   ggplot(aes(year, se, colour = type)) +
+#   geom_point() +
+#   geom_line()
 
 # purrr::pmap(to_fit, calc_indices)
-furrr::future_pmap(to_fit, calc_indices)
+furrr::future_pmap(to_fit, calc_indices, force = TRUE)
 
 to_fit <- expand_grid(spp = hbll_highlights, survey = "HBLL OUT N")
 ## test:
