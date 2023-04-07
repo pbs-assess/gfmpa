@@ -485,7 +485,7 @@ to_fit <- expand_grid(spp = hbll_highlights, survey = "HBLL OUT N")
 #   ggplot(aes(year, se, colour = type)) + geom_point() + geom_line()
 
 # purrr::pmap(to_fit, calc_indices)
-furrr::future_pmap(to_fit, calc_indices)
+furrr::future_pmap(to_fit, calc_indices, force = TRUE)
 
 plan(sequential)
 
