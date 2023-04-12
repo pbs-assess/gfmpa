@@ -136,7 +136,7 @@ length(sim_nsb_list)
 boot_over_list <- function(.dat, .type = "Status quo") {
   tictoc::tic()
   out <- furrr::future_map_dfr(.dat, function(.x) {
-    out <- boot_biomass_purrr(.x, reps = 500L)
+    out <- boot_biomass_purrr(.x, reps = 600L)
     out$species_common_name <- .x$species_common_name[1]
     select(out, survey_abbrev, species_common_name, everything())
   }, .options = furrr::furrr_options(seed = TRUE), .progress = TRUE)
@@ -158,7 +158,7 @@ boot_over_list_sim <- function(.dat) {
   tictoc::tic()
   out <- furrr::future_map_dfr(.dat, function(.x) {
   # out <- purrr::map_dfr(.dat, function(.x) {
-    out <- boot_biomass_purrr(.x, reps = 300L)
+    out <- boot_biomass_purrr(.x, reps = 600L)
     out$species_common_name <- .x$species_common_name[1]
     out$type <- paste0("Random up-sampled and shrunk ", unique(.x$upsample_seed))
     select(out, survey_abbrev, species_common_name, type, everything())

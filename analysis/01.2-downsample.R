@@ -28,6 +28,14 @@ z3 <- group_by(survey_data, species_common_name, year) %>%
   group_split() %>%
   purrr::map_dfr(down_sample, seed = 3)
 
+z4 <- group_by(survey_data, species_common_name, year) %>%
+  group_split() %>%
+  purrr::map_dfr(down_sample, seed = 4)
+
+z5 <- group_by(survey_data, species_common_name, year) %>%
+  group_split() %>%
+  purrr::map_dfr(down_sample, seed = 5)
+
 # plan(sequential)
 
 s <- "SYN WCHG"
@@ -44,7 +52,7 @@ z2 |>
 
 nrow(z2) / nrow(survey_data)
 
-bind_rows(list(z1, z2)) |>
+bind_rows(list(z1, z2, z3, z4, z5)) |>
 # bind_rows(list(z1)) |>
   saveRDS("data-generated/downsampled-fitting-data.rds")
 

@@ -8,31 +8,23 @@ mround <- function(x, digits) {
   sprintf(paste0("%.", digits, "f"), round(x, digits))
 }
 
-# metrics_long_cochran <- filter(metrics_long, grepl("cochran", est_type))
-# metrics_long_boot <- filter(metrics_long, grepl("boot", est_type))
-#
-# metrics_long <- filter(metrics_long, grepl("geo", est_type)) # main
-# metrics_long$survey_abbrev <- gsub("SYN QCS, SYN HS", "SYN QCS/HS", metrics_long$survey_abbrev)
-# metrics_long <- filter(metrics_long, survey_abbrev != "SYN QCS/HS")
+make_zee_plot <- function(dat, colour_var = survey_abbrev, prop_threshold = 0.1, cv_upper_limit = 100, group_by_survey = TRUE) {
 
-# prop_mpa <- select(metrics_long, survey_abbrev, species_common_name, prop_mpa) |>
-#   distinct()
-# prop_mpa$survey_abbrev <- gsub("SYN QCS/HS", "SYN QCS", prop_mpa$survey_abbrev)
-# hs_hack <- filter(prop_mpa, survey_abbrev == "SYN QCS") |> mutate(survey_abbrev = "SYN HS")
-# prop_mpa <- bind_rows(prop_mpa, hs_hack) |> distinct()
+  dat <- filter(dat, prop_mpa >= prop_threshold)
 
-# metrics_long_cochran$prop_mpa <- NULL
-# metrics_long_boot$prop_mpa <- NULL
-# metrics_long_cochran <- left_join(metrics_long_cochran, prop_mpa)
-# metrics_long_boot <- left_join(metrics_long_boot, prop_mpa)
+  # get averages...
+  temp <- dat |>
+    mutate(se = abs((upr - lwr)) / 4) |>
+    mutate(variance = se^2)
+  if (group_by_survey) {
+    temp <- group_by(temp, survey_abbrev, measure, measure_clean, {{ colour_var }})
+  } else {
+    temp <- group_by(temp, measure, measure_clean, {{ colour_var }})
+  }
+    # summarise(mean_est = weighted.mean(est, w = 1 / variance))
+   means <- temp |>  summarise(mean_est = median(est))
 
-make_zee_plot <- function(.dat, colour_var = survey_abbrev, prop_threshold = 0.1, cv_upper_limit = 100) {
-  dat <- .dat |>
-    # mutate(est = ifelse(grepl("cv", measure) & est >= cv_upper_limit, NA, est)) |>
-    # mutate(upr = ifelse(grepl("cv", measure) & upr >= cv_upper_limit, cv_upper_limit + 10, upr)) |>
-    # mutate(lwr = ifelse(grepl("cv", measure) & lwr >= cv_upper_limit, cv_upper_limit, lwr)) |>
-    #
-
+  dat <- dat |>
     # hack to cut off upper limit:
     mutate(orig_est = est) |>
     mutate(est = ifelse(grepl("cv", measure) & est >= cv_upper_limit, NA_real_, est)) |>
@@ -43,7 +35,8 @@ make_zee_plot <- function(.dat, colour_var = survey_abbrev, prop_threshold = 0.1
 
   show_prop_mpa <- TRUE
   if (show_prop_mpa) {
-    dat <- dat |> group_by(species_common_name, survey_abbrev) |>
+    dat <- dat |>
+      group_by(species_common_name, survey_abbrev) |>
       mutate(
         spp_lab_plot =
           paste0(
@@ -58,23 +51,24 @@ make_zee_plot <- function(.dat, colour_var = survey_abbrev, prop_threshold = 0.1
     )
   }
 
-  dat <- filter(dat, prop_mpa >= prop_threshold) |> ungroup()
-  dat <- arrange(dat, survey_abbrev, prop_mpa, species_common_name)
+  dat <- dat |>
+    ungroup() |>
+    arrange(survey_abbrev, prop_mpa, species_common_name)
 
   g <- dat |>
     ggplot(aes(
-    x = forcats::fct_inorder(paste(survey_abbrev, spp_lab_plot, sep = "-")), # hack!
-    y = est,
-    ymin = lwr, ymax = upr,
-    colour = {{ colour_var }}
-  )) +
-    geom_hline(yintercept = 0, lty = 2, col = "grey60") +
-    scale_x_discrete(labels = function(x) gsub("[a-zA-Z ,]+-", "", x))  # hack!
+      x = forcats::fct_inorder(paste(survey_abbrev, spp_lab_plot, sep = "-")), # hack!
+      y = est,
+      ymin = lwr, ymax = upr,
+      colour = {{ colour_var }}
+    )) +
+    geom_hline(yintercept = 0, lty = 1, col = "grey65") +
+    scale_x_discrete(labels = function(x) gsub("[a-zA-Z ,]+-", "", x)) # hack!
 
-    g <- g +
-      geom_linerange(position = position_dodge(width = 0.5), na.rm = TRUE) +
-      geom_point(position = position_dodge(width = 0.5), pch = 21, size = 1.8, na.rm = TRUE) +
-      geom_point(position = position_dodge(width = 0.5), pch = 20, size = 1.8, alpha = 0.2, na.rm = TRUE)
+  g <- g +
+    geom_linerange(position = position_dodge(width = 0.5), na.rm = TRUE) +
+    geom_point(position = position_dodge(width = 0.5), pch = 21, size = 1.8, na.rm = TRUE) +
+    geom_point(position = position_dodge(width = 0.5), pch = 20, size = 1.8, alpha = 0.2, na.rm = TRUE)
   # }
 
   g <- g +
@@ -93,11 +87,14 @@ make_zee_plot <- function(.dat, colour_var = survey_abbrev, prop_threshold = 0.1
     scale_colour_brewer(palette = "Set2") +
     scale_fill_brewer(palette = "Set2")
 
+  g <- g + geom_hline(data = means, mapping = aes(yintercept = mean_est, colour = {{ colour_var }}), lty = 2)
   g
 }
 
-metrics_long$survey_abbrev <- factor(metrics_long$survey_abbrev, levels =
-    c("SYN WCHG", "HBLL OUT N", "SYN HS", "SYN QCS", "SYN QCS, SYN HS"))
+metrics_long$survey_abbrev <- factor(metrics_long$survey_abbrev,
+  levels =
+    c("SYN WCHG", "HBLL OUT N", "SYN HS", "SYN QCS", "SYN QCS, SYN HS")
+)
 
 g <- filter(metrics_long, est_type %in% c("geostat")) |>
   filter(!measure %in% "cv") |>
@@ -105,7 +102,8 @@ g <- filter(metrics_long, est_type %in% c("geostat")) |>
   filter(!is.na(prop_mpa)) |>
   filter(survey_abbrev != "SYN QCS") |>
   filter(survey_abbrev != "SYN HS") |>
-  make_zee_plot(colour_var = survey_abbrev, cv_upper_limit = 100) +
+  mutate(upr = ifelse(measure == "slope_re" & upr > 0.5, 0.5, upr)) |> # FIXME Note
+  make_zee_plot(colour_var = survey_abbrev, cv_upper_limit = 100, group_by_survey = FALSE) +
   labs(colour = "Survey", fill = "Survey") +
   guides(colour = "none", fill = "none") +
   scale_color_manual(values = restricted_cols) +
@@ -122,7 +120,7 @@ g <- filter(metrics_long, est_type %in% c("geostat")) |>
   filter(!is.na(prop_mpa)) |>
   filter(survey_abbrev != "SYN QCS") |>
   filter(survey_abbrev != "SYN HS") |>
-  make_zee_plot(colour_var = type, cv_upper_limit = 200) +
+  make_zee_plot(colour_var = type, cv_upper_limit = 200, group_by_survey = TRUE) +
   labs(colour = "Scenario", fill = "Scenario")
 print(g)
 
@@ -141,6 +139,7 @@ print(g)
 
 g <- filter(metrics_long, est_type %in% c("geostat")) |>
   filter(!measure %in% "cv") |>
+  mutate(upr = ifelse(measure == "slope_re" & upr > 0.8, 0.8, upr)) |> # FIXME Note
   filter(type %in% c("Restricted and shrunk", "Random up-sampled and shrunk 1")) |>
   filter(!is.na(prop_mpa)) |>
   filter(survey_abbrev != "SYN QCS, SYN HS") |>
@@ -150,7 +149,7 @@ print(g)
 
 g <- filter(metrics_long, est_type %in% c("geostat")) |>
   filter(!measure %in% "cv") |>
-  filter(type %in% c("Restricted and shrunk", "Random down-sampled and shrunk 1")) |>
+  filter(type %in% c("Restricted and shrunk", "Random down-sampled and shrunk 2")) |>
   filter(!is.na(prop_mpa)) |>
   mutate(upr = if_else(measure == "mare" & upr > 1, 1, upr)) |>
   mutate(upr = if_else(measure == "slope_re" & upr > 1, 1, upr)) |>
@@ -175,7 +174,7 @@ print(g)
 #   theme(legend.position = c(0.2,0.8))
 # # theme(legend.position = "bottom", legend.direction = "vet")
 
-make_zee_cross_plot <- function(dat1, dat2, xlab ="x", ylab="y") {
+make_zee_cross_plot <- function(dat1, dat2, xlab = "x", ylab = "y") {
   dat_a <- dat1 |>
     select(species_common_name, survey_abbrev, est, lwr, upr) |>
     rename(est_a = est, lwr_a = lwr, upr_a = upr)
@@ -190,13 +189,14 @@ make_zee_cross_plot <- function(dat1, dat2, xlab ="x", ylab="y") {
     ylab(ylab) +
     coord_fixed() +
     ggrepel::geom_text_repel(aes(label = species_common_name),
-      show.legend = FALSE, size = 2.5, alpha = 0.6) +
+      show.legend = FALSE, size = 2.5, alpha = 0.6
+    ) +
     geom_abline(intercept = 0, slope = 1, lty = 2, alpha = 0.5) +
     geom_linerange(aes(x = est_a, ymin = est_a, ymax = est_b), colour = "grey70", alpha = 0.5) +
     scale_colour_brewer(palette = "Dark2") +
     scale_fill_brewer(palette = "Dark2") +
     labs(colour = "Survey", fill = "Survey") +
-    theme(legend.position = c(0.2,0.8))
+    theme(legend.position = c(0.2, 0.8))
 }
 
 d1 <- metrics_long |>
@@ -253,9 +253,13 @@ metrics_wide |>
 #   summarise()
 #
 
-extra <- select(metrics_wide, species_common_name, survey_abbrev, type,
-  est_type, coverage, prop_mpa) |> distinct() |>
-  rename(est = coverage) |> mutate(measure = "coverage", measure_clean = "50% CI coverage")
+extra <- select(
+  metrics_wide, species_common_name, survey_abbrev, type,
+  est_type, coverage, prop_mpa
+) |>
+  distinct() |>
+  rename(est = coverage) |>
+  mutate(measure = "coverage", measure_clean = "50% CI coverage")
 
 to_plot <- metrics_long |>
   mutate(measure_clean = ifelse(measure == "cv", "CV", measure_clean)) |>
@@ -277,11 +281,14 @@ to_plot <- metrics_long |>
   filter(est_type == "geostat")
 
 th <- ggsidekick::theme_sleek() +
-  theme(panel.grid = element_line(colour = "grey90"),
+  theme(
+    panel.grid = element_line(colour = "grey90"),
     panel.grid.major = element_line(linewidth = rel(0.5)),
-    panel.grid.minor = element_line(linewidth = rel(0.25)))
+    panel.grid.minor = element_line(linewidth = rel(0.25))
+  )
 
-to_plot |> filter(type2 != "Restricted and shrunk") |>
+to_plot |>
+  filter(type2 != "Restricted and shrunk") |>
   filter(measure != "cv_perc") |>
   ggplot(aes(type2, est_diff, colour = survey_abbrev)) +
   geom_boxplot() +
@@ -294,7 +301,6 @@ to_plot |> filter(type2 != "Restricted and shrunk") |>
 
 to_plot |>
   filter(measure != "cv") |>
-
   ggplot(aes(type2, est)) +
   geom_boxplot() +
   facet_wrap(~measure_clean, scales = "free_x") +
@@ -307,7 +313,12 @@ to_plot |>
   theme(axis.title.y = element_blank()) +
   labs(y = "Metric value", colour = "Survey")
 
-  # theme(axis.text.x = element_text(angle = 90, hjust = 1))
+# NOTES:
+# downsampling helps trend bias a bit
+# MARE about same as MPA + shrunk...
+# should be random downsample and NOT shrunk
+
+# theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
 #
 # # ----------------------------------

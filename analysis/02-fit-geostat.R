@@ -32,15 +32,18 @@ calc_indices <- function(spp, survey, force = FALSE) {
   grid$area <- 4
   grid <- filter(grid, survey_abbrev %in% survey)
 
-  downdat <- readRDS("data-generated/downsampled-fitting-data.rds")
-
   surv_dat <- filter(surv_dat, survey_abbrev %in% survey, species_common_name == spp)
-  surv_dat_down <- filter(downdat, survey_abbrev %in% survey, species_common_name == spp, downsample_seed == 1)
-  surv_dat_down2 <- filter(downdat, survey_abbrev %in% survey, species_common_name == spp, downsample_seed == 2)
-
   if (nrow(surv_dat) == 0L) {
     return(NULL)
   }
+
+  downdat <- readRDS("data-generated/downsampled-fitting-data.rds")
+  surv_dat_down1 <- filter(downdat, survey_abbrev %in% survey, species_common_name == spp, downsample_seed == 1)
+  surv_dat_down2 <- filter(downdat, survey_abbrev %in% survey, species_common_name == spp, downsample_seed == 2)
+  surv_dat_down3 <- filter(downdat, survey_abbrev %in% survey, species_common_name == spp, downsample_seed == 3)
+  surv_dat_down4 <- filter(downdat, survey_abbrev %in% survey, species_common_name == spp, downsample_seed == 4)
+  surv_dat_down5 <- filter(downdat, survey_abbrev %in% survey, species_common_name == spp, downsample_seed == 5)
+  rm(downdat)
 
   prep_cols_syn <- function(d) {
     d$area_swept1 <- d$doorspread_m * d$tow_length_m
@@ -62,13 +65,19 @@ calc_indices <- function(spp, survey, force = FALSE) {
   if (grepl("SYN", survey[[1]])) {
     surv_dat <- prep_cols_syn(surv_dat)
     # surv_dat_up <- prep_cols_syn(surv_dat_up)
-    surv_dat_down <- prep_cols_syn(surv_dat_down)
+    surv_dat_down1 <- prep_cols_syn(surv_dat_down1)
     surv_dat_down2 <- prep_cols_syn(surv_dat_down2)
+    surv_dat_down3 <- prep_cols_syn(surv_dat_down3)
+    surv_dat_down4 <- prep_cols_syn(surv_dat_down4)
+    surv_dat_down5 <- prep_cols_syn(surv_dat_down5)
   } else {
     surv_dat <- prep_cols_hbll(surv_dat)
     # surv_dat_up <- prep_cols_hbll(surv_dat_up)
-    surv_dat_down <- prep_cols_hbll(surv_dat_down)
+    surv_dat_down1 <- prep_cols_hbll(surv_dat_down1)
     surv_dat_down2 <- prep_cols_hbll(surv_dat_down2)
+    surv_dat_down3 <- prep_cols_hbll(surv_dat_down3)
+    surv_dat_down4 <- prep_cols_hbll(surv_dat_down4)
+    surv_dat_down5 <- prep_cols_hbll(surv_dat_down5)
   }
 
   g <- ggplot(surv_dat, aes(X, Y, colour = restricted, size = response / exp(offset))) +
@@ -92,14 +101,15 @@ calc_indices <- function(spp, survey, force = FALSE) {
     mesh_all <- make_mesh(surv_dat, xy_cols = c("X", "Y"), cutoff = 10)
     mesh_restr <- make_mesh(surv_dat_r, xy_cols = c("X", "Y"), mesh = mesh_all$mesh)
     # mesh_up <- make_mesh(surv_dat_up, xy_cols = c("X", "Y"), mesh = mesh_all$mesh)
-    mesh_down <- make_mesh(surv_dat_down, xy_cols = c("X", "Y"), mesh = mesh_all$mesh)
-    mesh_down2 <- make_mesh(surv_dat_down2, xy_cols = c("X", "Y"), mesh = mesh_all$mesh)
+    # mesh_down <- make_mesh(surv_dat_down, xy_cols = c("X", "Y"), mesh = mesh_all$mesh)
+    # mesh_down2 <- make_mesh(surv_dat_down2, xy_cols = c("X", "Y"), mesh = mesh_all$mesh)
 
     mi <- list(
       spatiotemporal = list("iid", "iid"),
       family = sdmTMB::delta_gamma()
     )
 
+    cat("Fit restricted\n")
     fit_restr <- try({
       sdmTMB(
         formula = response ~ 0 + as.factor(year),
@@ -150,6 +160,7 @@ calc_indices <- function(spp, survey, force = FALSE) {
     }
     sanity_restr <- all(unlist(sanity(fit_restr)))
 
+    cat("Fit all\n")
     fit_all <- try({
       sdmTMB(
         formula = response ~ 0 + as.factor(year),
@@ -167,39 +178,32 @@ calc_indices <- function(spp, survey, force = FALSE) {
     })
     sanity_all <- all(unlist(sanity(fit_all)))
 
-    fit_down <- try({
-      sdmTMB(
-        formula = response ~ 0 + as.factor(year),
-        data = surv_dat_down,
-        family = mi$family,
-        time = "year",
-        spatiotemporal = mi$spatiotemporal,
-        offset = "offset",
-        mesh = mesh_down,
-        anisotropy = FALSE,
-        priors = priors,
-        silent = SILENT,
-        control = sdmTMBcontrol(newton_loops = 1L),
-      )
-    })
-    sanity_down <- all(unlist(sanity(fit_down)))
-
-    fit_down2 <- try({
-      sdmTMB(
-        formula = response ~ 0 + as.factor(year),
-        data = surv_dat_down2,
-        family = mi$family,
-        time = "year",
-        spatiotemporal = mi$spatiotemporal,
-        offset = "offset",
-        mesh = mesh_down2,
-        anisotropy = FALSE,
-        priors = priors,
-        silent = SILENT,
-        control = sdmTMBcontrol(newton_loops = 1L),
-      )
-    })
-    sanity_down2 <- all(unlist(sanity(fit_down2)))
+    cat("Fit downsamples\n")
+    fit_down_model <- function(.dat) {
+      mesh_down <- make_mesh(.dat, xy_cols = c("X", "Y"), mesh = mesh_all$mesh)
+      fit_down <- try({
+        sdmTMB(
+          formula = response ~ 0 + as.factor(year),
+          data = .dat,
+          family = mi$family,
+          time = "year",
+          spatiotemporal = mi$spatiotemporal,
+          offset = "offset",
+          mesh = mesh_down,
+          anisotropy = FALSE,
+          priors = priors,
+          silent = SILENT,
+          control = sdmTMBcontrol(newton_loops = 1L),
+        )
+      })
+      sanity_down <- all(unlist(sanity(fit_down)))
+      list(model = fit_down, sanity = sanity_down)
+    }
+    fit_down1 <- fit_down_model(surv_dat_down1)
+    fit_down2 <- fit_down_model(surv_dat_down2)
+    fit_down3 <- fit_down_model(surv_dat_down3)
+    fit_down4 <- fit_down_model(surv_dat_down4)
+    fit_down5 <- fit_down_model(surv_dat_down5)
 
     if (!sanity_all || !sanity_restr) {
       saveRDS(NULL, paste0("data-generated/indexes/", spp_file, "-", surv_file, ".rds"))
@@ -274,6 +278,7 @@ calc_indices <- function(spp, survey, force = FALSE) {
     up_sampled_dat4 <- generate_up_sampled_dataset(4)
     up_sampled_dat5 <- generate_up_sampled_dataset(5)
 
+    cat("Fit upsamples\n")
     fit_upsample <- function(dat) {
       mesh_up <- make_mesh(dat, xy_cols = c("X", "Y"), mesh = mesh_all$mesh)
       fit_up <- try({
@@ -323,18 +328,22 @@ calc_indices <- function(spp, survey, force = FALSE) {
     prs <- predict(fit_restr, newdata = gr_remaining, return_tmb_object = TRUE)
     indrs <- get_index(prs, bias_correct = TRUE)
 
-    if (sanity_down) {
-      p_down <- predict(fit_down, newdata = gr_remaining, return_tmb_object = TRUE)
-      ind_down <- get_index(p_down, bias_correct = TRUE)
+    get_ind_down <- function(obj) {
+      if (obj$sanity) {
+        p_down <- predict(obj$model, newdata = gr_full, return_tmb_object = TRUE) #<
+        return(get_index(p_down, bias_correct = TRUE))
+      }
     }
-    if (sanity_down2) {
-      p_down2 <- predict(fit_down2, newdata = gr_remaining, return_tmb_object = TRUE)
-      ind_down2 <- get_index(p_down2, bias_correct = TRUE)
-    }
+
+    ind_down1 <- get_ind_down(fit_down1)
+    ind_down2 <- get_ind_down(fit_down2)
+    ind_down3 <- get_ind_down(fit_down3)
+    ind_down4 <- get_ind_down(fit_down4)
+    ind_down5 <- get_ind_down(fit_down5)
 
     get_ind_up <- function(obj) {
       if (obj$sanity) {
-        p_up <- predict(obj$model, newdata = gr_remaining, return_tmb_object = TRUE)
+        p_up <- predict(obj$model, newdata = gr_remaining, return_tmb_object = TRUE) #<
         return(get_index(p_up, bias_correct = TRUE))
       }
     }
@@ -351,8 +360,11 @@ calc_indices <- function(spp, survey, force = FALSE) {
       mutate(indmpa, type = "MPA only"),
       mutate(indmpa_restr, type = "MPA only restricted")
     )
-    if (sanity_down) i <- bind_rows(i, mutate(ind_down, type = "Random down-sampled and shrunk 1"))
-    if (sanity_down2) i <- bind_rows(i, mutate(ind_down2, type = "Random down-sampled and shrunk 2"))
+    if (fit_down1$sanity) i <- bind_rows(i, mutate(ind_down1, type = "Random down-sampled and shrunk 1"))
+    if (fit_down2$sanity) i <- bind_rows(i, mutate(ind_down2, type = "Random down-sampled and shrunk 2"))
+    if (fit_down3$sanity) i <- bind_rows(i, mutate(ind_down3, type = "Random down-sampled and shrunk 3"))
+    if (fit_down4$sanity) i <- bind_rows(i, mutate(ind_down4, type = "Random down-sampled and shrunk 4"))
+    if (fit_down5$sanity) i <- bind_rows(i, mutate(ind_down5, type = "Random down-sampled and shrunk 5"))
     if (fit_up1$sanity) i <- bind_rows(i, mutate(ind_up1, type = "Random up-sampled and shrunk 1"))
     if (fit_up2$sanity) i <- bind_rows(i, mutate(ind_up2, type = "Random up-sampled and shrunk 2"))
     if (fit_up3$sanity) i <- bind_rows(i, mutate(ind_up3, type = "Random up-sampled and shrunk 3"))
@@ -371,7 +383,8 @@ calc_indices <- function(spp, survey, force = FALSE) {
   if (!is.null(i)) {
     g <- i |>
       filter(!grepl("MPA", type)) |>
-      filter(!grepl("Random up-sampled and shrunk [3-9]+", type)) |> # only visualize seed 1 + 2
+      filter(!grepl("Random up-sampled and shrunk [2-9]+", type)) |> # only visualize seed 1
+      filter(!grepl("Random down-sampled and shrunk [2-9]+", type)) |> # only visualize seed 1
       ggplot(aes(year, est, ymin = lwr, ymax = upr, colour = type)) +
       geom_pointrange(position = position_dodge(width = 1), pch = 21) +
       scale_colour_brewer(palette = "Dark2") +
@@ -402,6 +415,7 @@ cores <- round(parallel::detectCores() / 2) + 2
 if (!is_rstudio && is_unix) plan(multicore, workers = cores) else plan(multisession, workers = cores)
 
 to_fit <- expand_grid(spp = syn_highlights, survey = syn_survs)
+to_fit <- to_fit[sample(nrow(to_fit)),] # randomize for parallel
 
 ## test: --------------------------------------------------
 calc_indices(spp = syn_highlights[17], survey = syn_survs[3], force = TRUE)
@@ -425,8 +439,10 @@ grid <- filter(grid, survey_abbrev %in% "SYN QCS")
 pal <- c(as.character(colorBlindness::availableColors())[-1], c("grey60"))
 x |> filter(year %in% c(2003, 2009, 2017)) |>
   ggplot(aes(X, Y, shape = up_sample)) +
-  geom_tile(data = grid, mapping = aes(X, Y, colour = as.factor(grouping_code), fill = as.factor(grouping_code)), inherit.aes = FALSE, width = 2.01, height = 2.01) +
-  geom_tile(data = filter(grid, restricted), mapping = aes(X, Y), inherit.aes = FALSE, width = 2, height = 2, fill = "grey60") +
+  geom_tile(data = grid, mapping = aes(X, Y, colour = as.factor(grouping_code),
+    fill = as.factor(grouping_code)), inherit.aes = FALSE, width = 2.01, height = 2.01) +
+  geom_tile(data = filter(grid, restricted), mapping = aes(X, Y),
+    inherit.aes = FALSE, width = 2, height = 2, fill = "grey60") +
   geom_point(alpha = 0.8, mapping = aes(size = response)) +
   facet_wrap(~year) +
   scale_shape_manual(values = c(21, 19)) +
@@ -435,7 +451,8 @@ x |> filter(year %in% c(2003, 2009, 2017)) |>
   ggsidekick::theme_sleek() +
   scale_fill_manual(values = pal) +
   scale_colour_manual(values = pal) +
-  labs(colour = "Stratum", fill = "Stratum", shape = "Up sampled", size = "Observed or\nsimulated catch") +
+  labs(colour = "Stratum", fill = "Stratum", shape = "Up sampled",
+    size = "Observed or\nsimulated catch") +
   theme(legend.position = "bottom")
 ggsave("figs/upsample-example.pdf", width = 9, height = 4.2)
 ## end test -----------------------------
