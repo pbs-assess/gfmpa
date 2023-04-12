@@ -47,3 +47,5 @@ nrow(z2) / nrow(survey_data)
 bind_rows(list(z1, z2)) |>
 # bind_rows(list(z1)) |>
   saveRDS("data-generated/downsampled-fitting-data.rds")
+
+ggsave("filename.pdf", width = 6, height = 6)

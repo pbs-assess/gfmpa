@@ -75,10 +75,19 @@ hbll <- readRDS("data-generated/dat_to_fit_hbll.rds")
 hbll$density_kgpm2 <- hbll$density_ppkm2 / 1e6 # hack; 1e6 gets reversed
 surv_dat <- bind_rows(surv_dat, hbll)
 
+f <- list.files("data-generated/sim-data/", full.names = TRUE)
+f <- f[grepl("[0-9]+", f)]
+f <- f[!grepl("SYN-QCS-SYN-HS", f)]
+sim <- purrr::map_dfr(f, readRDS)
+
 areas <- readRDS("data-generated/stratum-areas.rds") |>
   rename(status_quo_area = area, post_nsb_area = area_nsb)
 surv_dat <- left_join(surv_dat, areas)
 surv_dat$area_km2 <- NULL # filled later
+
+sim <- left_join(sim, areas)
+sim$area_km2 <- NULL # filled later
+sim$density_kgpm2 <- sim$response / exp(sim$offset)
 
 dat_status_quo_list <- surv_dat |>
   rename(area_km2 = status_quo_area) |>
@@ -90,6 +99,16 @@ dat_nsb_list <- surv_dat |>
   filter(!restricted) |>
   group_by(species_common_name, survey_abbrev) |>
   group_split()
+
+sim_nsb_list <- sim |>
+  rename(area_km2 = post_nsb_area) |>
+  filter(!restricted) |>
+  group_by(species_common_name, survey_abbrev, upsample_seed) |> #< seed
+  group_split()
+
+table(sim$survey_abbrev)
+table(sim$species_common_name)
+length(sim_nsb_list)
 
 # boot_status_quo <- purrr::map_dfr(dat_status_quo_list, function(.x) {
 #   cat(.x$species_common_name[1], .x$survey_abbrev[1], "\n")
@@ -114,30 +133,46 @@ dat_nsb_list <- surv_dat |>
 #   "minutes\n"
 # )
 
-tictoc::tic()
-boot_status_quo <- furrr::future_map_dfr(dat_status_quo_list, function(.x) {
-  out <- boot_biomass_purrr(.x, reps = 900L)
-  out$species_common_name <- .x$species_common_name[1]
-  select(out, survey_abbrev, species_common_name, everything())
-}, .options = furrr::furrr_options(seed = TRUE), .progress = TRUE)
-tictoc::toc()
+boot_over_list <- function(.dat, .type = "Status quo") {
+  tictoc::tic()
+  out <- furrr::future_map_dfr(.dat, function(.x) {
+    out <- boot_biomass_purrr(.x, reps = 500L)
+    out$species_common_name <- .x$species_common_name[1]
+    select(out, survey_abbrev, species_common_name, everything())
+  }, .options = furrr::furrr_options(seed = TRUE), .progress = TRUE)
+  tictoc::toc()
+  out$est_type <- "bootstrap"
+  out$type <- .type
+  out
+}
 
-boot_status_quo$est_type <- "bootstrap"
-boot_status_quo$type <- "Status quo"
+boot_status_quo <- boot_over_list(dat_status_quo_list, "Status quo")
 saveRDS(boot_status_quo, "data-generated/stratified-random-design-boot.rds")
 boot_status_quo <- readRDS("data-generated/stratified-random-design-boot.rds")
 
-tictoc::tic()
-boot_nsb <- furrr::future_map_dfr(dat_nsb_list, function(.x) {
-  out <- boot_biomass_purrr(.x, reps = 900L)
-  out$species_common_name <- .x$species_common_name[1]
-  select(out, survey_abbrev, species_common_name, everything())
-}, .options = furrr::furrr_options(seed = TRUE), .progress = TRUE)
-tictoc::toc()
-boot_nsb$est_type <- "bootstrap"
-boot_nsb$type <- "Restricted and shrunk"
+boot_nsb <- boot_over_list(dat_nsb_list, "Restricted and shrunk")
 saveRDS(boot_nsb, "data-generated/stratified-random-design-boot-nsb.rds")
 boot_nsb <- readRDS("data-generated/stratified-random-design-boot-nsb.rds")
+
+boot_over_list_sim <- function(.dat) {
+  tictoc::tic()
+  out <- furrr::future_map_dfr(.dat, function(.x) {
+  # out <- purrr::map_dfr(.dat, function(.x) {
+    out <- boot_biomass_purrr(.x, reps = 300L)
+    out$species_common_name <- .x$species_common_name[1]
+    out$type <- paste0("Random up-sampled and shrunk ", unique(.x$upsample_seed))
+    select(out, survey_abbrev, species_common_name, type, everything())
+  }, .options = furrr::furrr_options(seed = TRUE), .progress = TRUE)
+  # })
+  tictoc::toc()
+  out$est_type <- "bootstrap"
+  out
+}
+
+boot_sim <- boot_over_list_sim(sim_nsb_list)
+saveRDS(boot_sim, "data-generated/stratified-random-design-boot-nsb-sim-up.rds")
+boot_sim <- readRDS("data-generated/stratified-random-design-boot-nsb-sim-up.rds")
+
 
 # Design-based estimators:
 
