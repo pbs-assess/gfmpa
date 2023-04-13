@@ -179,6 +179,7 @@ calc_indices <- function(spp, survey, force = FALSE) {
     sanity_all <- all(unlist(sanity(fit_all)))
 
     cat("Fit downsamples\n")
+
     fit_down_model <- function(.dat) {
       mesh_down <- make_mesh(.dat, xy_cols = c("X", "Y"), mesh = mesh_all$mesh)
       fit_down <- try({
@@ -316,6 +317,9 @@ calc_indices <- function(spp, survey, force = FALSE) {
     p <- predict(fit_all, newdata = gr_full, return_tmb_object = TRUE)
     ind <- get_index(p, bias_correct = TRUE)
 
+    p <- predict(fit_all, newdata = gr_remaining, return_tmb_object = TRUE)
+    ind_remain <- get_index(p, bias_correct = TRUE)
+
     pmpa <- predict(fit_all, newdata = gr_mpa, return_tmb_object = TRUE)
     indmpa <- get_index(pmpa, bias_correct = TRUE)
 
@@ -357,14 +361,15 @@ calc_indices <- function(spp, survey, force = FALSE) {
       mutate(ind, type = "Status quo"),
       mutate(indr, type = "Restricted"),
       mutate(indrs, type = "Restricted and shrunk"),
+      mutate(ind_remain, type = "Status quo and shrunk"),
       mutate(indmpa, type = "MPA only"),
       mutate(indmpa_restr, type = "MPA only restricted")
     )
-    if (fit_down1$sanity) i <- bind_rows(i, mutate(ind_down1, type = "Random down-sampled and shrunk 1"))
-    if (fit_down2$sanity) i <- bind_rows(i, mutate(ind_down2, type = "Random down-sampled and shrunk 2"))
-    if (fit_down3$sanity) i <- bind_rows(i, mutate(ind_down3, type = "Random down-sampled and shrunk 3"))
-    if (fit_down4$sanity) i <- bind_rows(i, mutate(ind_down4, type = "Random down-sampled and shrunk 4"))
-    if (fit_down5$sanity) i <- bind_rows(i, mutate(ind_down5, type = "Random down-sampled and shrunk 5"))
+    if (fit_down1$sanity) i <- bind_rows(i, mutate(ind_down1, type = "Random down-sampled 1"))
+    if (fit_down2$sanity) i <- bind_rows(i, mutate(ind_down2, type = "Random down-sampled 2"))
+    if (fit_down3$sanity) i <- bind_rows(i, mutate(ind_down3, type = "Random down-sampled 3"))
+    if (fit_down4$sanity) i <- bind_rows(i, mutate(ind_down4, type = "Random down-sampled 4"))
+    if (fit_down5$sanity) i <- bind_rows(i, mutate(ind_down5, type = "Random down-sampled 5"))
     if (fit_up1$sanity) i <- bind_rows(i, mutate(ind_up1, type = "Random up-sampled and shrunk 1"))
     if (fit_up2$sanity) i <- bind_rows(i, mutate(ind_up2, type = "Random up-sampled and shrunk 2"))
     if (fit_up3$sanity) i <- bind_rows(i, mutate(ind_up3, type = "Random up-sampled and shrunk 3"))
@@ -384,7 +389,7 @@ calc_indices <- function(spp, survey, force = FALSE) {
     g <- i |>
       filter(!grepl("MPA", type)) |>
       filter(!grepl("Random up-sampled and shrunk [2-9]+", type)) |> # only visualize seed 1
-      filter(!grepl("Random down-sampled and shrunk [2-9]+", type)) |> # only visualize seed 1
+      filter(!grepl("Random down-sampled [2-9]+", type)) |> # only visualize seed 1
       ggplot(aes(year, est, ymin = lwr, ymax = upr, colour = type)) +
       geom_pointrange(position = position_dodge(width = 1), pch = 21) +
       scale_colour_brewer(palette = "Dark2") +
@@ -411,14 +416,14 @@ syn_survs <- c("SYN WCHG", "SYN QCS|SYN HS", "SYN QCS", "SYN HS")
 library(future)
 is_rstudio <- !is.na(Sys.getenv("RSTUDIO", unset = NA))
 is_unix <- .Platform$OS.type == "unix"
-cores <- round(parallel::detectCores() / 2) + 2
+cores <- round(parallel::detectCores() / 2)
+cores <- parallel::detectCores() - 2L
 if (!is_rstudio && is_unix) plan(multicore, workers = cores) else plan(multisession, workers = cores)
 
 to_fit <- expand_grid(spp = syn_highlights, survey = syn_survs)
-to_fit <- to_fit[sample(nrow(to_fit)),] # randomize for parallel
 
 ## test: --------------------------------------------------
-calc_indices(spp = syn_highlights[17], survey = syn_survs[3], force = TRUE)
+calc_indices(spp = syn_highlights[17], survey = syn_survs[3], force = FALSE)
 x <- readRDS("data-generated/indexes/pacific-cod-SYN-QCS.rds")
 x |>
   filter(type != "MPA only", type != "MPA only restricted", type != "Restricted") |>
@@ -457,6 +462,8 @@ x |> filter(year %in% c(2003, 2009, 2017)) |>
 ggsave("figs/upsample-example.pdf", width = 9, height = 4.2)
 ## end test -----------------------------
 
+set.seed(1)
+to_fit <- to_fit[sample(nrow(to_fit)),] # randomize for parallel
 # purrr::pmap(to_fit, calc_indices)
 furrr::future_pmap(to_fit, calc_indices, force = TRUE)
 
