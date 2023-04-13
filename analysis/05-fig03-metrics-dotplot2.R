@@ -207,6 +207,28 @@ make_zee_cross_plot(d1, d2, "Restricted and shrunk", "Random up-sampled and shru
   ggtitle("CV")
 
 d1 <- metrics_long |>
+  filter(est_type == "geostat", measure == "cv", type == "Restricted and shrunk")
+d2 <- metrics_long |>
+  filter(est_type == "geostat", measure == "cv", type == "Random down-sampled and shrunk 1")
+make_zee_cross_plot(d1, d2, "Restricted and shrunk", "Random down-sampled 1") +
+  ggtitle("CV")
+
+d1 <- metrics_long |>
+  filter(est_type == "geostat", measure == "mare", type == "Restricted and shrunk")
+d2 <- metrics_long |>
+  filter(est_type == "geostat", measure == "mare", type == "Random down-sampled and shrunk 2")
+make_zee_cross_plot(d1, d2, "Restricted and shrunk", "Random down-sampled 2") +
+  ggtitle("MARE")
+
+d1 <- metrics_long |>
+  filter(est_type == "geostat", measure == "slope_re", type == "Restricted and shrunk")
+d2 <- metrics_long |>
+  filter(est_type == "geostat", measure == "slope_re", type == "Random down-sampled and shrunk 2")
+make_zee_cross_plot(d1, d2, "Restricted and shrunk", "Random down-sampled 2") +
+  ggtitle("slope_re")
+
+
+d1 <- metrics_long |>
   filter(est_type == "geostat", measure == "mare", type == "Restricted and shrunk")
 d2 <- metrics_long |>
   filter(est_type == "geostat", measure == "mare", type == "Random up-sampled and shrunk 1")
