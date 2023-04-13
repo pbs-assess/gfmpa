@@ -8,7 +8,7 @@ hbll <- readRDS("data-generated/dat_to_fit_hbll.rds")
 survey_data <- bind_rows(survey_data, hbll)
 
 down_sample <- function(x, seed = 1) {
-  set.seed(seed)
+  set.seed(seed * x$year[1])
   number_restricted <- sum(x$restricted)
   available_rows <- seq_len(nrow(x))
   sampled <- sample(available_rows, size = number_restricted, replace = FALSE)
