@@ -82,37 +82,47 @@ re_slopes <- s |>
     }
   })
 re_slopes <- mutate(re_slopes,
-  slope_re_med = abs(slope_re),
-  slope_re_lwr = abs(slope_re) - 1.96 * se_slope_re, #FIXME!?
-  slope_re_upr = abs(slope_re) + 1.96 * se_slope_re
+  slope_re_med = slope_re,
+  slope_re_med_abs = abs(slope_re),
+  slope_re_lwr = slope_re - qnorm(0.75) * se_slope_re,
+  slope_re_upr = slope_re + qnorm(0.75) * se_slope_re
   ) |>
-  mutate(
-    slope_re_lwr = ifelse(slope_re_lwr < 0, 0, slope_re_lwr),
-    slope_re_upr = ifelse(slope_re_upr < 0, 0, slope_re_upr)
-  ) |>
-  select(-slope_re, -se_slope_re)
+  group_by(species_common_name, survey_abbrev, type, est_type) |>
+  mutate(slope_re_lwr_abs = case_when(
+    slope_re_lwr < 0 & slope_re_upr < 0 ~ abs(slope_re_lwr),
+    slope_re_lwr > 0 & slope_re_upr > 0 ~ abs(slope_re_lwr),
+    slope_re_lwr < 0 & slope_re_upr > 0 ~ 0, # spans 0, take 0
+    .default = NA_real_
+  )) |>
+  mutate(slope_re_upr_abs = case_when(
+    slope_re_lwr < 0 & slope_re_upr < 0 ~ abs(slope_re_upr),
+    slope_re_lwr > 0 & slope_re_upr > 0 ~ abs(slope_re_upr),
+    slope_re_lwr < 0 & slope_re_upr > 0 ~ max(abs(slope_re_upr), abs(slope_re_lwr)), # spans 0, take max abs value
+    .default = NA_real_
+  )) |>
+  select(-slope_re, -se_slope_re) |> ungroup()
+
+qs <- c(0.25, 0.75)
 
 metrics <- s |>
   group_by(species_common_name, survey_abbrev, type, est_type) |>
   summarise(
     orig_cv_mean = mean(orig_cv, na.rm = TRUE),
     cv_med = median(cv, na.rm = TRUE),
-    cv_lwr = quantile(cv, probs = 0.1, na.rm = TRUE),
-    cv_upr = quantile(cv, probs = 0.9, na.rm = TRUE),
+    cv_lwr = quantile(cv, probs = qs[1], na.rm = TRUE),
+    cv_upr = quantile(cv, probs = qs[2], na.rm = TRUE),
     mare_med = median(abs(re), na.rm = TRUE),
-    mare_lwr = quantile(abs(re), probs = 0.1, na.rm = TRUE),
-    mare_upr = quantile(abs(re), probs = 0.9, na.rm = TRUE),
+    mare_lwr = quantile(abs(re), probs = qs[1], na.rm = TRUE),
+    mare_upr = quantile(abs(re), probs = qs[2], na.rm = TRUE),
     cv_perc_med = mean(((cv - orig_cv) / orig_cv) * 100, na.rm = TRUE),
-    cv_perc_lwr = quantile(((cv - orig_cv) / orig_cv) * 100, probs = 0.1, na.rm = TRUE),
-    cv_perc_upr = quantile(((cv - orig_cv) / orig_cv) * 100, probs = 0.9, na.rm = TRUE),
+    cv_perc_lwr = quantile(((cv - orig_cv) / orig_cv) * 100, probs = qs[1], na.rm = TRUE),
+    cv_perc_upr = quantile(((cv - orig_cv) / orig_cv) * 100, probs = qs[2], na.rm = TRUE),
     coverage = mean(orig_est < upr_50 & orig_est > lwr_50)
   ) |>
   ungroup()
 
 metrics <- left_join(metrics, prop_mpa)
-metrics <- left_join(metrics, re_slopes) |>
-  mutate(abs_slope_re = abs(slope_re_med))
-glimpse(metrics)
+metrics <- left_join(metrics, re_slopes)
 
 lwr <- select(metrics, species_common_name:est_type, ends_with("lwr")) |>
   tidyr::pivot_longer(cols = ends_with("lwr"), values_to = "lwr", names_to = "measure") |>
@@ -146,7 +156,7 @@ metrics |> group_by(est_type, type) |>
     mean_coverage = mean(coverage, na.rm = TRUE),
     mean_cv_change = mean(cv_perc_med, na.rm = TRUE),
     mean_mare = mean(mare_med, na.rm = TRUE),
-    mean_slope = mean(abs_slope_re, na.rm = TRUE)
+    mean_slope = mean(slope_re_med, na.rm = TRUE)
   ) |>
   # filter(survey_abbrev == "SYN WCHG") |>
   # filter(survey_abbrev == "HBLL OUT N") |>

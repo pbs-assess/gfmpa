@@ -122,6 +122,7 @@ g3 <- plot_shrunk_grid("HS_Active_Blocks", trawl_removed)
 g4 <- plot_shrunk_grid("QCS_Active_Blocks", trawl_removed)
 g <- cowplot::plot_grid(g1, g2, g3, g4)
 ggsave("figs/grid-strata-restricted.pdf", width = 9, height = 6.7, plot = g)
+ggsave("figs/grid-strata-restricted.png", width = 9, height = 6.7, plot = g)
 
 shrink_survey_grid <- function(f, restr_dat, label = "") {
   d <- sf::read_sf("data-raw/Synoptic_Surveys_and_HBLLOutside_Active_Blocks/",

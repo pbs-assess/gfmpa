@@ -3,7 +3,7 @@ library(ggplot2)
 source("analysis/theme.R")
 
 index <- readRDS("data-generated/index-filtered.rds")
-metrics <- readRDS("data-generated/metrics-wide.rds")
+metrics <- readRDS("data-generated/metrics-wide2.rds")
 
 top_prop <- metrics |>
   select(
@@ -60,7 +60,7 @@ dodge_width <- 1
 
 colour_pal <- c("gray50", restricted_cols)
 
-m <- select(metrics, survey_abbrev, species_common_name, cv_orig, prop_mpa) |>
+m <- select(metrics, survey_abbrev, species_common_name, prop_mpa) |>
   distinct()
 
 index <- index |> left_join(m, by = join_by(species_common_name, survey_abbrev))
@@ -110,7 +110,8 @@ g <- index |>
     ylim = c(0, NA)
   ) +
   labs(x = "Year", colour = " ", fill = " ", linetype = " ") +
-  scale_colour_manual(values = colour_pal) +
+  scale_colour_manual(values = c("grey50", RColorBrewer::brewer.pal(4, "Set2")[1:3])) +
+  # scale_colour_brewer(palette = "Set2") +
   facet_wrap(~ forcats::fct_inorder(spp_survey), scales = "free_y", ncol = 5) +
   ylab("Relative abundance or biomass") +
   labs(x = "Year", colour = "Index type", fill = "Index type", linetype = "Index type") +
@@ -123,3 +124,4 @@ g
 g <- g + tagger::tag_facets(tag_prefix = "(", position = list(x = 0.1, y = 0.87))
 
 ggsave("figs/index-geo-restricted-highlights.pdf", width = 9.5, height = 5.25)
+ggsave("figs/index-geo-restricted-highlights.png", width = 9.5, height = 5.25)

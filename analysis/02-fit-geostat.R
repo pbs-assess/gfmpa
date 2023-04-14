@@ -109,9 +109,24 @@ calc_indices <- function(spp, survey, force = FALSE) {
       family = sdmTMB::delta_gamma()
     )
 
+    # fit_restr2 <- try({
+    #   sdmTMB(
+    #     formula = response ~ 0 + as.factor(year),
+    #     data = surv_dat_r,
+    #     family = tweedie(),
+    #     time = "year",
+    #     spatiotemporal = "iid",
+    #     offset = "offset",
+    #     mesh = mesh_restr,
+    #     anisotropy = FALSE,
+    #     priors = priors,
+    #     silent = SILENT,
+    #     control = sdmTMBcontrol(newton_loops = 1L),
+    #   )})
+
     cat("Fit restricted\n")
     fit_restr <- try({
-      sdmTMB(
+     sdmTMB(
         formula = response ~ 0 + as.factor(year),
         data = surv_dat_r,
         family = mi$family,
@@ -178,6 +193,11 @@ calc_indices <- function(spp, survey, force = FALSE) {
     })
     sanity_all <- all(unlist(sanity(fit_all)))
 
+    if (!sanity_all || !sanity_restr) {
+      saveRDS(NULL, paste0("data-generated/indexes/", spp_file, "-", surv_file, ".rds"))
+      return(NULL)
+    }
+
     cat("Fit downsamples\n")
 
     fit_down_model <- function(.dat) {
@@ -203,13 +223,8 @@ calc_indices <- function(spp, survey, force = FALSE) {
     fit_down1 <- fit_down_model(surv_dat_down1)
     fit_down2 <- fit_down_model(surv_dat_down2)
     fit_down3 <- fit_down_model(surv_dat_down3)
-    fit_down4 <- fit_down_model(surv_dat_down4)
-    fit_down5 <- fit_down_model(surv_dat_down5)
-
-    if (!sanity_all || !sanity_restr) {
-      saveRDS(NULL, paste0("data-generated/indexes/", spp_file, "-", surv_file, ".rds"))
-      return(NULL)
-    }
+    # fit_down4 <- fit_down_model(surv_dat_down4)
+    # fit_down5 <- fit_down_model(surv_dat_down5)
 
     # up-sample -------------
 
@@ -303,8 +318,8 @@ calc_indices <- function(spp, survey, force = FALSE) {
     fit_up1 <- fit_upsample(up_sampled_dat1)
     fit_up2 <- fit_upsample(up_sampled_dat2)
     fit_up3 <- fit_upsample(up_sampled_dat3)
-    fit_up4 <- fit_upsample(up_sampled_dat4)
-    fit_up5 <- fit_upsample(up_sampled_dat5)
+    # fit_up4 <- fit_upsample(up_sampled_dat4)
+    # fit_up5 <- fit_upsample(up_sampled_dat5)
 
     # ----------------------
 
@@ -342,8 +357,8 @@ calc_indices <- function(spp, survey, force = FALSE) {
     ind_down1 <- get_ind_down(fit_down1)
     ind_down2 <- get_ind_down(fit_down2)
     ind_down3 <- get_ind_down(fit_down3)
-    ind_down4 <- get_ind_down(fit_down4)
-    ind_down5 <- get_ind_down(fit_down5)
+    # ind_down4 <- get_ind_down(fit_down4)
+    # ind_down5 <- get_ind_down(fit_down5)
 
     get_ind_up <- function(obj) {
       if (obj$sanity) {
@@ -354,8 +369,8 @@ calc_indices <- function(spp, survey, force = FALSE) {
     ind_up1 <- get_ind_up(fit_up1)
     ind_up2 <- get_ind_up(fit_up2)
     ind_up3 <- get_ind_up(fit_up3)
-    ind_up4 <- get_ind_up(fit_up4)
-    ind_up5 <- get_ind_up(fit_up5)
+    # ind_up4 <- get_ind_up(fit_up4)
+    # ind_up5 <- get_ind_up(fit_up5)
 
     i <- bind_rows(
       mutate(ind, type = "Status quo"),
@@ -368,13 +383,13 @@ calc_indices <- function(spp, survey, force = FALSE) {
     if (fit_down1$sanity) i <- bind_rows(i, mutate(ind_down1, type = "Random down-sampled 1"))
     if (fit_down2$sanity) i <- bind_rows(i, mutate(ind_down2, type = "Random down-sampled 2"))
     if (fit_down3$sanity) i <- bind_rows(i, mutate(ind_down3, type = "Random down-sampled 3"))
-    if (fit_down4$sanity) i <- bind_rows(i, mutate(ind_down4, type = "Random down-sampled 4"))
-    if (fit_down5$sanity) i <- bind_rows(i, mutate(ind_down5, type = "Random down-sampled 5"))
+    # if (fit_down4$sanity) i <- bind_rows(i, mutate(ind_down4, type = "Random down-sampled 4"))
+    # if (fit_down5$sanity) i <- bind_rows(i, mutate(ind_down5, type = "Random down-sampled 5"))
     if (fit_up1$sanity) i <- bind_rows(i, mutate(ind_up1, type = "Random up-sampled and shrunk 1"))
     if (fit_up2$sanity) i <- bind_rows(i, mutate(ind_up2, type = "Random up-sampled and shrunk 2"))
     if (fit_up3$sanity) i <- bind_rows(i, mutate(ind_up3, type = "Random up-sampled and shrunk 3"))
-    if (fit_up4$sanity) i <- bind_rows(i, mutate(ind_up4, type = "Random up-sampled and shrunk 4"))
-    if (fit_up5$sanity) i <- bind_rows(i, mutate(ind_up5, type = "Random up-sampled and shrunk 5"))
+    # if (fit_up4$sanity) i <- bind_rows(i, mutate(ind_up4, type = "Random up-sampled and shrunk 4"))
+    # if (fit_up5$sanity) i <- bind_rows(i, mutate(ind_up5, type = "Random up-sampled and shrunk 5"))
 
     i$species_common_name <- spp
     i$survey_abbrev <- paste(survey, collapse = ", ")
@@ -411,7 +426,8 @@ calc_indices <- function(spp, survey, force = FALSE) {
 
 source("analysis/spp.R")
 
-syn_survs <- c("SYN WCHG", "SYN QCS|SYN HS", "SYN QCS", "SYN HS")
+# syn_survs <- c("SYN WCHG", "SYN QCS|SYN HS", "SYN QCS", "SYN HS")
+syn_survs <- c("SYN WCHG", "SYN QCS", "SYN HS")
 
 library(future)
 is_rstudio <- !is.na(Sys.getenv("RSTUDIO", unset = NA))
@@ -423,7 +439,8 @@ if (!is_rstudio && is_unix) plan(multicore, workers = cores) else plan(multisess
 to_fit <- expand_grid(spp = syn_highlights, survey = syn_survs)
 
 ## test: --------------------------------------------------
-calc_indices(spp = syn_highlights[17], survey = syn_survs[3], force = FALSE)
+calc_indices(spp = "rougheye/blackspotted rockfish complex", survey = "SYN WCHG", force = T)
+calc_indices(spp = syn_highlights[17], survey = syn_survs[3], force = F)
 x <- readRDS("data-generated/indexes/pacific-cod-SYN-QCS.rds")
 x |>
   filter(type != "MPA only", type != "MPA only restricted", type != "Restricted") |>

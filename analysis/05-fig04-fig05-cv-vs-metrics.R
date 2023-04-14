@@ -23,9 +23,10 @@ metrics_wide <- filter(metrics_wide, !survey_abbrev %in% c("SYN QCS", "SYN HS"))
 
 g <- metrics_wide |>
   filter(type %in% "Restricted and shrunk") |>
+  filter(est_type %in% "geostat") |>
   # filter(grepl("mare", measure)) |>
   ggplot(
-    aes(orig_cv, mare_med, colour = survey_abbrev)
+    aes(orig_cv_mean, mare_med, colour = survey_abbrev)
   ) +
   geom_point(pch = 21, alpha = 1) +
   geom_point(pch = 19, alpha = 0.2) +
@@ -39,13 +40,16 @@ g <- metrics_wide |>
     legend.position = c(0.25, 0.85),
     strip.placement = "outside"
   ) +
-  coord_cartesian(ylim = c(0, NA)) +
+  # coord_cartesian(ylim = c(0, 0.9), xlim = c(0.08, 0.85)) +
+  coord_cartesian(ylim = c(0, 0.5), xlim = c(0.08, 0.8)) +
   scale_x_continuous(breaks = c(0.1, 0.2, 0.4, 0.8)) +
   scale_y_continuous(expand = expansion(mult = c(0, .01)))
+g
 ggsave("figs/cv-status-quo-mare.pdf", width = 4.2, height = 3.6)
 
 g <- metrics_long |>
   filter(type %in% "Restricted and shrunk") |>
+  filter(est_type %in% "geostat") |>
   filter(measure != "cv") |>
   # mutate(est = ifelse(grepl("trend", measure), abs(est), est)) |>
   # mutate(measure = ifelse(grepl("trend", measure), "| RE trend |\n(absolute trend bias)", measure)) |>
@@ -68,7 +72,7 @@ g <- metrics_long |>
   scale_colour_manual(name = "Survey", values = restricted_cols) +
   # scale_colour_brewer(palette = "Set2") +
   facet_grid(
-    rows = vars(measure),
+    rows = vars(measure_clean),
     switch = "y",
     scales = "free_y"
   ) +
@@ -84,7 +88,19 @@ g <- metrics_long |>
 
 g <- g + tagger::tag_facets(tag_prefix = "(", position = "tl")
 
-ggsave("figs/prop-mpa-vs-metrics.pdf", width = 3.70, height = 6)
+ggsave("figs/prop-mpa-vs-metrics.pdf", width = 3.70, height = 6.5)
+ggsave("figs/prop-mpa-vs-metrics.png", width = 3.70, height = 6.5)
+
+g +   facet_wrap(~measure_clean, scales = "free_y", ncol = 3
+) +
+  theme(
+    axis.title.y = element_blank(),
+    axis.title.x = element_text(size = 10),
+    legend.position = c(0.1, 0.8),
+    strip.placement = "outside"
+  )
+ggsave("figs/prop-mpa-vs-metrics-wide.pdf", width = 10, height = 3.5)
+ggsave("figs/prop-mpa-vs-metrics-wide.png", width = 10, height = 3.5)
 
 # print("prop CV below zero")
 # x <- metrics_long |>
