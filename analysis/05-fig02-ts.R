@@ -79,13 +79,13 @@ labeller_fn <- function(labels, multi_line = TRUE) {
   }
 }
 
-cols <- c(RColorBrewer::brewer.pal(4L, "Set2"), "grey50")
+cols <- c(RColorBrewer::brewer.pal(3L, "Set2"), "grey50")
 g <- ind |>
   # filter(species_common_name_lower == "english sole", survey_abbrev == "SYN WCHG") |>
   mutate(spp_survey = species_common_name) |>
   mutate(spp_survey = gsub("HBLL OUT N", "HBLL", spp_survey)) |>
   filter(type %in% c("Status quo", "Restricted and shrunk")) |>
-  group_by(spp_survey, type) |>
+  group_by(spp_survey, type, survey_abbrev) |>
   mutate(
     colour_var =
       ifelse(
@@ -150,8 +150,9 @@ g <- ind |>
     strip.text = element_text(colour = "black"),
     legend.position = "top", axis.text.y = element_text(size = 8)
   ) +
-  # geom_smooth(method = "gam", se = F, alpha = 0.5, formula = y ~ s(x, k = 8), method.args = list(family = Gamma(link = "log")), lwd = 0.8 )
-  geom_smooth(method = "loess", se = F, alpha = 0.5, formula = y ~ x, lwd = 0.8 )
+  geom_smooth(method = "gam", se = FALSE, alpha = 0.1, formula = y ~ s(x, k = 8), method.args = list(family = Gamma(link = "log")), lwd = 0.8, mapping = aes(fill = colour_var)) +
+  scale_fill_manual(values = cols)
+  # geom_smooth(method = "loess", se = F, alpha = 0.5, formula = y ~ x, lwd = 0.8 )
   # scale_y_log10()
 g
 

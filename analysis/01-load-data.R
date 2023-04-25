@@ -179,6 +179,8 @@ nrow(tokeep)
 
 dat_to_fit <- left_join(tokeep, dat, by = c("species_common_name", "survey_abbrev"))
 
+dat_to_fit <- dat_to_fit |> filter(!(year == 2014 & survey_abbrev == "SYN WCHG"))
+
 saveRDS(dat_to_fit, file = "data-generated/dat_to_fit.rds")
 
 # HBLL -----------------

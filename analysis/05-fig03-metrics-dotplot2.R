@@ -378,7 +378,7 @@ semi_join(to_plot, all_conv) |>
   mutate(survey_abbrev = forcats::fct_reorder(survey_abbrev, -mean_prop)) |>
   ggplot(aes(type2, est, colour = type2)) +
   # geom_boxplot() +
-  geom_pointrange(aes(ymin = lwr, ymax = upr), pch = 21) +
+  geom_pointrange(aes(ymin = lwr, ymax = upr), pch = 21, size = 0.3) +
   facet_grid(survey_abbrev~measure_clean, scales = "free_x") +
   # facet_grid(~measure_clean, scales = "free_x") +
   # scale_y_log10() +
@@ -389,9 +389,10 @@ semi_join(to_plot, all_conv) |>
   th +
   theme(axis.title.y = element_blank()) +
   labs(y = "Metric value", colour = "Scenario") +
-  guides(colour = "none")
-ggsave("figs/sampled-dotplot-comparison.pdf", width = 10, height = 5)
-ggsave("figs/sampled-dotplot-comparison.png", width = 10, height = 5)
+  guides(colour = "none") +
+  theme(strip.text.y.right = element_text(size = 7))
+ggsave("figs/sampled-dotplot-comparison.pdf", width = 7, height = 3.4)
+ggsave("figs/sampled-dotplot-comparison.png", width = 7, height = 3.4)
 
 # NOTES:
 # downsampling helps trend bias a bit

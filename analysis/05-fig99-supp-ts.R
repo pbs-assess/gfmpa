@@ -57,7 +57,7 @@ make_ts_plot <- function(survey_keep, ncol = NULL) {
     ) +
     labs(x = "Year", colour = " ", fill = " ", linetype = " ") +
     scale_colour_manual(values = c("grey50", "red")) +
-    facet_wrap(~ forcats::fct_inorder(species_common_name), scales = "free_y", ncol = ncol) +
+    facet_wrap(~ forcats::fct_inorder(stringr::str_to_title(species_common_name)), scales = "free_y", ncol = ncol) +
     ylab("Relative abundance or biomass") +
     labs(x = "Year", colour = "Index type", fill = "Index type", linetype = "Index type") +
     theme(

@@ -1,7 +1,7 @@
 library(ggplot2)
 library(dplyr)
 library(future)
-plan(multisession, workers = 8L)
+plan(multisession, workers = 6L)
 
 # calculate design-based biomass estimate from output of get_survey_sets()
 calc_bio <- function(dat, i = seq_len(nrow(dat))) {
