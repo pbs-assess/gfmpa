@@ -114,7 +114,7 @@ metrics <- s |>
     mare_med = median(abs(re), na.rm = TRUE),
     mare_lwr = quantile(abs(re), probs = qs[1], na.rm = TRUE),
     mare_upr = quantile(abs(re), probs = qs[2], na.rm = TRUE),
-    cv_perc_med = mean(((cv - orig_cv) / orig_cv) * 100, na.rm = TRUE),
+    cv_perc_med = median(((cv - orig_cv) / orig_cv) * 100, na.rm = TRUE),
     cv_perc_lwr = quantile(((cv - orig_cv) / orig_cv) * 100, probs = qs[1], na.rm = TRUE),
     cv_perc_upr = quantile(((cv - orig_cv) / orig_cv) * 100, probs = qs[2], na.rm = TRUE),
     coverage = mean(orig_est < upr_50 & orig_est > lwr_50)

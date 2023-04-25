@@ -2,12 +2,32 @@ library(dplyr)
 library(ggplot2)
 source("analysis/theme.R")
 
-index <- readRDS("data-generated/index-filtered.rds")
-metrics <- readRDS("data-generated/metrics-wide.rds")
+# index <- readRDS("data-generated/index-filtered.rds")
 
-m <- select(metrics, survey_abbrev, species_common_name, cv_orig, prop_mpa) |>
-  distinct()
-index <- index |> left_join(m, by = join_by(species_common_name, survey_abbrev))
+# index <- readRDS("data-generated/metrics-long2.rds")
+
+hbll <- readRDS("data-generated/index-hbll-geo-clean.rds")
+syn <- readRDS("data-generated/index-syn-geo-clean.rds")
+index <- bind_rows(hbll, syn)
+
+index <- mutate(index, species_common_name = gsub(
+  "rougheye/blackspotted rockfish complex",
+  "rougheye/blackspotted rockfish", species_common_name
+)) |>
+  filter(!(year == 2014 & survey_abbrev == "SYN WCHG"))
+
+metrics <- readRDS("data-generated/metrics-wide2.rds")
+
+prop <- metrics |>
+  select(
+    prop_mpa, species_common_name,
+    survey_abbrev
+  ) |>
+  distinct() |>
+  mutate(species_common_name = tolower(species_common_name))
+
+index$prop_mpa <- NULL
+index <- left_join(index, prop)
 
 dodge_width <- 1
 
@@ -32,8 +52,8 @@ make_ts_plot <- function(survey_keep, ncol = NULL) {
     geom_point(position = position_dodge(width = dodge_width), pch = 20, size = 1.8, alpha = 0.2) +
     coord_cartesian(
       expand = FALSE,
-      xlim = range(index$year) + c(-0.5, 0.5),
-      ylim = c(0, NA)
+      xlim = range(index$year) + c(-0.5, 0.5)
+      # ylim = c(0, NA)
     ) +
     labs(x = "Year", colour = " ", fill = " ", linetype = " ") +
     scale_colour_manual(values = c("grey50", "red")) +
@@ -43,13 +63,23 @@ make_ts_plot <- function(survey_keep, ncol = NULL) {
     theme(
       strip.text = element_text(colour = "black"),
       legend.position = "top", axis.text.y = element_text(size = 8)
-    )
+    ) +
+    scale_y_log10() +
+    geom_smooth(method = "loess", se = F, alpha = 0.5, formula = y ~ x, lwd = 0.8 )
   g
 }
 
+g <- make_ts_plot("SYN QCS", ncol = NULL) + ylab("Relative biomass")
+ggsave("figs/ts-qcs.pdf", width = 12, height = 9)
+
+g <- make_ts_plot("SYN HS", ncol = NULL) + ylab("Relative biomass")
+ggsave("figs/ts-HS.pdf", width = 12, height = 9)
+
 g <- make_ts_plot("SYN QCS, SYN HS", ncol = NULL) + ylab("Relative biomass")
-ggsave("figs/ts-qcs-hs.pdf", width = 12, height = 9)
+ggsave("figs/ts-QCS-HS.pdf", width = 12, height = 9)
+
 g <- make_ts_plot("SYN WCHG") + ylab("Relative biomass")
 ggsave("figs/ts-wchg.pdf", width = 12, height = 8)
+
 g <- make_ts_plot("HBLL OUT N") + ylab("Relative abundance")
 ggsave("figs/ts-hbll.pdf", width = 11, height = 7.5)

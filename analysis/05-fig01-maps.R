@@ -272,7 +272,7 @@ ggsave("figs/restricted-grid.pdf", width = 5.4, height = 5.4)
 
 # nsb ----------------
 nsb <- sf::read_sf("data-raw/mpatt_survey_overlaps.gdb", type = 7, layer = "MPATT_Q1_full_march2023_Cat1_Cat2_GH_singlepart")
-unique(x$SurveyOverlap)
+# unique(x$SurveyOverlap)
 nsb <- sf::st_transform(nsb, crs = 3156)
 
 lu <- tribble(
@@ -321,7 +321,8 @@ g2 <- ggplot() +
     ))
 
 g0 <- cowplot::plot_grid(g2,g)
-ggsave("figs/fig1.png", width = 10.5, height = 5.4, dpi = 190, plot = g0)
+ggsave("figs/fig1.png", width = 10.5, height = 5.4, dpi = 150, plot = g0)
+ggsave("figs/fig1.pdf", width = 10.5, height = 5.4, plot = g0)
 
 
 

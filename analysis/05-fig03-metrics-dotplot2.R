@@ -8,7 +8,7 @@ mround <- function(x, digits) {
   sprintf(paste0("%.", digits, "f"), round(x, digits))
 }
 
-make_zee_plot <- function(dat, colour_var = survey_abbrev, prop_threshold = 0.1, cv_upper_limit = 100, group_by_survey = TRUE) {
+make_plot <- function(dat, colour_var = survey_abbrev, prop_threshold = 0.15, cv_upper_limit = 100, group_by_survey = TRUE) {
 
   dat <- filter(dat, prop_mpa >= prop_threshold)
 
@@ -97,21 +97,23 @@ metrics_long$survey_abbrev <- factor(metrics_long$survey_abbrev,
     c("SYN WCHG", "HBLL OUT N", "SYN HS", "SYN QCS", "SYN QCS, SYN HS")
 )
 
+restricted_cols <- RColorBrewer::brewer.pal(4, "Set2")
 g <- filter(metrics_long, est_type %in% c("geostat")) |>
   filter(!measure %in% "cv") |>
   filter(type %in% c("Restricted and shrunk")) |>
   filter(!is.na(prop_mpa)) |>
-  filter(survey_abbrev != "SYN QCS") |>
-  filter(survey_abbrev != "SYN HS") |>
+  filter(survey_abbrev != "SYN QCS, SYN HS") |>
+  # filter(survey_abbrev != "SYN QCS") |>
+  # filter(survey_abbrev != "SYN HS") |>
   mutate(upr = ifelse(measure == "slope_re" & upr > 0.5, 0.5, upr)) |> # FIXME Note
-  make_zee_plot(colour_var = survey_abbrev, cv_upper_limit = 100, group_by_survey = FALSE) +
+  make_plot(colour_var = survey_abbrev, cv_upper_limit = 100, group_by_survey = FALSE) +
   labs(colour = "Survey", fill = "Survey") +
   guides(colour = "none", fill = "none") +
   scale_color_manual(values = restricted_cols) +
   scale_fill_manual(values = restricted_cols)
 print(g)
-ggsave("figs/metrics-dotplot-main.pdf", width = 8.5, height = 9)
-ggsave("figs/metrics-dotplot-main.png", width = 8.5, height = 9)
+ggsave("figs/metrics-dotplot-main.pdf", width = 7, height = 7.5)
+ggsave("figs/metrics-dotplot-main.png", width = 7, height = 7.5)
 
 g <- filter(metrics_long, est_type %in% c("geostat")) |>
   filter(!measure %in% "cv") |>
@@ -123,7 +125,7 @@ g <- filter(metrics_long, est_type %in% c("geostat")) |>
   filter(!is.na(prop_mpa)) |>
   filter(survey_abbrev != "SYN QCS") |>
   filter(survey_abbrev != "SYN HS") |>
-  make_zee_plot(colour_var = type, cv_upper_limit = 200, group_by_survey = TRUE) +
+  make_plot(colour_var = type, cv_upper_limit = 200, group_by_survey = TRUE) +
   labs(colour = "Scenario", fill = "Scenario")
 print(g)
 ggsave("figs/metrics-dotplot-extrapolate.pdf", width = 8.5, height = 9)
@@ -138,7 +140,7 @@ g <- filter(metrics_long, est_type %in% c("geostat", "bootstrap")) |>
   filter(type %in% c("Restricted and shrunk")) |>
   filter(!is.na(prop_mpa)) |>
   filter(survey_abbrev != "SYN QCS, SYN HS") |>
-  make_zee_plot(colour_var = est_type) +
+  make_plot(colour_var = est_type) +
   labs(colour = "Approach", fill = "Approach")
 print(g)
 ggsave("figs/metrics-dotplot-design-geo.pdf", width = 8.5, height = 9)
@@ -150,7 +152,7 @@ g <- filter(metrics_long, est_type %in% c("geostat")) |>
   filter(type %in% c("Restricted and shrunk", "Random up-sampled and shrunk 1")) |>
   filter(!is.na(prop_mpa)) |>
   filter(survey_abbrev != "SYN QCS, SYN HS") |>
-  make_zee_plot(colour_var = type) +
+  make_plot(colour_var = type) +
   labs(colour = "Scenario")
 print(g)
 
@@ -162,7 +164,7 @@ g <- filter(metrics_long, est_type %in% c("geostat")) |>
   mutate(upr = if_else(measure == "slope_re" & upr > 1, 1, upr)) |>
   mutate(est = if_else(measure == "slope_re" & est > 1, NA_real_, est)) |>
   filter(survey_abbrev != "SYN QCS, SYN HS") |>
-  make_zee_plot(colour_var = type) +
+  make_plot(colour_var = type) +
   labs(colour = "Scenario")
 print(g)
 
@@ -181,7 +183,7 @@ print(g)
 #   theme(legend.position = c(0.2,0.8))
 # # theme(legend.position = "bottom", legend.direction = "vet")
 
-make_zee_cross_plot <- function(dat1, dat2, xlab = "x", ylab = "y") {
+make_cross_plot <- function(dat1, dat2, xlab = "x", ylab = "y") {
   dat_a <- dat1 |>
     select(species_common_name, survey_abbrev, est, lwr, upr) |>
     rename(est_a = est, lwr_a = lwr, upr_a = upr)
@@ -210,42 +212,42 @@ d1 <- metrics_long |>
   filter(est_type == "geostat", measure == "cv", type == "Restricted and shrunk")
 d2 <- metrics_long |>
   filter(est_type == "geostat", measure == "cv", type == "Random up-sampled and shrunk 1")
-make_zee_cross_plot(d1, d2, "Restricted and shrunk", "Random up-sampled and shrunk 1") +
+make_cross_plot(d1, d2, "Restricted and shrunk", "Random up-sampled and shrunk 1") +
   ggtitle("CV")
 
 d1 <- metrics_long |>
   filter(est_type == "geostat", measure == "cv", type == "Restricted and shrunk")
 d2 <- metrics_long |>
   filter(est_type == "geostat", measure == "cv", type == "Random down-sampled 1")
-make_zee_cross_plot(d1, d2, "Restricted and shrunk", "Random down-sampled 1") +
+make_cross_plot(d1, d2, "Restricted and shrunk", "Random down-sampled 1") +
   ggtitle("CV")
 
 d1 <- metrics_long |>
   filter(est_type == "geostat", measure == "mare", type == "Restricted and shrunk")
 d2 <- metrics_long |>
   filter(est_type == "geostat", measure == "mare", type == "Random down-sampled 2")
-make_zee_cross_plot(d1, d2, "Restricted and shrunk", "Random down-sampled 2") +
+make_cross_plot(d1, d2, "Restricted and shrunk", "Random down-sampled 2") +
   ggtitle("MARE")
 
 d1 <- metrics_long |>
   filter(est_type == "geostat", measure == "slope_re", type == "Restricted and shrunk")
 d2 <- metrics_long |>
   filter(est_type == "geostat", measure == "slope_re", type == "Random down-sampled 2")
-make_zee_cross_plot(d1, d2, "Restricted and shrunk", "Random down-sampled 2") +
+make_cross_plot(d1, d2, "Restricted and shrunk", "Random down-sampled 2") +
   ggtitle("slope_re")
 
 d1 <- metrics_long |>
   filter(est_type == "geostat", measure == "mare", type == "Restricted and shrunk")
 d2 <- metrics_long |>
   filter(est_type == "geostat", measure == "mare", type == "Random up-sampled and shrunk 1")
-make_zee_cross_plot(d1, d2, "Restricted and shrunk", "Random up-sampled and shrunk 1") +
+make_cross_plot(d1, d2, "Restricted and shrunk", "Random up-sampled and shrunk 1") +
   ggtitle("MARE")
 
 d1 <- metrics_long |>
   filter(est_type == "geostat", measure == "slope_re", type == "Restricted and shrunk")
 d2 <- metrics_long |>
   filter(est_type == "geostat", measure == "slope_re", type == "Random up-sampled and shrunk 1")
-make_zee_cross_plot(d1, d2, "Restricted and shrunk", "Random up-sampled and shrunk 1") +
+make_cross_plot(d1, d2, "Restricted and shrunk", "Random up-sampled and shrunk 1") +
   ggtitle("Absolute relative error slope")
 
 upper <- 0.9
@@ -254,7 +256,7 @@ d1 <- metrics_long |>
   filter(survey_abbrev != "SYN QCS, SYN HS")
 d2 <- metrics_long |>
   filter(est_type == "bootstrap", measure == "cv", type == "Restricted and shrunk")
-g1 <- make_zee_cross_plot(d2, d1, "bootstrap", "geostat") +
+g1 <- make_cross_plot(d2, d1, "bootstrap", "geostat") +
   labs(y = "Geostatistical CV", x = "Design-based CV") +
   coord_fixed(xlim = c(0.1, upper), ylim = c(0.1, upper)) +
   ggtitle("Restricted and shrunk")
@@ -264,7 +266,7 @@ d1 <- metrics_long |>
   filter(survey_abbrev != "SYN QCS, SYN HS")
 d2 <- metrics_long |>
   filter(est_type == "bootstrap", measure == "cv", type == "Status quo")
-g2 <- make_zee_cross_plot(d2, d1, "bootstrap", "geostat") +
+g2 <- make_cross_plot(d2, d1, "bootstrap", "geostat") +
   labs(y = "Geostatistical CV", x = "Design-based CV") +
   coord_fixed(xlim = c(0.1, upper), ylim = c(0.1, upper)) +
   ggtitle("Status quo")

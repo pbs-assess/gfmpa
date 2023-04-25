@@ -85,7 +85,8 @@ calc_indices <- function(spp, survey, force = FALSE) {
     facet_wrap(~year) +
     coord_fixed() +
     scale_colour_manual(values = c(`TRUE` = "red", `FALSE` = "grey60")) +
-    ggtitle(spp)
+    ggtitle(spp) +
+    scale_size_area(max_size = 8)
   ggsave(paste0("figs/raw-data-maps/", spp_file, "-", surv_file, ".pdf"),
     width = 10, height = 10
   )
@@ -95,19 +96,26 @@ calc_indices <- function(spp, survey, force = FALSE) {
       matern_s = pc_matern(range_gt = 20, sigma_lt = 5),
       matern_st = pc_matern(range_gt = 20, sigma_lt = 5)
     )
+    # priors <- sdmTMBpriors()
 
     surv_dat_r <- filter(surv_dat, !restricted)
 
-    mesh_all <- make_mesh(surv_dat, xy_cols = c("X", "Y"), cutoff = 10)
-    mesh_restr <- make_mesh(surv_dat_r, xy_cols = c("X", "Y"), mesh = mesh_all$mesh)
+    cutoff <- if (survey == "SYN WCHG") 5 else 8
+
+    mesh_all <- make_mesh(surv_dat, xy_cols = c("X", "Y"), cutoff = cutoff)
+    mesh_restr <- make_mesh(surv_dat_r, xy_cols = c("X", "Y"), cutoff = cutoff, mesh = mesh_all$mesh) # helps convergence not to use full mesh!?
     # mesh_up <- make_mesh(surv_dat_up, xy_cols = c("X", "Y"), mesh = mesh_all$mesh)
     # mesh_down <- make_mesh(surv_dat_down, xy_cols = c("X", "Y"), mesh = mesh_all$mesh)
     # mesh_down2 <- make_mesh(surv_dat_down2, xy_cols = c("X", "Y"), mesh = mesh_all$mesh)
 
     mi <- list(
       spatiotemporal = list("iid", "iid"),
-      family = sdmTMB::delta_gamma()
+      family = sdmTMB::delta_gamma(),
+      anisotropy = FALSE
     )
+
+    # relax default gradient_thresh from 0.001 to 0.01:
+    sanity <- function(...) sdmTMB::sanity(..., gradient_thresh = 0.01)
 
     # fit_restr2 <- try({
     #   sdmTMB(
@@ -125,7 +133,49 @@ calc_indices <- function(spp, survey, force = FALSE) {
     #   )})
 
     cat("Fit restricted\n")
-    fit_restr <- try({
+
+    #####################
+#
+#     mesh <- make_mesh(surv_dat_r, xy_cols = c("X", "Y"), cutoff = 5)
+#     plot(mesh$mesh, asp = 1)
+#
+#     # sum(is.na(surv_dat_r$depth_m))
+#     m_aniso <- sdmTMB(
+#       formula = response ~ 0 + as.factor(year),
+#       data = surv_dat_r,
+#       family = mi$family,
+#       time = "year",
+#       spatiotemporal = mi$spatiotemporal,
+#       offset = "offset",
+#       mesh = mesh,
+#       anisotropy = T,
+#       # priors = priors,
+#       silent = F,
+#       control = sdmTMBcontrol(newton_loops = 1L),
+#     )
+    # m_iso <- update(m_aniso, anisotropy = FALSE)
+    #
+    # sanity(m_iso)
+    # sanity(m_aniso)
+    # AIC(m_iso, m_aniso)
+
+    #####################
+
+    # fit_restr_aniso <- try({
+    #  sdmTMB(
+    #     formula = response ~ 0 + as.factor(year),
+    #     data = surv_dat_r,
+    #     family = mi$family,
+    #     time = "year",
+    #     spatiotemporal = mi$spatiotemporal,
+    #     offset = "offset",
+    #     mesh = mesh_restr,
+    #     anisotropy = TRUE,
+    #     priors = priors,
+    #     silent = SILENT
+    #   )
+    # })
+    fit_restr_iso <- try({
      sdmTMB(
         formula = response ~ 0 + as.factor(year),
         data = surv_dat_r,
@@ -136,19 +186,42 @@ calc_indices <- function(spp, survey, force = FALSE) {
         mesh = mesh_restr,
         anisotropy = FALSE,
         priors = priors,
-        silent = SILENT,
-        control = sdmTMBcontrol(newton_loops = 1L),
+        silent = SILENT
       )
     })
-    s <- sanity(fit_restr)
-    ok <- all(unlist(s))
+
+    # s_aniso <- all(unlist(sanity(fit_restr_aniso)))
+    # s_iso <- all(unlist(sanity(fit_restr_iso)))
+    # if (s_aniso && s_iso) {
+    #   delta_AIC <- AIC(fit_restr_aniso) - AIC(fit_restr_iso)
+    #   if (delta_AIC < -2) {
+    #     mi$anisotropy <- TRUE
+    #   } else {
+    #     mi$anisotropy <- FALSE
+    #   }
+    # }
+    # if (s_aniso && !s_iso) {
+    #   mi$anisotropy <- TRUE
+    # }
+    # if (!s_aniso && s_iso) {
+    #   mi$anisotropy <- FALSE
+    # }
+    # if (!s_aniso && !s_iso) {
+    #   mi$anisotropy <- FALSE
+    # }
+    # if (mi$anisotropy) {
+      # fit_restr <- fit_restr_aniso
+    # } else {
+      fit_restr <- fit_restr_iso
+    # }
+    ok <- all(unlist(sanity(fit_restr)))
 
     if (!ok) {
       mi$spatiotemporal <- list("off", "iid")
       fit_restr <- try({
         update(fit_restr, spatiotemporal = mi$spatiotemporal, family = mi$family)
       })
-      s <- all(unlist(sanity(fit_restr)))
+      ok <- all(unlist(sanity(fit_restr)))
     }
     if (!ok) {
       mi$family <- sdmTMB::tweedie()
@@ -156,7 +229,7 @@ calc_indices <- function(spp, survey, force = FALSE) {
       fit_restr <- try({
         update(fit_restr, spatiotemporal = mi$spatiotemporal, family = mi$family)
       })
-      s <- all(unlist(sanity(fit_restr)))
+      ok <- all(unlist(sanity(fit_restr)))
     }
     if (!ok) {
       mi$family <- sdmTMB::delta_gamma()
@@ -164,7 +237,7 @@ calc_indices <- function(spp, survey, force = FALSE) {
       fit_restr <- try({
         update(fit_restr, spatiotemporal = mi$spatiotemporal, family = mi$family)
       })
-      s <- all(unlist(sanity(fit_restr)))
+      ok <- all(unlist(sanity(fit_restr)))
     }
     if (!ok) {
       mi$spatiotemporal <- "off"
@@ -185,10 +258,9 @@ calc_indices <- function(spp, survey, force = FALSE) {
         spatiotemporal = mi$spatiotemporal,
         offset = "offset",
         mesh = mesh_all,
-        anisotropy = FALSE,
+        anisotropy = mi$anisotropy,
         priors = priors,
-        silent = SILENT,
-        control = sdmTMBcontrol(newton_loops = 1L),
+        silent = SILENT
       )
     })
     sanity_all <- all(unlist(sanity(fit_all)))
@@ -201,7 +273,7 @@ calc_indices <- function(spp, survey, force = FALSE) {
     cat("Fit downsamples\n")
 
     fit_down_model <- function(.dat) {
-      mesh_down <- make_mesh(.dat, xy_cols = c("X", "Y"), mesh = mesh_all$mesh)
+      mesh_down <- make_mesh(.dat, xy_cols = c("X", "Y"), cutoff = cutoff,  mesh = mesh_all$mesh)
       fit_down <- try({
         sdmTMB(
           formula = response ~ 0 + as.factor(year),
@@ -211,10 +283,9 @@ calc_indices <- function(spp, survey, force = FALSE) {
           spatiotemporal = mi$spatiotemporal,
           offset = "offset",
           mesh = mesh_down,
-          anisotropy = FALSE,
+          anisotropy = mi$anisotropy,
           priors = priors,
-          silent = SILENT,
-          control = sdmTMBcontrol(newton_loops = 1L),
+          silent = SILENT
         )
       })
       sanity_down <- all(unlist(sanity(fit_down)))
@@ -296,7 +367,7 @@ calc_indices <- function(spp, survey, force = FALSE) {
 
     cat("Fit upsamples\n")
     fit_upsample <- function(dat) {
-      mesh_up <- make_mesh(dat, xy_cols = c("X", "Y"), mesh = mesh_all$mesh)
+      mesh_up <- make_mesh(dat, xy_cols = c("X", "Y"), cutoff = cutoff, mesh = mesh_all$mesh)
       fit_up <- try({
         sdmTMB(
           formula = response ~ 0 + as.factor(year),
@@ -306,7 +377,7 @@ calc_indices <- function(spp, survey, force = FALSE) {
           spatiotemporal = mi$spatiotemporal,
           offset = "offset",
           mesh = mesh_up,
-          anisotropy = FALSE,
+          anisotropy = mi$anisotropy,
           priors = priors,
           silent = SILENT,
           control = sdmTMBcontrol(newton_loops = 1L),
@@ -394,6 +465,7 @@ calc_indices <- function(spp, survey, force = FALSE) {
     i$species_common_name <- spp
     i$survey_abbrev <- paste(survey, collapse = ", ")
     i$family <- paste(as.character(mi$family$family), collapse = "-")
+    i$anisotropy <- as.character(mi$anisotropy)
     i$spatiotemporal <- paste(as.character(mi$spatiotemporal), collapse = ", ")
     saveRDS(i, paste0("data-generated/indexes/", spp_file, "-", surv_file, ".rds"))
   } else {
@@ -405,7 +477,14 @@ calc_indices <- function(spp, survey, force = FALSE) {
       filter(!grepl("MPA", type)) |>
       filter(!grepl("Random up-sampled and shrunk [2-9]+", type)) |> # only visualize seed 1
       filter(!grepl("Random down-sampled [2-9]+", type)) |> # only visualize seed 1
-      ggplot(aes(year, est, ymin = lwr, ymax = upr, colour = type)) +
+      filter(type %in% c("Restricted and shrunk", "Status quo")) |>
+      group_by(type) |>
+
+      # mutate(lwr = lwr / exp(mean(log(est), na.rm = TRUE))) |>
+      # mutate(upr = upr / exp(mean(log(est), na.rm = TRUE))) |>
+      # mutate(est = est / exp(mean(log(est), na.rm = TRUE))) |>
+
+      ggplot(aes(year, est, ymin = lwr, ymax = upr, colour = type, group = type)) +
       geom_pointrange(position = position_dodge(width = 1), pch = 21) +
       scale_colour_brewer(palette = "Dark2") +
       ylab("Index") +
@@ -413,12 +492,82 @@ calc_indices <- function(spp, survey, force = FALSE) {
       labs(colour = "Type") +
       ggtitle(spp)
 
-    g1 <- g + coord_cartesian(expand = FALSE, ylim = c(0, NA))
-    g2 <- g + scale_y_log10() + ylab("Index (log distributed)")
-    g0 <- cowplot::plot_grid(g1, g2, nrow = 2L)
-    ggsave(paste0("figs/indexes/", spp_file, "-", surv_file, ".pdf"),
-      width = 11, height = 7, plot = g0
-    )
+    suppressWarnings({
+      g <- g +
+        geom_smooth(method = glm, se = FALSE, method.args = list(family = Gamma(link = "log")), formula = y ~ x)
+
+      g1 <- g + coord_cartesian(expand = FALSE, ylim = c(0, NA))
+      g2 <- g + scale_y_log10() + ylab("Index (log distributed)")
+      g0 <- cowplot::plot_grid(g1, g2, nrow = 2L)
+      ggsave(paste0("figs/indexes/", spp_file, "-", surv_file, ".pdf"),
+        width = 11, height = 7, plot = g0
+      )
+    })
+  }
+
+  # in case force = FALSE and we don't have it in memory:
+  if (!exists("fit_all") && "family" %in% names(i)) {
+    mi <- list()
+    if (i$family[1] == "tweedie") mi$family <- tweedie()
+    if (grepl("delta", i$family[1])) mi$family <- delta_gamma()
+    st <- as.list(strsplit(i$spatiotemporal, "-")[[1]])
+    if (length(st) == 1L) st <- st[[1]]
+    mi$spatiotemporal <- st
+    mesh_all <- make_mesh(surv_dat, xy_cols = c("X", "Y"), cutoff = if (survey == "SYN WCHG") 5 else 8)
+    # priors <- sdmTMBpriors(
+    #   matern_s = pc_matern(range_gt = 20, sigma_lt = 5),
+    #   matern_st = pc_matern(range_gt = 20, sigma_lt = 5)
+    # )
+    priors <- sdmTMBpriors()
+    grid <- sdmTMB::replicate_df(grid, "year", time_values = unique(surv_dat$year))
+    gr_full <- dplyr::filter(grid, survey_abbrev %in% survey)
+    fit_all <- try({
+      sdmTMB(
+        formula = response ~ 0 + as.factor(year),
+        data = surv_dat,
+        family = mi$family,
+        time = "year",
+        spatiotemporal = mi$spatiotemporal,
+        offset = "offset",
+        mesh = mesh_all,
+        anisotropy = as.logical(i$anisotropy[1]),
+        priors = priors,
+        silent = SILENT
+      )
+    })
+    sanity_all <- all(unlist(sanity(fit_all)))
+    if (sanity_all) {
+      p <- predict(fit_all, newdata = gr_full, return_tmb_object = TRUE)
+    }
+  }
+
+  if (exists("sanity_all")) {
+    if (sanity_all) {
+      dir.create("fits/fitted-survey-maps", showWarnings = FALSE)
+      if (!"est" %in% names(p$data)) {
+        p$data$est <- log(plogis(p$data$est1) * exp(p$data$est2))
+      }
+      g <- ggplot(p$data, aes(X, Y, fill = est)) +
+        geom_tile(width = 2.04, height = 2.04) +
+        facet_wrap(~year) +
+        scale_fill_viridis_c(option = "D") +
+        geom_tile(data = filter(p$data, restricted), fill = "#00000035", width = 2, height = 2) +
+        coord_fixed() +
+
+        geom_point(data = filter(surv_dat, response > 0),
+          mapping = aes(X, Y, colour = restricted, size = response / exp(offset)),
+          pch = 21, inherit.aes = FALSE, alpha = 0.7) +
+        geom_point(data = filter(surv_dat, response == 0),
+          mapping = aes(X, Y, colour = restricted), pch = 4, inherit.aes = FALSE,
+          alpha = 0.7, size = 0.6) +
+        scale_colour_manual(values = c(`TRUE` = "red", `FALSE` = "white")) +
+        ggtitle(spp) +
+        scale_size_area(max_size = 8)
+
+      ggsave(paste0("figs/fitted-survey-maps/", spp_file, "-", surv_file, ".pdf"),
+        width = 14, height = 10, plot = g
+      )
+    }
   }
 
   return(NULL)
@@ -433,13 +582,16 @@ library(future)
 is_rstudio <- !is.na(Sys.getenv("RSTUDIO", unset = NA))
 is_unix <- .Platform$OS.type == "unix"
 cores <- round(parallel::detectCores() / 2)
-cores <- parallel::detectCores() - 2L
+(cores <- parallel::detectCores() - 2L)
 if (!is_rstudio && is_unix) plan(multicore, workers = cores) else plan(multisession, workers = cores)
 
 to_fit <- expand_grid(spp = syn_highlights, survey = syn_survs)
 
 ## test: --------------------------------------------------
-calc_indices(spp = "rougheye/blackspotted rockfish complex", survey = "SYN WCHG", force = T)
+calc_indices(spp = "redstripe rockfish", survey = "SYN WCHG", force = T)
+SILENT <- T
+calc_indices(spp = "pacific ocean perch", survey = "SYN WCHG", force = T)
+
 calc_indices(spp = syn_highlights[17], survey = syn_survs[3], force = F)
 x <- readRDS("data-generated/indexes/pacific-cod-SYN-QCS.rds")
 x |>
@@ -479,7 +631,7 @@ x |> filter(year %in% c(2003, 2009, 2017)) |>
 ggsave("figs/upsample-example.pdf", width = 9, height = 4.2)
 ## end test -----------------------------
 
-set.seed(1)
+set.seed(123)
 to_fit <- to_fit[sample(nrow(to_fit)),] # randomize for parallel
 # purrr::pmap(to_fit, calc_indices)
 furrr::future_pmap(to_fit, calc_indices, force = TRUE)
