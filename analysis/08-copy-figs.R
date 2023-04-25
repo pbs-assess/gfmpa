@@ -13,7 +13,12 @@ f <-
     "sampled-dotplot-comparison.pdf",
     "index-geo-restricted-highlights.pdf",
     "upsample-example.pdf",
-    "fig1.png"
+    "fig1.png",
+    "ts-qcs.pdf",
+    "ts-wchg.pdf",
+    "ts-hbll.pdf",
+    "ts-hs.pdf",
+    "ts-qcs-hs.pdf"
   )
 
 purrr::walk(f, function(x) {

@@ -64,8 +64,9 @@ make_ts_plot <- function(survey_keep, ncol = NULL) {
       strip.text = element_text(colour = "black"),
       legend.position = "top", axis.text.y = element_text(size = 8)
     ) +
-    scale_y_log10() +
-    geom_smooth(method = "loess", se = F, alpha = 0.5, formula = y ~ x, lwd = 0.8 )
+    # scale_y_log10() +
+    geom_smooth(method = "gam", se = FALSE, alpha = 0.1, formula = y ~ s(x, k = 8), method.args = list(family = Gamma(link = "log")), lwd = 0.8)
+    # geom_smooth(method = "loess", se = F, alpha = 0.5, formula = y ~ x, lwd = 0.8 )
   g
 }
 
@@ -73,10 +74,10 @@ g <- make_ts_plot("SYN QCS", ncol = NULL) + ylab("Relative biomass")
 ggsave("figs/ts-qcs.pdf", width = 12, height = 9)
 
 g <- make_ts_plot("SYN HS", ncol = NULL) + ylab("Relative biomass")
-ggsave("figs/ts-HS.pdf", width = 12, height = 9)
+ggsave("figs/ts-hs.pdf", width = 12, height = 9)
 
 g <- make_ts_plot("SYN QCS, SYN HS", ncol = NULL) + ylab("Relative biomass")
-ggsave("figs/ts-QCS-HS.pdf", width = 12, height = 9)
+ggsave("figs/ts-qcs-hs.pdf", width = 12, height = 9)
 
 g <- make_ts_plot("SYN WCHG") + ylab("Relative biomass")
 ggsave("figs/ts-wchg.pdf", width = 12, height = 8)

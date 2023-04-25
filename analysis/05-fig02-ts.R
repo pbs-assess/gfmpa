@@ -79,23 +79,37 @@ labeller_fn <- function(labels, multi_line = TRUE) {
   }
 }
 
+cols <- c(RColorBrewer::brewer.pal(4L, "Set2"), "grey50")
 g <- ind |>
   # filter(species_common_name_lower == "english sole", survey_abbrev == "SYN WCHG") |>
   mutate(spp_survey = species_common_name) |>
   mutate(spp_survey = gsub("HBLL OUT N", "HBLL", spp_survey)) |>
   filter(type %in% c("Status quo", "Restricted and shrunk")) |>
   group_by(spp_survey, type) |>
-  mutate(colour_var = ifelse(type == "Status quo", "Status quo",
-    paste0("Restricted ", survey_abbrev)
+  mutate(
+    colour_var =
+      ifelse(
+        type == "Status quo",
+        paste0("Status quo ", survey_abbrev),
+        paste0("Restricted")
   )) |>
   mutate(colour_var = factor(colour_var,
+    # levels = c(
+    #   "Status quo",
+    #   "Restricted SYN WCHG",
+    #   "Restricted HBLL OUT N",
+    #   # "Restricted SYN QCS, SYN HS"
+    #   "Restricted SYN HS",
+    #   "Restricted SYN QCS"
+    # )
     levels = c(
       "Status quo",
-      "Restricted SYN WCHG",
-      "Restricted HBLL OUT N",
-      # "Restricted SYN QCS, SYN HS"
-      "Restricted SYN HS",
-      "Restricted SYN QCS"
+      "Status quo SYN WCHG",
+      "Status quo HBLL OUT N",
+      # "Status quo SYN QCS, SYN HS"
+      "Status quo SYN HS",
+      "Status quo SYN QCS",
+      "Restricted"
     )
   )) |>
   mutate(survey_abbrev = factor(survey_abbrev,
@@ -127,7 +141,7 @@ g <- ind |>
   #   ylim = c(0, NA)
   # ) +
   labs(x = "Year", colour = " ", fill = " ", linetype = " ") +
-  scale_colour_manual(values = c("grey50", RColorBrewer::brewer.pal(4, "Set2")[1:4])) +
+  scale_colour_manual(values = cols) +
   # scale_colour_brewer(palette = "Set2") +
   facet_wrap(~ forcats::fct_inorder(stringr::str_to_title(paste(survey_abbrev, spp_survey, sep = "-"))), scales = "free_y", ncol = 5, labeller = labeller_fn) +
   ylab("Relative abundance or biomass") +
