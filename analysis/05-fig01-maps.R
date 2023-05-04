@@ -286,14 +286,38 @@ lu <- tribble(
 )
 nsb <- left_join(nsb, lu)
 
-pal <- c(as.character(colorBlindness::availableColors())[-1], c("grey60"))[c(1, 4, 3, 5, 2)]
+# pal <- c(as.character(colorBlindness::availableColors())[-1], c("grey60"))[c(1, 4, 3, 5, 2, 6)]
 
 
 .dat <- all_rest
 
+nsb_nov <- sf::read_sf("data-raw/MPATT_P2_Nov25_limited_attributes.gdb")
+asis <- nsb_nov |> dplyr::filter(grepl("as-is", Category_Detailed))
+asis <- sf::st_transform(asis, sf::st_crs(nsb)) |>
+  mutate(SO = "Existing") |> select(SO)
+
+nsb2 <- rbind(
+  select(nsb, SO),
+    asis
+)
+nsb2$SO <- factor(nsb2$SO, levels = c("Category 1", "Category 2", "Gwaii Haanas Strict", "Gwaii Haanas Strict+RCA", "Gwaii Haanas Multi Use", "Existing"))
+
+pal <- unname(colorBlindness::availableColors()[-1])
+dput(pal)
+pal <- c(
+  "Category 1" = "#D55E00",
+  "Category 2" = "#E69F00",
+  "Gwaii Haanas Strict" = "#F0E442",
+  "Gwaii Haanas Strict+RCA" = "#CC79A7",
+  "Gwaii Haanas Multi Use" = "#009E73",
+  "Existing" = "#56B4E9"
+)
+
 pt_size <- 0.25
 g2 <- ggplot() +
-  geom_sf(data = nsb, linewidth = 0.55, mapping = aes(colour = SO, fill = SO)) +
+  # geom_sf(data = asis, linewidth = 0.55, colour = "purple", fill = "purple") +
+  geom_sf(data = nsb2, linewidth = 0.55, mapping = aes(colour = SO, fill = SO)) +
+  geom_sf(data = filter(nsb2, grepl("Gwaii", SO)), linewidth = 0.55, mapping = aes(colour = SO, fill = SO)) +
   geom_sf(data = bc_coast_proj, colour = "grey40", fill = "grey80", linewidth = 0.25) +
   theme_light() +
   geom_tile(data = all, mapping = aes(X * 1000, Y * 1000), width = 2000, height = 2000, fill = NA, colour = "#00000020", linewidth = 0.2) +
@@ -307,7 +331,7 @@ g2 <- ggplot() +
   # geom_point(data = dat_hbll_rest, aes(X * 1000, Y * 1000), size = pt_size * 0.5, alpha = 0.6)
   labs(fill = "Zone category", colour = "Zone category") +
   labs(x = "Longitude", y = "Latitude") +
-  theme(legend.position = c(0.21, 0.17)) +
+  theme(legend.position = c(0.21, 0.19), legend.background = element_rect(fill = NA)) +
   annotate(geom = "text", x = max(.xlim) - 100000, y = max(.ylim) - 50000, label = "British Columbia", size = 4, colour = "grey10", hjust = 0, vjust = 1) +
   annotate(geom = "text", x = max(.xlim) - 310000, y = max(.ylim) - 85000, label = "Haida Gwaii", size = 4, colour = "grey10", hjust = 0.5, vjust = 0.5) +
   ggspatial::annotation_north_arrow(
@@ -321,7 +345,7 @@ g2 <- ggplot() +
     ))
 
 g0 <- cowplot::plot_grid(g2,g)
-ggsave("figs/fig1.png", width = 10.5, height = 5.4, dpi = 150, plot = g0)
+# ggsave("figs/fig1.png", width = 10.5, height = 5.4, dpi = 150, plot = g0)
 ggsave("figs/fig1.pdf", width = 10.5, height = 5.4, plot = g0)
 
 

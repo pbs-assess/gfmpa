@@ -2,6 +2,26 @@ library(dplyr)
 library(ggplot2)
 options(dplyr.summarise.inform = FALSE)
 
+survey_data <- readRDS("data-generated/dat_to_fit.rds")
+hbll <- readRDS("data-generated/dat_to_fit_hbll.rds")
+survey_data <- bind_rows(survey_data, hbll)
+survey_data <- mutate(survey_data, density = if_else(grepl("HBLL", survey_abbrev), density_ppkm2, density_kgpm2))
+prop_mpa_set <- group_by(survey_data, survey_abbrev, species_common_name) |>
+  summarise(prop_mpa_set = sum(density[restricted == TRUE], na.rm = TRUE) / sum(density, na.rm = TRUE), .groups = "drop") |>
+  mutate(species_common_name = stringr::str_to_title(species_common_name)) |>
+  mutate(species_common_name = gsub(
+    "Rougheye/Blackspotted Rockfish Complex",
+    "Rougheye/Blackspotted Rockfish", species_common_name
+  ))
+
+prop_pos <- group_by(survey_data, survey_abbrev, species_common_name) |>
+  summarise(prop_pos_set = mean(density > 0), .groups = "drop") |>
+  mutate(species_common_name = stringr::str_to_title(species_common_name)) |>
+  mutate(species_common_name = gsub(
+    "Rougheye/Blackspotted Rockfish Complex",
+    "Rougheye/Blackspotted Rockfish", species_common_name
+  ))
+
 hbll <- readRDS("data-generated/index-hbll-geo-clean.rds")
 hbll$est_type <- "geostat"
 syn <- readRDS("data-generated/index-syn-geo-clean.rds")
@@ -49,7 +69,9 @@ squo_est <- s |>
   distinct()
 
 s <- left_join(s, prop_mpa) |>
-  left_join(squo_est)
+  left_join(squo_est) |>
+  left_join(prop_mpa_set) |>
+  left_join(prop_pos)
   # left_join(orig_cv)
 
 # geo-mean center
@@ -138,12 +160,19 @@ nrow(upr)
 nrow(med)
 metrics_long <- left_join(lwr, upr) |> left_join(med) |>
   left_join(prop_mpa) |>
+  left_join(prop_mpa_set) |>
+  left_join(prop_pos) |>
   mutate(measure_clean = case_when(
     measure == "cv_perc" ~ "% increase CV\n(precision loss)",
     measure == "slope_re" ~ "RE trend\n(trend bias)",
     measure == "mare" ~ "MARE\n(accuracy loss)",
     .default = measure
   ))
+
+metrics_long$survey_abbrev <- factor(metrics_long$survey_abbrev,
+  levels =
+    c("SYN WCHG", "HBLL OUT N", "SYN HS", "SYN QCS", "SYN QCS, SYN HS")
+)
 
 saveRDS(metrics_long, "data-generated/metrics-long2.rds")
 saveRDS(metrics, "data-generated/metrics-wide2.rds")

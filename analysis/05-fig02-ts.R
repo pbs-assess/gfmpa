@@ -58,7 +58,7 @@ colour_pal <- c("gray50", restricted_cols)
 
 fig2_keep <- readr::read_csv("data-raw/selected-spp.csv") |>
   select(-prop_mpa, -notes) |>
-  filter(!is.na(include)) |>
+  filter(include == 1) |>
   mutate(species_common_name_lower = tolower(species_common_name))
 nrow(fig2_keep)
 
@@ -80,10 +80,11 @@ labeller_fn <- function(labels, multi_line = TRUE) {
 }
 
 cols <- c(RColorBrewer::brewer.pal(3L, "Set2"), "grey50")
-g <- ind |>
+dd <- ind |>
   # filter(species_common_name_lower == "english sole", survey_abbrev == "SYN WCHG") |>
   mutate(spp_survey = species_common_name) |>
   mutate(spp_survey = gsub("HBLL OUT N", "HBLL", spp_survey)) |>
+  mutate(spp_survey = gsub("rougheye/blackspotted rockfish", "rougheye/blackspotted", spp_survey)) |>
   filter(type %in% c("Status quo", "Restricted and shrunk")) |>
   group_by(spp_survey, type, survey_abbrev) |>
   mutate(
@@ -125,21 +126,24 @@ g <- ind |>
   mutate(lwr = lwr / exp(mean(log(est), na.rm = TRUE))) |>
   mutate(upr = upr / exp(mean(log(est), na.rm = TRUE))) |>
   mutate(est = est / exp(mean(log(est), na.rm = TRUE))) |>
-  mutate(upr = ifelse(upr > 2 * max(est, na.rm = TRUE), 2 * max(est, na.rm = TRUE), upr)) |>
+  mutate(AFFECTED = ifelse(upr > 4 * max(est, na.rm = TRUE), "YES", "NO")) |>
+  mutate(upr = ifelse(upr > 4 * max(est, na.rm = TRUE), 4 * max(est, na.rm = TRUE), upr)) |>
   mutate(spp_survey = gsub("Rougheye/Blackspotted Rockfish", "Rougheye/Black. Rockfish", spp_survey)) |>
-  arrange(survey_abbrev, -prop_mpa, species_common_name) |>
-  ggplot(aes(year, est,
+  arrange(survey_abbrev, -prop_mpa, species_common_name)
+filter(dd, AFFECTED == "YES")
+
+g <- dd |> ggplot(aes(year, est,
     ymin = lwr, ymax = upr,
     colour = colour_var
   )) +
   geom_linerange(position = position_dodge(width = dodge_width)) +
   geom_point(position = position_dodge(width = dodge_width), pch = 21, size = 1.8) +
   geom_point(position = position_dodge(width = dodge_width), pch = 20, size = 1.8, alpha = 0.2) +
-  # coord_cartesian(
-  #   expand = FALSE,
-  #   xlim = range(index$year) + c(-0.5, 0.5),
-  #   ylim = c(0, NA)
-  # ) +
+  coord_cartesian(
+    expand = FALSE,
+    xlim = range(index$year) + c(-0.5, 0.5),
+    ylim = c(0, NA)
+  ) +
   labs(x = "Year", colour = " ", fill = " ", linetype = " ") +
   scale_colour_manual(values = cols) +
   # scale_colour_brewer(palette = "Set2") +
@@ -156,7 +160,7 @@ g <- ind |>
   # scale_y_log10()
 g
 
-# g <- g + tagger::tag_facets(tag_prefix = "(", position = list(x = 0.1, y = 0.87), tag = "panel")
+g <- g + tagger::tag_facets(tag_prefix = "(", position = list(x = 0.08, y = 0.89), tag = "panel")
 
 ggsave("figs/index-geo-restricted-highlights.pdf", width = 9.5, height = 5.25)
 ggsave("figs/index-geo-restricted-highlights.png", width = 9.5, height = 5.25)

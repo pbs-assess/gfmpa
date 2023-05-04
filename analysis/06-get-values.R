@@ -149,3 +149,17 @@ make_ex_metric("Sharpchin Rockfish", "QCS", "accuracy")
 
 system("cp analysis/values.tex ~/src/overleaf/gf-mpa-index/values.tex")
 system("cp figs/*.pdf ~/src/overleaf/gf-mpa-index/figs/new/")
+
+# table of spp ---------
+
+survey_data <- readRDS("data-generated/dat_to_fit.rds")
+hbll <- readRDS("data-generated/dat_to_fit_hbll.rds")
+survey_data <- bind_rows(survey_data, hbll)
+survey_data |> select(species_common_name, species_science_name) |>
+  mutate(species_science_name = stringr::str_to_sentence(species_science_name)) |>
+  mutate(species_common_name = stringr::str_to_title(species_common_name)) |>
+  mutate(species_science_name = paste0("\\emph{", species_science_name, "}")) |>
+  distinct() |>
+  arrange(species_common_name) |>
+  knitr::kable(col.names = c("Common name", "Scientific name"), format = "latex", escape = FALSE, booktabs = TRUE, longtable = TRUE, linesep = '', caption = "Groundfish species common and scientific names used throughout this analysis.", label = "spp-sci") |>
+  readr::write_lines("../gf-mpa-index-ms/figs/spp-table.tex")

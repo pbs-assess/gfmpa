@@ -32,10 +32,14 @@ index <- left_join(index, prop)
 dodge_width <- 1
 
 make_ts_plot <- function(survey_keep, ncol = NULL) {
+
+  survey_col <- as.character(restricted_cols[names(restricted_cols) == survey_keep])
+
   g <- index |>
     filter(survey_abbrev %in% survey_keep) |>
     mutate(species_common_name_lower = tolower(species_common_name)) |>
     filter(type %in% c("Status quo", "Restricted and shrunk")) |>
+    mutate(type = factor(type, levels = c("Status quo", "Restricted and shrunk"))) |>
     group_by(type, species_common_name) |>
     mutate(lwr = lwr / exp(mean(log(est)))) |>
     mutate(upr = upr / exp(mean(log(est)))) |>
@@ -56,7 +60,7 @@ make_ts_plot <- function(survey_keep, ncol = NULL) {
       # ylim = c(0, NA)
     ) +
     labs(x = "Year", colour = " ", fill = " ", linetype = " ") +
-    scale_colour_manual(values = c("grey50", "red")) +
+    scale_colour_manual(values = c("Restricted and shrunk" = "grey50", "Status quo" = survey_col)) +
     facet_wrap(~ forcats::fct_inorder(stringr::str_to_title(species_common_name)), scales = "free_y", ncol = ncol) +
     ylab("Relative abundance or biomass") +
     labs(x = "Year", colour = "Index type", fill = "Index type", linetype = "Index type") +

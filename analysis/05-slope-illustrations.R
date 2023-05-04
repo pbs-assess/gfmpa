@@ -278,6 +278,8 @@ pal2 <- rep("grey50", length(other_spp))
 names(pal2) <- other_spp
 pal_all <- c(pal, pal2)
 
+spp_order <- met |> arrange(-slope_re_med) |> select(species_common_name) |> distinct() |> pull(species_common_name) |> stringr::str_to_title()
+
 g2 <- out |>
   filter(year != 2014) |>
   mutate(species_common_name = gsub(
@@ -297,11 +299,11 @@ g2 <- out |>
   ggplot(aes(year, prop_set_mpa, colour = species_common_name, group = species_common_name)) +
   geom_point() +
   # facet_wrap(~facet_panel, ncol = 1, scales = "free_y") +
-  facet_wrap(~stringr::str_to_title(species_common_name), ncol = 1L, scales = "fixed") +
+  facet_wrap(~factor(stringr::str_to_title(species_common_name), levels = spp_order), ncol = 1L, scales = "fixed") +
   # geom_smooth(method = "loess", se = T) +
   # geom_smooth(method = "loess", se = F) +
   # geom_smooth(method = "betareg::betareg", se = FALSE) +
-  geom_smooth(method = "gam", se = F, formula = y ~ s(x, k = 7)) +
+  geom_smooth(method = "gam", se = FALSE, formula = y ~ s(x, k = 7)) +
   # geom_smooth(method = "lm", se = F, formula = y ~ x) +
   # ggtitle("SYN WCHG") +
   ggplot2::theme_set(ggsidekick::theme_sleek()) +
@@ -317,7 +319,7 @@ g2 <- out |>
   xlab("Year")
 
 g1 <- met |>
-  filter(species_common_name != "english sole") |>  #FIXME!?
+  # filter(species_common_name != "english sole") |>  #FIXME!?
   ggplot(aes(slope_prop_mpa - survey_slope, slope_re_med)) +
   geom_point(aes(colour = species_common_name), pch = 19, alpha= 0.9, size = 2.5) +
   geom_point(pch = 21, col = "grey40", size = 2.5) +
@@ -339,6 +341,16 @@ g1 <- met |>
     panel.grid.major = element_line(linewidth = rel(0.5)),
     panel.grid.minor = element_line(linewidth = rel(0.25)))
   # coord_fixed()
+
+met2 <- met |> filter(species_common_name != "english sole")
+met2$corrected_slope <- met2$slope_prop_mpa - survey_slope
+fit <- lm(slope_re_med ~ corrected_slope, data = met2)
+summary(fit)
+confint(fit)
+
+fit2 <- sdmTMB::sdmTMB(slope_re_med ~ corrected_slope, data = met2, spatial = "off", family = sdmTMB::student(df = 5))
+summary(fit2)
+
 
 cowplot::plot_grid(g1, g2, ncol = 2, align = "h", axis = "t", rel_widths = c(0.7, 0.3))
 

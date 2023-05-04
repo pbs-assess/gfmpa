@@ -94,8 +94,14 @@ plot_shrunk_grid <- function(f, restr_dat, return_data = FALSE) {
   }
   pal <- c(as.character(colorBlindness::availableColors())[-1], c("grey60"))
   d <- shrink_domain(d, restr_dat)
+
+  # grouping <- readRDS("data-raw/grouping22.rds")
+
   g <- d |>
-    ggplot(aes(fill = as.factor(GROUPING_CO))) + geom_sf(colour = NA, linewidth = 0) +
+    # left_join(grouping, by = c("GROUPING_CO" = "GROUPING_CODE")) |>
+    # mutate(stratum = paste0(">", MIN_DEPTH_M, "; <", MAX_DEPTH_M)) |>
+    ggplot(aes(fill = as.factor(GROUPING_CO))) +
+    geom_sf(colour = NA, linewidth = 0) +
     # scale_colour_manual(values = c("white", "grey20")) +
     scale_fill_manual(values = pal) +
     scale_colour_manual(values = pal) +
@@ -116,10 +122,11 @@ plot_shrunk_grid <- function(f, restr_dat, return_data = FALSE) {
   if (return_data) d else g
 }
 
-g1 <- plot_shrunk_grid("WCHG_Active_Blocks", trawl_removed)
-g2 <- plot_shrunk_grid("HBLLOut_Active_Blocks", ll_removed)
-g3 <- plot_shrunk_grid("HS_Active_Blocks", trawl_removed)
-g4 <- plot_shrunk_grid("QCS_Active_Blocks", trawl_removed)
+g1 <- plot_shrunk_grid("WCHG_Active_Blocks", trawl_removed) + ggtitle("SYN WCHG")
+g2 <- plot_shrunk_grid("HBLLOut_Active_Blocks", ll_removed) + ggtitle("HBLL OUT N")
+g3 <- plot_shrunk_grid("HS_Active_Blocks", trawl_removed) + ggtitle("SYN HS")
+g4 <- plot_shrunk_grid("QCS_Active_Blocks", trawl_removed) + ggtitle("SYN QCS")
+
 g <- cowplot::plot_grid(g1, g2, g3, g4)
 ggsave("figs/grid-strata-restricted.pdf", width = 9, height = 6.7, plot = g)
 ggsave("figs/grid-strata-restricted.png", width = 9, height = 6.7, plot = g)

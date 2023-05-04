@@ -596,7 +596,7 @@ library(future)
 is_rstudio <- !is.na(Sys.getenv("RSTUDIO", unset = NA))
 is_unix <- .Platform$OS.type == "unix"
 cores <- round(parallel::detectCores() / 2)
-(cores <- parallel::detectCores() - 4L)
+(cores <- parallel::detectCores() - 6L)
 if (!is_rstudio && is_unix) plan(multicore, workers = cores) else plan(multisession, workers = cores)
 
 to_fit <- expand_grid(spp = syn_highlights, survey = syn_survs)
@@ -607,8 +607,8 @@ if (FALSE) {
   SILENT <- T
   calc_indices(spp = "pacific ocean perch", survey = "SYN WCHG", force = T)
 
-  calc_indices(spp = syn_highlights[17], survey = syn_survs[3], force = F)
-  x <- readRDS("data-generated/indexes/pacific-cod-SYN-QCS.rds")
+  # calc_indices(spp = syn_highlights[17], survey = syn_survs[3], force = F)
+  x <- readRDS("data-generated/indexes/redbanded-rockfish-SYN-WCHG.rds")
   x |>
     filter(type != "MPA only", type != "MPA only restricted", type != "Restricted") |>
     ggplot(aes(year, se, colour = type)) +
@@ -619,14 +619,15 @@ if (FALSE) {
     ggplot(aes(year, est, colour = type)) +
     geom_point() +
     geom_line()
-  x <- readRDS("data-generated/sim-data/pacific-cod-SYN-QCS-seed1.rds")
+  x <- readRDS("data-generated/sim-data/redbanded-rockfish-SYN-WCHG-seed1.rds")
   glimpse(x)
-  x <- readRDS("data-generated/sim-data/pacific-cod-SYN-QCS-seed5.rds")
+  x <- readRDS("data-generated/sim-data/lingcod-HBLL-OUT-N-seed5.rds")
   glimpse(x)
   grid <- readRDS("data-generated/grids-strata-restricted.rds")
-  grid <- filter(grid, survey_abbrev %in% "SYN QCS")
+  # grid <- filter(grid, survey_abbrev %in% "SYN WCHG")
+  grid <- filter(grid, survey_abbrev %in% "HBLL OUT N")
   pal <- c(as.character(colorBlindness::availableColors())[-1], c("grey60"))
-  x |> filter(year %in% c(2003, 2009, 2017)) |>
+  x |> filter(year %in% c(2006, 2010, 2020)) |>
     ggplot(aes(X, Y, shape = up_sample)) +
     geom_tile(data = grid, mapping = aes(X, Y, colour = as.factor(grouping_code),
       fill = as.factor(grouping_code)), inherit.aes = FALSE, width = 2.01, height = 2.01) +

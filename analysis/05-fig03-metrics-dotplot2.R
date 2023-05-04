@@ -8,7 +8,7 @@ mround <- function(x, digits) {
   sprintf(paste0("%.", digits, "f"), round(x, digits))
 }
 
-make_plot <- function(dat, colour_var = survey_abbrev, prop_threshold = 0.15, cv_upper_limit = 100, group_by_survey = TRUE) {
+make_plot <- function(dat, colour_var = survey_abbrev, prop_threshold = 0.15, cv_upper_limit = 100, group_by_survey = TRUE, include_mean_lines = TRUE) {
 
   dat <- filter(dat, prop_mpa >= prop_threshold)
 
@@ -22,7 +22,7 @@ make_plot <- function(dat, colour_var = survey_abbrev, prop_threshold = 0.15, cv
     temp <- group_by(temp, measure, measure_clean, {{ colour_var }})
   }
     # summarise(mean_est = weighted.mean(est, w = 1 / variance))
-   means <- temp |>  summarise(mean_est = median(est)) |>
+   means <- temp |>  summarise(mean_est = median(est, na.rm = TRUE)) |>
      filter(measure != "slope_re")
 
   dat <- dat |>
@@ -88,16 +88,13 @@ make_plot <- function(dat, colour_var = survey_abbrev, prop_threshold = 0.15, cv
     scale_colour_brewer(palette = "Set2") +
     scale_fill_brewer(palette = "Set2")
 
-  g <- g + geom_hline(data = means, mapping = aes(yintercept = mean_est, colour = {{ colour_var }}), lty = 2)
-  g
+  if (include_mean_lines)
+    g <- g + geom_hline(data = means, mapping = aes(yintercept = mean_est, colour = {{ colour_var }}), lty = 2)
+  g + tagger::tag_facets(tag_prefix = "(", position = "tl",
+    tag_pool = letters[c(1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12)])
 }
 
-metrics_long$survey_abbrev <- factor(metrics_long$survey_abbrev,
-  levels =
-    c("SYN WCHG", "HBLL OUT N", "SYN HS", "SYN QCS", "SYN QCS, SYN HS")
-)
-
-restricted_cols <- RColorBrewer::brewer.pal(4, "Set2")
+# restricted_cols <- RColorBrewer::brewer.pal(4, "Set2")
 g <- filter(metrics_long, est_type %in% c("geostat")) |>
   filter(!measure %in% "cv") |>
   filter(type %in% c("Restricted and shrunk")) |>
@@ -115,6 +112,27 @@ print(g)
 ggsave("figs/metrics-dotplot-main.pdf", width = 7, height = 7.5)
 ggsave("figs/metrics-dotplot-main.png", width = 7, height = 7.5)
 
+g <- filter(metrics_long, est_type %in% c("bootstrap")) |>
+  filter(!measure %in% "cv") |>
+  filter(type %in% c("Restricted and shrunk")) |>
+  filter(!is.na(prop_mpa_set)) |>
+  mutate(prop_mpa = prop_mpa_set) |>  #<
+  filter(survey_abbrev != "SYN QCS, SYN HS") |>
+  # filter(!is.na(prop_pos_set)) |>
+  # filter(prop_pos_set > 0.1) |> # TODO note this
+  # filter(survey_abbrev != "SYN QCS") |>
+  # filter(survey_abbrev != "SYN HS") |>
+  # mutate(upr = ifelse(measure == "slope_re" & upr > 0.5, 0.5, upr)) |> # FIXME Note
+  mutate(upr = ifelse(measure == "mare" & upr > .83, .83, upr)) |> # FIXME Note
+  make_plot(colour_var = survey_abbrev, cv_upper_limit = 1e6, group_by_survey = FALSE) +
+  labs(colour = "Survey", fill = "Survey") +
+  guides(colour = "none", fill = "none") +
+  scale_color_manual(values = restricted_cols) +
+  scale_fill_manual(values = restricted_cols)
+print(g)
+ggsave("figs/metrics-dotplot-main-design.pdf", width = 7, height = 7.5)
+ggsave("figs/metrics-dotplot-main-design.png", width = 7, height = 7.5)
+
 g <- filter(metrics_long, est_type %in% c("geostat")) |>
   filter(!measure %in% "cv") |>
   filter(type %in% c("Restricted and shrunk", "Restricted")) |>
@@ -126,7 +144,8 @@ g <- filter(metrics_long, est_type %in% c("geostat")) |>
   filter(survey_abbrev != "SYN QCS") |>
   filter(survey_abbrev != "SYN HS") |>
   make_plot(colour_var = type, cv_upper_limit = 200, group_by_survey = TRUE) +
-  labs(colour = "Scenario", fill = "Scenario")
+  labs(colour = "Scenario", fill = "Scenario") +
+  scale_colour_brewer(palette = "Set1")
 print(g)
 ggsave("figs/metrics-dotplot-extrapolate.pdf", width = 8.5, height = 9)
 ggsave("figs/metrics-dotplot-extrapolate.png", width = 8.5, height = 9)
@@ -141,7 +160,8 @@ g <- filter(metrics_long, est_type %in% c("geostat", "bootstrap")) |>
   filter(!is.na(prop_mpa)) |>
   filter(survey_abbrev != "SYN QCS, SYN HS") |>
   make_plot(colour_var = est_type) +
-  labs(colour = "Approach", fill = "Approach")
+  labs(colour = "Approach", fill = "Approach") +
+  scale_colour_brewer(palette = "Set1")
 print(g)
 ggsave("figs/metrics-dotplot-design-geo.pdf", width = 8.5, height = 9)
 ggsave("figs/metrics-dotplot-design-geo.png", width = 8.5, height = 9)
@@ -167,6 +187,45 @@ g <- filter(metrics_long, est_type %in% c("geostat")) |>
   make_plot(colour_var = type) +
   labs(colour = "Scenario")
 print(g)
+
+# which models?? ----------
+
+hbll <- readRDS("data-generated/index-hbll-geo-clean.rds")
+syn <- readRDS("data-generated/index-syn-geo-clean.rds")
+m <- bind_rows(list(hbll, syn))
+m <- select(m, species_common_name, survey_abbrev, spatiotemporal, family) |>
+  distinct() |>
+  mutate(species_common_name = stringr::str_to_title(species_common_name)) |>
+  mutate(species_common_name = gsub(
+    "Rougheye/Blackspotted Rockfish Complex",
+    "Rougheye/Blackspotted Rockfish", species_common_name
+  )) |>
+  mutate(model = paste(stringr::str_to_title(family), paste0("(", spatiotemporal, ")"), sep = "\n")) |>
+  mutate(model = gsub("iid", "IID", model)) |>
+  mutate(model = gsub("off", "Off", model))
+unique(m$model)
+
+g <- filter(metrics_long, est_type %in% c("geostat")) |>
+  filter(!measure %in% "cv") |>
+  filter(type %in% c("Restricted and shrunk")) |>
+  filter(!is.na(prop_mpa)) |>
+  filter(survey_abbrev != "SYN QCS, SYN HS") |>
+  left_join(m) |>
+  # filter(survey_abbrev != "SYN QCS") |>
+  # filter(survey_abbrev != "SYN HS") |>
+  mutate(upr = ifelse(measure == "slope_re" & upr > 0.5, 0.5, upr)) |> # FIXME Note
+  mutate(survey_abbrev = factor(survey_abbrev,
+    levels =
+      c("SYN WCHG", "HBLL OUT N", "SYN HS", "SYN QCS", "SYN QCS, SYN HS")
+  )) |>
+  make_plot(colour_var = model, cv_upper_limit = 100, group_by_survey = FALSE, include_mean_lines = FALSE, prop_threshold = 0.1) +
+  labs(colour = "Model", fill = "Model") +
+  scale_colour_brewer(palette = "Dark2") +
+  scale_fill_brewer(palette = "Dark2")
+print(g)
+ggsave("figs/metrics-dotplot-by-model.pdf", width = 7.8, height = 9)
+ggsave("figs/metrics-dotplot-by-model.png", width = 7.8, height = 9)
+
 
 # ggplot(metrics, aes(cv_med, geo, colour = survey_abbrev)) +
 #   geom_linerange(aes(x = design, ymin = geo, ymax = design), colour = "grey70", alpha = 0.5) +
@@ -393,6 +452,38 @@ semi_join(to_plot, all_conv) |>
   theme(strip.text.y.right = element_text(size = 7))
 ggsave("figs/sampled-dotplot-comparison.pdf", width = 7, height = 3.4)
 ggsave("figs/sampled-dotplot-comparison.png", width = 7, height = 3.4)
+
+# plot differently? -------
+pal <- as.character(colorBlindness::availableColors())
+semi_join(to_plot, all_conv) |>
+  group_by(survey_abbrev, measure_clean, type2) |>
+  summarise(
+    lwr = quantile(est, probs = 0.25),
+    upr = quantile(est, probs = 0.75),
+    est = median(est),
+    mean_prop = mean(prop_mpa, na.rm = TRUE),
+  ) |>
+  ungroup() |>
+  mutate(survey_abbrev = forcats::fct_reorder(survey_abbrev, -mean_prop)) |>
+  ggplot(aes(survey_abbrev, est, colour = type2)) +
+  # geom_boxplot() +
+  geom_pointrange(aes(ymin = lwr, ymax = upr), pch = 21, size = 0.3, position = position_dodge(width = 0.38)) +
+  facet_wrap(~measure_clean, scales = "free_x", ncol = 4) +
+  # facet_grid(~measure_clean, scales = "free_x") +
+  # scale_y_log10() +
+  coord_flip() +
+  # geom_jitter(height = 0, width = 0.3, mapping = aes(colour = survey_abbrev), pch = 21, alpha = 0.5) +
+  # scale_color_brewer(palette = "Set2") +
+  scale_colour_manual(values = c("Restricted and shrunk" = "grey30", "Random up-sampled and shrunk" = pal[3], "Random down-sampled" = pal[7])) +
+  # scale_color_manual(values = c(RColorBrewer::brewer.pal(4, "Set2")[1:3])) +
+  th +
+  theme(axis.title.y = element_blank(), legend.position = "top") +
+  labs(y = "Metric value", colour = "Scenario") +
+  # guides(colour = "none") +
+  theme(strip.text.y.right = element_text(size = 7)) +
+  tagger::tag_facets(tag_prefix = "(", position = "tl")
+ggsave("figs/sampled-dotplot-comparison2.pdf", width = 7, height = 3)
+ggsave("figs/sampled-dotplot-comparison2.png", width = 7, height = 3)
 
 # NOTES:
 # downsampling helps trend bias a bit
