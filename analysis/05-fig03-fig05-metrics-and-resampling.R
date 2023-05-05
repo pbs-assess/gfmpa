@@ -205,6 +205,14 @@ m <- select(m, species_common_name, survey_abbrev, spatiotemporal, family) |>
   mutate(model = gsub("off", "Off", model))
 unique(m$model)
 
+m$model <- factor(m$model, levels =
+  c(
+    "Binomial-Gamma\n(IID, IID)",
+    "Binomial-Gamma\n(Off, IID)",
+    "Tweedie\n(IID)",
+    "Binomial-Gamma\n(Off, Off)"
+))
+
 g <- filter(metrics_long, est_type %in% c("geostat")) |>
   filter(!measure %in% "cv") |>
   filter(type %in% c("Restricted and shrunk")) |>

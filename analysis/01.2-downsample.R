@@ -19,17 +19,6 @@ down_sample <- function(x, seed = 1) {
   new |> mutate(downsample_seed = seed)
 }
 
-# xx <- filter(survey_data, survey_abbrev %in% "SYN QCS", species_common_name == "pacific cod")
-# zz <- group_by(xx, species_common_name, year) %>%
-#   group_split() |>
-#   purrr::map_dfr(down_sample, seed = 1)
-# nrow(zz)
-#
-# d <- down_sample(xx)
-# nrow(xx) - nrow(d)
-# sum(xx$restricted)
-# nrow(d)
-
 z1 <- group_by(survey_data, species_common_name, survey_abbrev, year) %>%
   group_split() %>%
   purrr::map_dfr(down_sample, seed = 1)
@@ -67,7 +56,6 @@ z2 |>
 nrow(z2) / nrow(survey_data)
 
 bind_rows(list(z1, z2, z3, z4, z5)) |>
-# bind_rows(list(z1)) |>
   saveRDS("data-generated/downsampled-fitting-data.rds")
 
 # ggsave("filename.pdf", width = 6, height = 6)

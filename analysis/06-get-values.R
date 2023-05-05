@@ -24,10 +24,21 @@ grid <- readRDS("data-generated/syn-grid-w-restr.rds")
 write_tex(mround((
   sum(.d$restricted)/length(.d$restricted)
 ) , 2), "lostQCSHS")
+
 .d <- filter(grid, survey_abbrev == "SYN WCHG")
 write_tex(mround((
   sum(.d$restricted)/length(.d$restricted)
 ) , 2), "lostWCHG")
+
+.d <- filter(grid, survey_abbrev == "SYN QCS")
+write_tex(mround((
+  sum(.d$restricted)/length(.d$restricted)
+) , 2), "lostQCS")
+
+.d <- filter(grid, survey_abbrev == "SYN HS")
+write_tex(mround((
+  sum(.d$restricted)/length(.d$restricted)
+) , 2), "lostHS")
 
 # with as-is where-is
 paste0("\n% lost on each survey with as-is where-is removed too") |>
@@ -43,6 +54,19 @@ grid <- readRDS("data-generated-ALL/syn-grid-w-restr.rds")
 write_tex(mround((
   sum(.d$restricted)/length(.d$restricted))
 , 2), "lostQCSHSall")
+
+.d <- filter(grid, survey_abbrev %in% c("SYN QCS"))
+write_tex(mround((
+  sum(.d$restricted)/length(.d$restricted)
+) , 2), "lostQCSall")
+
+.d <- filter(grid, survey_abbrev %in% c("SYN HS"))
+write_tex(mround((
+  sum(.d$restricted)/length(.d$restricted)
+) , 2), "lostHSall")
+
+
+.d <- filter(grid, survey_abbrev %in% c("SYN WCHG"))
 write_tex(mround((
   sum(.d$restricted)/length(.d$restricted)
 ) , 2), "lostWCHGall")
@@ -51,69 +75,97 @@ write_tex(mround((
 paste0("\n% N values") |>
   readr::write_lines("analysis/values.tex", append = TRUE)
 
-index <- readRDS("data-generated/index-filtered.rds")
+metrics <- readRDS("data-generated/metrics-wide2.rds")
 
-write_tex(length(unique(index$species_common_name)), "nSpp")
+nsp <- filter(metrics, est_type == "geostat") |>
+  filter(!is.na(mare_med)) |> pull(species_common_name) |> unique() |>
+  length()
+write_tex(nsp, "nSpp")
 
-filter(index, survey_abbrev == "HBLL OUT N") %>% pull(species_common_name) %>% unique() %>% length() %>%
-  write_tex("hbllNSpp")
+nsp <- filter(metrics, est_type == "geostat", survey_abbrev == "HBLL OUT N") |>
+  filter(!is.na(mare_med)) |> pull(species_common_name) |> unique() |>
+  length()
+write_tex(nsp, "hbllNSpp")
 
-filter(index, survey_abbrev != "HBLL OUT N") %>% pull(species_common_name) %>% unique() %>% length() %>%
-  write_tex("synNSpp")
+nsp <- filter(metrics, est_type == "geostat", grepl("SYN", survey_abbrev)) |>
+  filter(!is.na(mare_med)) |> pull(species_common_name) |> unique() |>
+  length()
+write_tex(nsp, "synNSpp")
 
-paste0("\n% average metric effects") |>
-  readr::write_lines("analysis/values.tex", append = TRUE)
+# filter(index, survey_abbrev == "HBLL OUT N") %>% pull(species_common_name) %>% unique() %>% length() %>%
+#   write_tex("hbllNSpp")
+#
+# filter(index, survey_abbrev != "HBLL OUT N") %>% pull(species_common_name) %>% unique() %>% length() %>%
+#   write_tex("synNSpp")
+
+# paste0("\n% average metric effects") |>
+#   readr::write_lines("analysis/values.tex", append = TRUE)
 
 # metrics_wide <- readRDS("data-generated/metrics-wide.rds")
-metrics <- readRDS("data-generated/metrics-long.rds")
+metrics <- readRDS("data-generated/metrics-long2.rds")
 
-m <- metrics |>
-  mutate(survey_abbrev = as.character(survey_abbrev)) |>
-  mutate(est = ifelse(grepl("trend", measure), abs(est), est)) |>
-  group_by(restr_clean, survey_abbrev, measure) |>
-  summarise(
-    mean_est = mean(est),
-    .groups = "drop"
-  ) |>
-  mutate(digi = ifelse(grepl("precision", measure), 0, 2)) |>
-  mutate(mean_est = mround(mean_est, digi)) |>
-  mutate(restr = ifelse(grepl("^Shrunk", restr_clean), "shrunk", "extrap")) |>
-  select(-restr_clean) |>
-  mutate(measure = ifelse(grepl("precision", measure), "precision", measure)) |>
-  mutate(measure = ifelse(grepl("accuracy", measure), "accuracy", measure)) |>
-  mutate(measure = ifelse(grepl("bias", measure), "bias", measure)) |>
-  mutate(survey_abbrev = ifelse(grepl("QCS", survey_abbrev), "QCSHS", survey_abbrev)) |>
-  mutate(survey_abbrev = ifelse(grepl("WCHG", survey_abbrev), "WCHG", survey_abbrev)) |>
-  mutate(survey_abbrev = ifelse(grepl("HBLL", survey_abbrev), "HBLL", survey_abbrev)) |>
-  mutate(token = paste0(measure, survey_abbrev, restr))
+# m <- metrics |>
+#   mutate(survey_abbrev = as.character(survey_abbrev)) |>
+#   mutate(est = ifelse(grepl("trend", measure), abs(est), est)) |>
+#   group_by(restr_clean, survey_abbrev, measure) |>
+#   summarise(
+#     mean_est = mean(est),
+#     .groups = "drop"
+#   ) |>
+#   mutate(digi = ifelse(grepl("precision", measure), 0, 2)) |>
+#   mutate(mean_est = mround(mean_est, digi)) |>
+#   mutate(restr = ifelse(grepl("^Shrunk", restr_clean), "shrunk", "extrap")) |>
+#   select(-restr_clean) |>
+#   mutate(measure = ifelse(grepl("precision", measure), "precision", measure)) |>
+#   mutate(measure = ifelse(grepl("accuracy", measure), "accuracy", measure)) |>
+#   mutate(measure = ifelse(grepl("bias", measure), "bias", measure)) |>
+#   mutate(survey_abbrev = ifelse(grepl("QCS", survey_abbrev), "QCSHS", survey_abbrev)) |>
+#   mutate(survey_abbrev = ifelse(grepl("WCHG", survey_abbrev), "WCHG", survey_abbrev)) |>
+#   mutate(survey_abbrev = ifelse(grepl("HBLL", survey_abbrev), "HBLL", survey_abbrev)) |>
+#   mutate(token = paste0(measure, survey_abbrev, restr))
+#
+# for (i in seq_len(nrow(m))) {
+#   write_tex(m$mean_est[i], m$token[i])
+# }
+#
+# paste0("\n% example metric effects") |>
+#   readr::write_lines("analysis/values.tex", append = TRUE)
+#
+# m2 <- metrics |> filter(grepl("^Shrunk", restr_clean))
 
-for (i in seq_len(nrow(m))) {
-  write_tex(m$mean_est[i], m$token[i])
+
+make_ex_metric <- function(sp, surv, .metric) {
+  digi <- 2
+  # digi <- if ("cv_perc" %in% .metric) 0 else 2
+  m2 |> filter(species_common_name == sp) |>
+    filter(grepl(surv, survey_abbrev), grepl(.metric, measure)) |>
+    pull(est) |> mround(digi) |>
+    write_tex(paste0(tolower(gsub("\\/", "", gsub(" ", "", sp))), surv, measure))
 }
 
-paste0("\n% example metric effects") |>
+
+# make_ex_metric("Shortspine Thornyhead", "HBLL", "cv_perc")
+# make_ex_metric("Rougheye/Blackspotted Rockfish", "WCHG", "precision")
+# make_ex_metric("English Sole", "WCHG", "bias")
+# make_ex_metric("China Rockfish", "HBLL", "bias")
+# make_ex_metric("China Rockfish", "HBLL", "accuracy")
+# make_ex_metric("Pacific Ocean Perch", "WCHG", "precision")
+# make_ex_metric("Sharpchin Rockfish", "QCS", "accuracy")
+
+paste0("\n % covariate slopes") |>
   readr::write_lines("analysis/values.tex", append = TRUE)
 
-m2 <- metrics |> filter(grepl("^Shrunk", restr_clean))
+slopes <- readRDS("data-generated/metrics-slopes-table.rds")
+slopes <- slopes |> mutate(measure = gsub("cv_perc", "precision", measure)) |>
+  mutate(measure = gsub("slope_re", "trend", measure)) |>
+  mutate(base_level = gsub("Design-based", "Design", base_level)) |>
+  mutate(base_level = gsub("Geostatistical", "Geo", base_level)) |>
+  mutate(measure = stringr::str_to_title(measure)) |>
+  mutate(label = paste0("cov", measure, base_level))
 
-
-make_ex_metric <- function(sp, surv, metric, token) {
-  digi <- if (metric == "precision") 0 else 2
-  m2 |> filter(species_common_name == sp) |>
-    filter(grepl(surv, survey_abbrev), grepl(metric, measure)) |>
-    pull(est) |> mround(digi) |>
-    write_tex(paste0(tolower(gsub("\\/", "", gsub(" ", "", sp))), surv, metric))
-}
-
-make_ex_metric("Shortspine Thornyhead", "HBLL", "precision")
-make_ex_metric("Rougheye/Blackspotted Rockfish", "WCHG", "precision")
-make_ex_metric("English Sole", "WCHG", "bias")
-make_ex_metric("China Rockfish", "HBLL", "bias")
-make_ex_metric("China Rockfish", "HBLL", "accuracy")
-make_ex_metric("Pacific Ocean Perch", "WCHG", "precision")
-make_ex_metric("Sharpchin Rockfish", "QCS", "accuracy")
-
-
+apply(slopes, 1, function(.x) {
+    write_tex(.x[["text"]], .x[["label"]])
+  })
 
 #
 #   # filter(restr_clean == "Shrunk survey domain") |>
@@ -147,8 +199,8 @@ make_ex_metric("Sharpchin Rockfish", "QCS", "accuracy")
 # #   filter(restr_clean == "Shrunk survey domain") |>
 # #   select(-restr_clean)
 
-system("cp analysis/values.tex ~/src/overleaf/gf-mpa-index/values.tex")
-system("cp figs/*.pdf ~/src/overleaf/gf-mpa-index/figs/new/")
+system("cp analysis/values.tex ~/src/gf-mpa-index-ms/values.tex")
+# system("cp figs/*.pdf ~/src/overleaf/gf-mpa-index/figs/new/")
 
 # table of spp ---------
 

@@ -250,24 +250,25 @@ make_map <- function(.dat) {
     scale_fill_manual("Survey", values = .pal) +
     scale_colour_manual("Survey", values = .pal) +
     theme(legend.position = c(0.14, 0.15)) +
-    annotate(geom = "text", x = max(.xlim) - 100000, y = max(.ylim) - 50000, label = "British Columbia", size = 4, colour = "grey10", hjust = 0, vjust = 1) +
+    # annotate(geom = "text", x = max(.xlim) - 100000, y = max(.ylim) - 50000, label = "British Columbia", size = 4, colour = "grey10", hjust = 0, vjust = 1) +
     annotate(geom = "text", x = max(.xlim) - 310000, y = max(.ylim) - 85000, label = "Haida Gwaii", size = 4, colour = "grey10", hjust = 0.5, vjust = 0.5) +
     ggspatial::annotation_scale(
       location = "bl",
       pad_x = unit(1.5, "in"), pad_y = unit(0.2, "in"),
       bar_cols = c("grey80", "white"), line_width = 0.5
-    ) +
-    ggspatial::annotation_north_arrow(
-      location = "tr", which_north = "true",
-      pad_x = unit(0, "in"), pad_y = unit(0.05, "in"),
-      height = unit(1.2, "cm"),
-      width = unit(1.2, "cm"),
-      style = ggspatial::north_arrow_nautical(
-        fill = c("grey40", "white"),
-        line_col = "grey20"
-      ))
+    )
+    # ggspatial::annotation_north_arrow(
+    #   location = "tr", which_north = "true",
+    #   pad_x = unit(0, "in"), pad_y = unit(0.05, "in"),
+    #   height = unit(1.2, "cm"),
+    #   width = unit(1.2, "cm"),
+    #   style = ggspatial::north_arrow_nautical(
+    #     fill = c("grey40", "white"),
+    #     line_col = "grey20"
+    #   ))
 }
 g <- make_map(all_rest)
+
 ggsave("figs/restricted-grid.pdf", width = 5.4, height = 5.4)
 
 # nsb ----------------
@@ -344,10 +345,42 @@ g2 <- ggplot() +
       line_col = "grey20"
     ))
 
-g0 <- cowplot::plot_grid(g2,g)
-# ggsave("figs/fig1.png", width = 10.5, height = 5.4, dpi = 150, plot = g0)
-ggsave("figs/fig1.pdf", width = 10.5, height = 5.4, plot = g0)
+# world
 
+lims <- data.frame(x = c(.xlim[1], .xlim[1], .xlim[2], .xlim[2]),
+  y = c(.ylim[1], .ylim[2], .ylim[2], .ylim[1]))
+lims <- sf::st_as_sf(lims, coords = c("x", "y"))
+sf::st_crs(lims) <- utm_zone9
+lims <- sf::st_transform(lims, crs = 4326)
+# lims <- sf::st_transform(lims, crs = sf::st_crs(world))
+l <- as.data.frame(sf::st_coordinates(lims))
+
+XLIM <- c(-160, -60)
+YLIM <- c(5, 75)
+# world <- rnaturalearth::ne_coastline("small", returnclass = "sf")
+world <- rnaturalearth::ne_countries("small", returnclass = "sf")
+zoomed_out <- world |>
+  # sf::st_crop(
+    # c(xmin = XLIM[1], ymin = YLIM[1], xmax = XLIM[2], ymax = YLIM[2])) |>
+  ggplot() +
+  geom_sf(colour = "grey40", fill = "grey80", linewidth = 0.25) +
+  geom_polygon(data = l, aes(X, Y), col = "red", fill = NA, linewidth = 0.65) +
+  coord_sf(xlim = XLIM + c(10, -10), ylim = YLIM + c(10, -10),
+    crs = 4326) + xlab("") + ylab("") +
+  theme(axis.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank())
+zoomed_out
+
+ggg <- cowplot::ggdraw() +
+  cowplot::draw_plot(g) +
+  cowplot::draw_plot(zoomed_out + xlab("") + ylab(""),
+    height = 0.25,
+    x = 0.33,
+    y = 0.715
+  )
+
+g0 <- cowplot::plot_grid(g2, ggg)
+ggsave("figs/fig1.png", width = 10.5, height = 5.4, dpi = 220, plot = g0)
+ggsave("figs/fig1.pdf", width = 10.5, height = 5.4, plot = g0)
 
 
 ###########################################

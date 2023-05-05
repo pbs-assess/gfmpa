@@ -107,7 +107,7 @@ plot_shrunk_grid <- function(f, restr_dat, return_data = FALSE) {
     scale_colour_manual(values = pal) +
     # ggthemes::scale_colour_colorblind() +
     # ggthemes::scale_fill_colorblind() +
-    geom_sf(data = filter(d, restricted), colour = "black", fill = "#00000010", linewidth = 0.05) +
+    geom_sf(data = filter(d, restricted), colour = "#00000050", linewidth = 0.03) +
     theme_light() +
     geom_sf(data = bc_coast, inherit.aes = FALSE) +
     labs(fill = "Stratum ID") +

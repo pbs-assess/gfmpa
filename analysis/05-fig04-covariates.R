@@ -262,7 +262,7 @@ slopes[[2]] <- sdmTMB:::mround(slopes[[2]], 2)
 slopes[[3]] <- sdmTMB:::mround(slopes[[3]], 2)
 slopes
 
-slopes <- mutate(slopes, text = paste0(b, " (95\\% CI: ", lwr, "--", upr, ")"))
+slopes <- mutate(slopes, text = paste0(b, "\\% (95\\% CI: ", lwr, "--", upr, ")"))
 slopes
 
 saveRDS(slopes, "data-generated/metrics-slopes-table.rds")
