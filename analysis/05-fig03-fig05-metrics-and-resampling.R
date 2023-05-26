@@ -8,7 +8,7 @@ mround <- function(x, digits) {
   sprintf(paste0("%.", digits, "f"), round(x, digits))
 }
 
-make_plot <- function(dat, colour_var = survey_abbrev, prop_threshold = 0.15, cv_upper_limit = 100, group_by_survey = TRUE, include_mean_lines = TRUE) {
+make_plot <- function(dat, colour_var = survey_abbrev, prop_threshold = 0.15, cv_upper_limit = 100, group_by_survey = TRUE, include_mean_lines = TRUE, group_var = NULL) {
 
   dat <- filter(dat, prop_mpa >= prop_threshold)
 
@@ -21,8 +21,10 @@ make_plot <- function(dat, colour_var = survey_abbrev, prop_threshold = 0.15, cv
   } else {
     temp <- group_by(temp, measure, measure_clean, {{ colour_var }})
   }
+  # temp <-
     # summarise(mean_est = weighted.mean(est, w = 1 / variance))
-   means <- temp |>  summarise(mean_est = median(est, na.rm = TRUE)) |>
+   means <- temp |>
+    summarise(mean_est = median(est, na.rm = TRUE)) |>
      filter(measure != "slope_re")
 
   dat <- dat |>
@@ -93,6 +95,34 @@ make_plot <- function(dat, colour_var = survey_abbrev, prop_threshold = 0.15, cv
   g + tagger::tag_facets(tag_prefix = "(", position = "tl",
     tag_pool = letters[c(1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12)])
 }
+
+
+.dat <- filter(metrics_long, est_type %in% c("geostat", "bootstrap")) |>
+  mutate(est_type = gsub("bootstrap", "Bootstrap", est_type)) |>
+  mutate(est_type = gsub("geostat", "Geostatistical", est_type)) |>
+  filter(measure %in% "cv") |>
+  filter(type %in% c("Restricted and shrunk", "Status quo")) |>
+  filter(!is.na(prop_mpa)) |>
+  filter(survey_abbrev != "SYN QCS, SYN HS")
+
+temp_mean_lines <- group_by(.dat, survey_abbrev, measure, measure_clean, est_type, type) |>
+  summarise(mean_est = median(est, na.rm = TRUE))
+
+g <- .dat |> make_plot(colour_var = type, group_by_survey = FALSE, prop_threshold = 0.15, group_var = survey_abbrev, include_mean_lines = FALSE) +
+  coord_flip(ylim = c(0, 1)) +
+  geom_hline(yintercept = 0.2, colour = "grey30") +
+  facet_grid(
+    survey_abbrev ~ est_type,
+    scales = "free_y",
+    space = "free_y"
+  ) +
+  labs(colour = "Scenario", fill = "Scenario")
+g + geom_hline(data = temp_mean_lines,
+  mapping = aes(yintercept = mean_est, colour = type), lty = 2) +
+  tagger::tag_facets(tag_prefix = "(", position = "tl",
+    tag_pool = letters)
+ggsave("figs/abs-cv.pdf", width = 6.5, height = 8.4)
+ggsave("figs/abs-cv.png", width = 6.5, height = 8.4)
 
 # restricted_cols <- RColorBrewer::brewer.pal(4, "Set2")
 g <- filter(metrics_long, est_type %in% c("geostat")) |>
