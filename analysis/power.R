@@ -6,7 +6,8 @@ surv_dat <- readRDS("data-generated/dat_to_fit.rds")
 
 survey <- "SYN WCHG"
 spp <- "canary rockfish"
-spp <- "pacific ocean perch"
+# spp <- "pacific ocean perch"
+spp <- "redbanded rockfish"
 
 surv_dat <- filter(surv_dat, survey_abbrev %in% survey, species_common_name == spp)
 
@@ -131,38 +132,53 @@ do_sim_check <- function(i, change_per_year = log(0.9)) {
   # s$obs_scaled <- s$obs / 1000
   s$year_zero <- s$year - mean(s$year)
 
-  a <- sdmTMB(obs ~ year_zero, data = s, family = tweedie(link = "log"),
-    spatial = "on", spatiotemporal = "iid", time = "year", mesh = mesh_all)
+  # a <- sdmTMB(obs ~ year_zero, data = s, family = tweedie(link = "log"),
+  #   spatial = "on", spatiotemporal = "iid", time = "year", mesh = mesh_all)
+  #
+  # datr <- filter(s, !restricted)
+  # ar <- sdmTMB(obs ~ year_zero, data = datr, family = tweedie(link = "log"),
+  #   spatial = "on", spatiotemporal = "iid", time = "year", mesh = meshr)
+
+  a <- try({sdmTMB(list(obs ~ 1, obs ~ year_zero), data = s, family = delta_gamma(),
+    spatial = "on", spatiotemporal = list("off", "iid"), time = "year", mesh = mesh_all)})
 
   datr <- filter(s, !restricted)
-  ar <- sdmTMB(obs ~ year_zero, data = datr, family = tweedie(link = "log"),
-    spatial = "on", spatiotemporal = "iid", time = "year", mesh = meshr)
+  ar <- try({sdmTMB(list(obs ~ 1, obs ~ year_zero), data = datr, family = delta_gamma(),
+    spatial = "on", spatiotemporal = list("off", "iid"), time = "year", mesh = meshr)})
 
-  bind_rows(
-    mutate(broom::tidy(a, conf.int = TRUE), type = "status quo"),
-    mutate(broom::tidy(ar, conf.int = TRUE), type = "restricted and shrunk")
-  ) |>
-    filter(grepl("year", term)) |>
-    mutate(true_effect = change_per_year)
+  # if (i == 2) a <- try(stop())
+  if (class(a) != "try-error" && class(ar) != "try-error") {
+    ret <- bind_rows(
+      mutate(broom::tidy(a, conf.int = TRUE, model = 2), type = "status quo"),
+      mutate(broom::tidy(ar, conf.int = TRUE, model = 2), type = "restricted and shrunk")
+    ) |>
+      filter(grepl("year", term)) |>
+      mutate(true_effect = change_per_year, i = i)
+    return(ret)
+  } else {
+    return(NULL)
+  }
 }
 
 # figure out decline to test:
 yrs <- sort(unique(surv_dat$year))
 yrs <- yrs - min(yrs)
-FRAC_TEST <- 0.97
+FRAC_TEST <- 0.98
 x <- exp(log(FRAC_TEST) * yrs)
 plot(yrs, x, type = "o")
-x
+1 - x
 
 library(future)
 plan(multisession, workers = 10L)
 out <- furrr::future_map_dfr(
-  seq_len(20), do_sim_check,
+# out <- purrr::map_dfr(
+  seq_len(30), do_sim_check,
   change_per_year = log(FRAC_TEST),
   .options = furrr::furrr_options(seed = TRUE)
 )
 
 group_by(out, type) |>
+  filter(!is.na(conf.high)) |>
   summarise(
     power = mean(conf.high < 0),
     coverage = mean(conf.high > true_effect & conf.low < true_effect),
@@ -174,13 +190,15 @@ group_by(out, type) |>
   knitr::kable(digits = 2L)
 
 out |>
-  arrange(type) |>
-  mutate(i = seq_len(n())) |>
-  ggplot(aes(i, estimate, ymin = conf.low, ymax = conf.high, colour = type)) +
-  geom_pointrange() +
+  mutate(sig = conf.high < 0) |>
+  ggplot(aes(i, estimate, ymin = conf.low, ymax = conf.high, colour = sig)) +
+  # geom_pointrange(position = position_dodge(width = 0.5)) +
+  geom_pointrange(pch = 21) +
   geom_hline(yintercept = out$true_effect[1], lty = 2) +
   geom_hline(yintercept = 0, lty = 1) +
   coord_flip() +
-  xlab("Iteration")
+  scale_colour_manual(values = c("TRUE" = "grey40", "FALSE" = "red")) +
+  xlab("Iteration") +
+  facet_wrap(~type)
 
 plan(sequential)
