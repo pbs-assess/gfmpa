@@ -365,14 +365,22 @@ select(x, -power_diff) |>
     x = `status quo`,
     y = sp,
     yend = sp,
-    colour = as.factor(1 - fract_tested)
+    colour = as.factor(paste0((1 - fract_tested)*100, "%"))
   )) +
   scale_colour_viridis_d(end = 0.85, option = "C") +
-  geom_segment(arrow = arrow(length = unit(7, "pt")), key_glyph = "arrow_left") +
+  geom_segment(arrow = arrow(length = unit(6, "pt")), key_glyph = "arrow_left") +
+  # theme_bw() +
   theme(axis.title.y = element_blank()) +
-  xlab("Power") +
+  xlab("Power to detect decline") +
   scale_x_continuous(expand = c(0, 0)) +
   coord_cartesian(xlim = c(0.35, 1)) +
   geom_hline(yintercept = c(14.5, 21.5), lty = 2, col = "grey50") +
-  labs(colour = "Decline fraction") +
-  theme(legend.position = "top")
+  labs(colour = "Simulated decline") +
+  theme(
+    legend.position = c(0.28, 0.12),
+    plot.margin = margin(11/2, 11/2 + 2, 11/2, 11/2),
+    axis.title = element_text(size = 10)
+  )
+
+ggsave("figs/power.png", width = 4.2, height = 4.4)
+ggsave("figs/power.pdf", width = 4.2, height = 4.4)

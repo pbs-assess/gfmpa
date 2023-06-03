@@ -26,7 +26,8 @@ f <-
     "sampled-dotplot-comparison2.pdf",
     "metrics-dotplot-by-model.pdf",
     "metrics-cross-plot1.pdf",
-    "prop-mpa-vs-metrics-design2.pdf"
+    "prop-mpa-vs-metrics-design2.pdf",
+    "power.pdf"
   )
 
 # purrr::walk(f[length(f)], function(x) {
