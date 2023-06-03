@@ -1,6 +1,7 @@
 library(tidyverse)
 library(sdmTMB)
-theme_set(theme_light())
+# theme_set(theme_light())
+source("analysis/theme.R")
 library(future)
 plan(multisession, workers = 10L)
 
@@ -31,6 +32,8 @@ m <- filter(m, !grepl("Greenstripe", species_common_name)) |>
   arrange(species_common_name)
 m$species_common_name[m$species_common_name == "rougheye/blackspotted rockfish"] <- "rougheye/blackspotted rockfish complex"
 
+N_ITER <- 100
+
 # spp_list <- tolower(sort(unique(m$species_common_name)))
 # spp_list <- spp_list[!grepl("greenstripe", spp_list)] # few observations, main model fails
 # spp_list[spp_list == "rougheye/blackspotted rockfish"] <- "rougheye/blackspotted rockfish complex"
@@ -39,8 +42,8 @@ out_list <- list()
 g_list <- list()
 
 for (s in seq_len(nrow(m))) {
-# for (s in 14:24) {
-  spp <- m[s, "species_common_name", drop=TRUE]
+  # for (s in 14:24) {
+  spp <- m[s, "species_common_name", drop = TRUE]
   cat(spp, "\n")
   surv_dat <- readRDS("data-generated/dat_to_fit.rds")
 
@@ -222,7 +225,7 @@ for (s in seq_len(nrow(m))) {
   # )
   # FRAC_TEST <- 0.5
 
-  cv <- m[s,"orig_cv_mean",drop=TRUE]
+  cv <- m[s, "orig_cv_mean", drop = TRUE]
 
   FRAC_TEST <- if (cv > 0.5) {
     0.3
@@ -251,7 +254,7 @@ for (s in seq_len(nrow(m))) {
 
   out <- furrr::future_map_dfr(
     # out <- purrr::map_dfr(
-    seq_len(10L), do_sim_check,
+    seq_len(N_ITER), do_sim_check,
     change_per_year = get_change_per_year(FRAC_TEST),
     .options = furrr::furrr_options(seed = TRUE)
   )
@@ -289,6 +292,8 @@ for (s in seq_len(nrow(m))) {
 
 plan(sequential)
 
+saveRDS(out_list, file = "data-generated/power-cached-output.rds")
+
 d <- dplyr::bind_rows(out_list)
 
 d |>
@@ -301,14 +306,20 @@ d |>
   coord_flip() +
   scale_colour_manual(values = c("TRUE" = "grey40", "FALSE" = "red")) +
   xlab("Iteration") +
-  facet_wrap(species_common_name~type)
+  facet_wrap(species_common_name ~ type)
+
+cvs <- m |>
+  select(species_common_name, orig_cv_mean) |>
+  distinct() |>
+  mutate(species_common_name = tolower(species_common_name))
 
 x <- group_by(d) |>
   filter(!is.na(conf.high)) |>
   group_by(species_common_name, type) |>
   summarise(
     power = mean(conf.high < 0),
-    coverage = mean(conf.high > true_effect & conf.low < true_effect)
+    coverage = mean(conf.high > true_effect & conf.low < true_effect),
+    fract_tested = mean(fract_tested)
     # mean_se = mean(std.error),
     # m_error = mean(estimate / true_effect),
     # s_error = mean(estimate > 0),
@@ -318,22 +329,50 @@ x <- group_by(d) |>
   group_by(species_common_name) |>
   # filter(power[type == "restricted and shrunk"] < 1) |>
   mutate(power_diff = power[type == "restricted and shrunk"] - power[type == "status quo"]) |>
+  left_join(cvs) |>
   ungroup() |>
-  arrange(power_diff, species_common_name, type) |>
+  arrange(fract_tested, power_diff, species_common_name, type) |>
   select(-coverage)
 
+# https://stackoverflow.com/questions/72741439/how-to-show-arrows-in-backward-and-forward-directions-in-a-ggplot2-legend
+draw_key_arrow_left <- function(data, params, size, dir) {
+  if (is.null(data$linetype)) {
+    data$linetype <- 0
+  } else {
+    data$linetype[is.na(data$linetype)] <- 0
+  }
+  grid::segmentsGrob(0.9, 0.5, 0.1, 0.5,
+    gp = grid::gpar(
+      col = alpha(data$colour %||% data$fill %||% "black", data$alpha),
+      fill = alpha(data$colour %||% data$fill %||% "black", data$alpha),
+      lwd = (data$size %||% 0.5) * .pt,
+      lty = data$linetype %||% 1,
+      lineend = "butt"
+    ),
+    arrow = params$arrow
+  )
+}
 
-cvs <- m |> select(species_common_name, orig_cv_mean) |> distinct() |>
-  mutate(species_common_name = tolower(species_common_name))
-
-select(x, -power_diff) |> tidyr::pivot_wider(names_from = type, values_from = power) |>
-  left_join(cvs) |>
+select(x, -power_diff) |>
+  tidyr::pivot_wider(names_from = type, values_from = power) |>
   mutate(sp = stringr::str_to_title(species_common_name)) |>
+  filter(!grepl("Blacksp", sp)) |>
+  mutate(sp = gsub("Complex", "", sp)) |>
   mutate(sp = forcats::fct_inorder(sp)) |>
   mutate(sp = forcats::fct_rev(sp)) |>
-  ggplot(aes(xend = `restricted and shrunk`, x = `status quo`, y = sp, yend = sp, colour = orig_cv_mean)) +
-  scale_colour_viridis_c() +
-  geom_segment(arrow = arrow(length = unit(10, "pt"))) +
+  ggplot(aes(
+    xend = `restricted and shrunk`,
+    x = `status quo`,
+    y = sp,
+    yend = sp,
+    colour = as.factor(1 - fract_tested)
+  )) +
+  scale_colour_viridis_d(end = 0.85, option = "C") +
+  geom_segment(arrow = arrow(length = unit(7, "pt")), key_glyph = "arrow_left") +
   theme(axis.title.y = element_blank()) +
   xlab("Power") +
-  coord_cartesian(xlim = c(0, 1))
+  scale_x_continuous(expand = c(0, 0)) +
+  coord_cartesian(xlim = c(0.35, 1)) +
+  geom_hline(yintercept = c(14.5, 21.5), lty = 2, col = "grey50") +
+  labs(colour = "Decline fraction") +
+  theme(legend.position = "top")
