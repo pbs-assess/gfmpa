@@ -104,10 +104,10 @@ ggsave("figs/prop-mpa-vs-metrics-wide.png", width = 10, height = 3.5)
 
 # combine these two into one... -------------
 
-make_panel <- function(dat, xvar, yvar, xlab = "CV of 'Status quo' index", ylab = "MARE (accuracy loss)", .est_type = "geostat") {
+make_panel <- function(dat, xvar, yvar, xlab = "CV of 'Status quo' index", ylab = "MARE (accuracy loss)") {
   g <- dat |>
     filter(type %in% "Restricted and shrunk") |>
-    filter(est_type %in% .est_type) |>
+    filter(est_type %in% "geostat") |>
     # filter(grepl("mare", measure)) |>
     ggplot(
       aes({{xvar}}, {{yvar}}, colour = survey_abbrev)
@@ -119,10 +119,9 @@ make_panel <- function(dat, xvar, yvar, xlab = "CV of 'Status quo' index", ylab 
     guides(shape = "none") +
     scale_colour_manual(name = "Survey", values = restricted_cols) +
     scale_x_log10() +
-    geom_smooth(se = TRUE, alpha = 0.2, method = "glm", method.args = list(family = Gamma(link = "log")), formula = y ~ x, show.legend = FALSE) +
-    geom_smooth(mapping = aes(colour = NULL, group = NULL), se = TRUE, alpha = 0.2, method = "glm", method.args = list(family = Gamma(link = "log")), formula = y ~ x, show.legend = FALSE, colour = "grey20") +
+    stat_smooth(se = TRUE, alpha = 0.2, method = "glm", method.args = list(family = Gamma(link = "log")), formula = y ~ x, show.legend = FALSE) +
     theme(
-      legend.position = c(0.23, 0.67),
+      legend.position = c(0.23, 0.7),
       strip.placement = "outside"
     ) +
     # coord_cartesian(ylim = c(0, 0.9), xlim = c(0.08, 0.85)) +
@@ -133,49 +132,39 @@ make_panel <- function(dat, xvar, yvar, xlab = "CV of 'Status quo' index", ylab 
 }
 g1 <- make_panel(metrics_wide, orig_cv_mean, mare_med) +
   tagger::tag_facets(tag_prefix = "(", position = "tl", tag_pool = "a") +
-  coord_cartesian(ylim = c(0, .4), expand = FALSE)
+  coord_cartesian(ylim = c(0, 0.4))
 g2 <- make_panel(metrics_wide, prop_mpa, mare_med, xlab = "Proportion stock in MPA", ylab = "MARE (accuracy loss)") +
   guides(colour = "none") +
   tagger::tag_facets(tag_prefix = "(", position = "tl", tag_pool = "b") +
-  coord_cartesian(ylim = c(0, .4), expand = FALSE)
+  coord_cartesian(ylim = c(0, 0.4))
+
 g3 <- metrics_wide |>
   mutate(cv_perc_med = ifelse(cv_perc_med < 0, 0.01, cv_perc_med)) |>
   make_panel(prop_mpa, cv_perc_med, xlab = "Proportion stock in MPA", ylab = "% increase CV (precision loss)") +
   guides(colour = "none") +
   tagger::tag_facets(tag_prefix = "(", position = "tl", tag_pool = "c") +
-  coord_cartesian(ylim = c(0, 50), expand = FALSE)
-cowplot::plot_grid(g1, g2, g3, nrow = 1, align = "h", axis = "b")
 
-ggsave("figs/metrics-cross-plot1.pdf", width = 8.5, height = 2.55)
+  coord_cartesian(ylim = c(0, 50))
+cowplot::plot_grid(g1, g2, g3, nrow = 1, align = "h", axis = "b")
+ggsave("figs/metrics-cross-plot1.pdf", width = 9, height = 2.75)
+
+
+# -------------
+
 
 # design-based instead!?
 
 metrics_long2 <- readRDS("data-generated/metrics-long2.rds")
 metrics_long2 <- filter(metrics_long2, !survey_abbrev %in% c("SYN QCS, SYN HS"))
 
-tokeep <- metrics_long2 |>
-  filter(est_type %in% c("bootstrap", "geostat")) |>
+g <- metrics_long2 |>
   filter(type %in% "Restricted and shrunk") |>
-  select(est_type, species_common_name, survey_abbrev) |>
-  distinct() |>
-  group_by(species_common_name, survey_abbrev) |>
-  summarise(n_ests = n()) |>
-  filter(n_ests == 2L) |>
-  select(n_ests)
-
-met_dat <- metrics_long2 |>
-  semi_join(tokeep) |>
-  filter(type %in% "Restricted and shrunk") |>
-  filter(est_type %in% c("bootstrap", "geostat")) |>
-  mutate(est_type = gsub("bootstrap", "Design-based", est_type)) |>
-  mutate(est_type = gsub("geostat", "Geostatistical", est_type)) |>
+  filter(est_type %in% "bootstrap") |>
   mutate(est = if_else(measure == "slope_re", abs(est), est)) |>
   mutate(est = if_else(measure == "cv_perc" & est < 0, 0.01, est)) |>
-  filter(measure != "cv")
-
-g <- met_dat |>
+  filter(measure != "cv") |>
   ggplot(
-    aes(prop_mpa, est, colour = survey_abbrev)
+    aes(prop_mpa_set, est, colour = survey_abbrev)
   ) +
   geom_point(pch = 21, alpha = 1) +
   # scale_y_continuous(lim = c(0, NA), expand = expansion(mult = c(0, .04))) +
@@ -187,112 +176,22 @@ g <- met_dat |>
   # scale_colour_brewer(palette = "Set2") +
   facet_grid(
     rows = vars(measure_clean),
-    cols = vars(est_type),
     # switch = "y",
     scales = "free_y"
   ) +
   scale_x_log10() +
   stat_smooth(se = FALSE, alpha = 0.15, method = "glm", method.args = list(family = Gamma(link = "log")), formula = y ~ x, show.legend = FALSE) +
-  stat_smooth(mapping = aes(colour = NULL), se = FALSE, alpha = 0.15, method = "glm", method.args = list(family = Gamma(link = "log")), formula = y ~ x, show.legend = FALSE, colour = "grey20") +
   # stat_smooth(se = TRUE, alpha = 0.2, method = "glm", formula = y ~ x, show.legend = FALSE) +
   # geom_smooth(se = FALSE) +
   theme(
-    # axis.title.y = element_blank(),
+    axis.title.y = element_blank(),
     axis.title.x = element_text(size = 10),
-    legend.position = c(0.15, 0.918),
+    legend.position = c(0.25, 0.918),
     strip.placement = "outside"
   ) +
-  ggrepel::geom_text_repel(aes(label = species_common_name), size = 2.5, alpha = 0.6) +
-  coord_cartesian(xlim = c(0.015, max(metrics_long$prop_mpa, na.rm = TRUE))) +
-  ylab("Metric value")
+  coord_cartesian(xlim = c(0.05, max(metrics_long$prop_mpa_set, na.rm = TRUE)))
 
 g <- g + tagger::tag_facets(tag_prefix = "(", position = "tl")
-# g
-ggsave("figs/prop-mpa-vs-metrics-design2.pdf", width = 7.5, height = 9.5)
-ggsave("figs/prop-mpa-vs-metrics-design2.png", width = 7.5, height = 9.5)
-
-# stats? ----------------------
-
-glimpse(met_dat)
-
-d <- filter(met_dat, measure == "mare")
-plot(log(d$prop_mpa), log(d$est))
-plot(log(d$prop_mpa), log(d$est))
-
-fit <- glm(est ~ log(prop_mpa_set + 0.001) * est_type, data = d, family = Gamma(link = "log"))
-arm::display(fit)
-
-d$est_type <- factor(d$est_type, levels = c("Geostatistical", "Design-based"))
-fit <- glm(est ~ log(prop_mpa) * est_type, data = d, family = Gamma(link = "log"))
-arm::display(fit)
-
-fit <- glm(est ~ log(prop_mpa_set + 0.001) * est_type, data = filter(met_dat, measure == "slope_re"), family = Gamma(link = "log"))
-arm::display(fit)
-
-d <- filter(met_dat, measure == "cv_perc")
-plot(log(d$prop_mpa), log(d$est))
-plot(log(d$prop_mpa), log(d$est))
-
-fit <- glm(est ~ log(prop_mpa + 0.001) * est_type, data = filter(met_dat, measure == "cv_perc"), family = Gamma(link = "log"))
-arm::display(fit)
-
-get_slope <- function(.measure = "mare",
-  levels = c("Geostatistical", "Design-based")) {
-  d <- filter(met_dat, measure == .measure)
-  d$est_type <- factor(d$est_type, levels = levels)
-  fit <- glm(est ~ log(prop_mpa) * est_type, data = d, family = Gamma(link = "log"))
-  b <- coef(fit)[[2]]
-  suppressMessages(ci <- confint(fit))
-  data.frame(b = b, lwr = ci[2,1], upr = ci[2,2], measure = .measure, base_level = levels[1], stringsAsFactors = FALSE)
-}
-
-slopes <- list()
-slopes[[1]] <- get_slope("mare")
-slopes[[2]] <- get_slope("slope_re")
-slopes[[3]] <- get_slope("cv_perc")
-
-lv <- c("Design-based", "Geostatistical")
-slopes[[4]] <- get_slope("mare", lv)
-slopes[[5]] <- get_slope("slope_re", lv)
-slopes[[6]] <- get_slope("cv_perc", lv)
-
-slopes <- bind_rows(slopes)
-slopes[[1]] <- sdmTMB:::mround(slopes[[1]], 2)
-slopes[[2]] <- sdmTMB:::mround(slopes[[2]], 2)
-slopes[[3]] <- sdmTMB:::mround(slopes[[3]], 2)
-slopes
-
-slopes <- mutate(slopes, text = paste0(b, "\\% (95\\% CI: ", lwr, "--", upr, ")"))
-slopes
-
-# CV panel fit ------------------------------
-
-metrics_wide <- readRDS("data-generated/metrics-wide2.rds")
-metrics_wide <- filter(metrics_wide, !survey_abbrev %in% c("SYN QCS, SYN HS"))
-cv_dat <- metrics_wide |>
-  filter(type %in% "Restricted and shrunk") |>
-  filter(est_type %in% c("geostat", "bootstrap"))
-
-get_slope_cv <- function(
-  levels = c("geostat", "bootstrap")) {
-  d <- cv_dat
-  d$est_type <- factor(d$est_type, levels = levels)
-  fit <- glm(mare_med ~ log(orig_cv_mean) * est_type, data = d, family = Gamma(link = "log"))
-  b <- coef(fit)[[2]]
-  suppressMessages(ci <- confint(fit))
-  data.frame(b = b, lwr = ci[2,1], upr = ci[2,2], measure = "mare", base_level = levels[1], stringsAsFactors = FALSE)
-}
-
-slopes_cv <- get_slope_cv()
-slopes_cv[[1]] <- sdmTMB:::mround(slopes_cv[[1]], 2)
-slopes_cv[[2]] <- sdmTMB:::mround(slopes_cv[[2]], 2)
-slopes_cv[[3]] <- sdmTMB:::mround(slopes_cv[[3]], 2)
-
-slopes_cv <- mutate(slopes_cv, text = paste0(b, "\\% (95\\% CI: ", lwr, "--", upr, ")"))
-slopes_cv
-slopes_cv$measure <- "cv-vs-mare"
-slopes <- bind_rows(slopes, slopes_cv)
-
-# save it ------------------
-
-saveRDS(slopes, "data-generated/metrics-slopes-table.rds")
+g
+ggsave("figs/prop-mpa-vs-metrics-design.pdf", width = 3.70, height = 6.5)
+ggsave("figs/prop-mpa-vs-metrics-design.png", width = 3.70, height = 6.5)

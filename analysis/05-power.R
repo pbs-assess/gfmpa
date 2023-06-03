@@ -24,12 +24,12 @@ m <- metrics_wide |>
   filter(prop_mpa > 0.15) |>
   filter(est_type == "geostat") |>
   filter(survey_abbrev == "SYN WCHG")
-m$species_common_name[m$species_common_name == "rougheye/blackspotted rockfish"] <- "rougheye/blackspotted rockfish complex"
 m <- filter(m, !grepl("Greenstripe", species_common_name)) |>
   mutate(species_common_name = tolower(species_common_name)) |>
   select(species_common_name, orig_cv_mean) |>
   distinct() |>
   arrange(species_common_name)
+m$species_common_name[m$species_common_name == "rougheye/blackspotted rockfish"] <- "rougheye/blackspotted rockfish complex"
 
 # spp_list <- tolower(sort(unique(m$species_common_name)))
 # spp_list <- spp_list[!grepl("greenstripe", spp_list)] # few observations, main model fails

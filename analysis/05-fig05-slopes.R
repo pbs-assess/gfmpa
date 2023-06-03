@@ -342,15 +342,14 @@ g1 <- met |>
     panel.grid.minor = element_line(linewidth = rel(0.25)))
   # coord_fixed()
 
-met2 <- met |> filter(species_common_name != "english sole")
+# met2 <- met |> filter(species_common_name != "english sole")
+met2 <- met
 met2$corrected_slope <- met2$slope_prop_mpa - survey_slope
 fit <- lm(slope_re_med ~ corrected_slope, data = met2)
 summary(fit)
 confint(fit)
 
-fit2 <- sdmTMB::sdmTMB(slope_re_med ~ corrected_slope, data = met2, spatial = "off", family = sdmTMB::student(df = 5))
-summary(fit2)
-
+saveRDS(met2, file = "data-generated/slope-regression-dat.rds")
 
 cowplot::plot_grid(g1, g2, ncol = 2, align = "h", axis = "t", rel_widths = c(0.7, 0.3))
 
