@@ -20,6 +20,7 @@ names(restricted_cols) <- c(
 # plot(1:5, cex = 8, pch = 19, col = restricted_cols)
 # text(1:5, 1:5, labels = names(restricted_cols))
 
+library(tagger) # for tagger.panel.tag.text below
 ggplot2::theme_set(ggsidekick::theme_sleek() +
   theme(panel.grid = element_line(colour = "grey95"),
     panel.grid.major = element_line(linewidth = rel(0.5)),
