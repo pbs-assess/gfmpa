@@ -4,8 +4,7 @@ library(sdmTMB)
 # theme_set(theme_light())
 source("analysis/theme.R")
 library(future)
-plan(multisession, workers = 10L)
-
+plan(multisession, workers = 8L)
 
 # survey <- "SYN WCHG"
 # spp <- "canary rockfish"
@@ -26,6 +25,7 @@ m <- metrics_wide |>
   filter(!is.na(prop_mpa)) |>
   filter(prop_mpa > 0.15) |>
   filter(est_type == "geostat") |>
+  # filter(survey_abbrev %in% c("SYN WCHG", "HBLL OUT N", "SYN QCS", "SYN HS"))
   filter(survey_abbrev %in% c("SYN WCHG", "HBLL OUT N"))
 m <- m |>
   # filter(m, !grepl("Greenstripe", species_common_name)) |>
@@ -35,7 +35,7 @@ m <- m |>
   arrange(survey_abbrev, species_common_name)
 m$species_common_name[m$species_common_name == "rougheye/blackspotted rockfish"] <- "rougheye/blackspotted rockfish complex"
 
-N_ITER <- 50L
+N_ITER <- 8 * 3
 
 # spp_list <- tolower(sort(unique(m$species_common_name)))
 # spp_list <- spp_list[!grepl("greenstripe", spp_list)] # few observations, main model fails
@@ -146,7 +146,7 @@ for (s_i in seq_len(nrow(m))) {
     omega_s <- get_pars(fit)$omega_s
     epsilon_st <- get_pars(fit)$epsilon_st
 
-    if (grepl("binomial", ind_spp$family[1])) {
+    if (delta_model) {
       s_bin <- sdmTMB_simulate(
         formula = ~ 1 + year_covariate,
         data = p,
@@ -231,31 +231,97 @@ for (s_i in seq_len(nrow(m))) {
     # ar <- sdmTMB(obs ~ year_zero, data = datr, family = tweedie(link = "log"),
     #   spatial = "on", spatiotemporal = "iid", time = "year", mesh = meshr)
 
-    fit_squo <- try({
-      sdmTMB(list(obs ~ 1, obs ~ year_zero),
-        data = s, family = mi$family,
-        spatial = "on", spatiotemporal = mi$spatiotemporal, time = "year", mesh = mesh_all
-        # priors = priors
-      )
-    })
-
     datr <- filter(s, !restricted)
-    fit_rest <- try({
-      sdmTMB(list(obs ~ 1, obs ~ year_zero),
-        data = datr, family = mi$family,
-        spatial = "on", spatiotemporal = mi$spatiotemporal, time = "year", mesh = meshr,
-        # priors = priors
-      )
-    })
+
+    sanity_true <- function(x) {
+      a <- try({sanity(x)})
+      if (class(a) == "try-error") return(FALSE)
+      if (isFALSE(a)) return(FALSE)
+      if (length(a) > 1L) {
+        a$sigmas_ok <- NULL
+        a$se_magnitude_ok <- NULL
+        a$all_ok <- NULL
+        a$range_ok <- NULL
+        return(all(unlist(a)))
+      } else {
+        return(FALSE)
+      }
+    }
+
+    if (delta_model) {
+      mi_temp <- mi
+
+      fit_squo <- try({
+        sdmTMB(list(obs ~ 1, obs ~ year_zero),
+          data = s, family = mi_temp$family,
+          spatial = "on", spatiotemporal = mi_temp$spatiotemporal, time = "year", mesh = mesh_all
+          # priors = priors
+        )
+      })
+
+      # if failed, try removing spatiotemporal effects:
+      if (!sanity_true(fit_squo)) {
+        if (mi_temp$spatiotemporal[[1]] == "iid") mi_temp$spatiotemporal[[1]] <- "off"
+        if (mi_temp$spatiotemporal[[2]] == "iid") mi_temp$spatiotemporal[[2]] <- "off"
+        fit_squo <- try({
+          sdmTMB(list(obs ~ 1, obs ~ year_zero),
+            data = s, family = mi_temp$family,
+            spatial = "on", spatiotemporal = mi_temp$spatiotemporal, time = "year", mesh = mesh_all
+            # priors = priors
+          )
+        })
+      }
+
+      fit_rest <- try({
+        sdmTMB(list(obs ~ 1, obs ~ year_zero),
+          data = datr, family = mi_temp$family,
+          spatial = "on", spatiotemporal = mi_temp$spatiotemporal, time = "year", mesh = meshr,
+          priors = priors
+        )
+      })
+
+    } else { # tweedie
+      mi_temp <- mi
+      fit_squo <- try({
+        sdmTMB(obs ~ year_zero,
+          data = s, family = mi_temp$family,
+          spatial = "on", spatiotemporal = mi_temp$spatiotemporal, time = "year", mesh = mesh_all,
+          priors = priors
+        )
+      })
+      # if failed, try removing spatiotemporal effects:
+      if (!sanity_true(fit_squo)) {
+        if (mi_temp$spatiotemporal == "iid") mi_temp$spatiotemporal <- "off"
+        fit_squo <- try({
+          sdmTMB(list(obs ~ 1, obs ~ year_zero),
+            data = s, family = mi_temp$family,
+            spatial = "on", spatiotemporal = mi_temp$spatiotemporal, time = "year", mesh = mesh_all
+            # priors = priors
+          )
+        })
+      }
+
+      fit_rest <- try({
+        sdmTMB(obs ~ year_zero,
+          data = datr, family = mi_temp$family,
+          spatial = "on", spatiotemporal = mi_temp$spatiotemporal, time = "year", mesh = meshr,
+          priors = priors
+        )
+      })
+    }
 
     if (class(fit_squo) != "try-error" && class(fit_rest) != "try-error") {
-      ret <- bind_rows(
-        mutate(tidy(fit_squo, conf.int = TRUE, model = if (delta_model) 2L else 1L), type = "status quo"),
-        mutate(tidy(fit_rest, conf.int = TRUE, model = if (delta_model) 2L else 1L), type = "restricted and shrunk")
-      ) |>
-        filter(grepl("year", term)) |>
-        mutate(true_effect = change_per_year, i = i)
-      return(ret)
+      if (sanity_true(fit_rest) && sanity_true(fit_squo)) {
+        ret <- bind_rows(
+          mutate(tidy(fit_squo, conf.int = TRUE, model = if (delta_model) 2L else 1L), type = "status quo"),
+          mutate(tidy(fit_rest, conf.int = TRUE, model = if (delta_model) 2L else 1L), type = "restricted and shrunk")
+        ) |>
+          filter(grepl("year", term)) |>
+          mutate(true_effect = change_per_year, i = i)
+        return(ret)
+      } else {
+        return(NULL)
+      }
     } else {
       return(NULL)
     }
@@ -316,6 +382,7 @@ for (s_i in seq_len(nrow(m))) {
   )
 
   out$species_common_name <- spp
+  out$survey_abbrev <- survey
   out$fract_tested <- FRAC_TEST
   out_list[[s_i]] <- out
   group_by(out, type) |>
@@ -348,47 +415,30 @@ for (s_i in seq_len(nrow(m))) {
 
 plan(sequential)
 
-saveRDS(out_list, file = "data-generated/power-cached-output-2023-06-05.rds")
+saveRDS(out_list, file = "data-generated/power-cached-output-2023-06-06.rds")
+out_list <- readRDS("data-generated/power-cached-output-2023-06-06.rds")
 
 d <- dplyr::bind_rows(out_list)
+# d$survey_abbrev <- NA_character_
+# d$survey_abbrev[1:1598] <- "HBLL OUT N"
+# d$survey_abbrev[1599:nrow(d)] <- "SYN WCHG"
 
-d |>
-  mutate(sig = conf.high < 0) |>
-  ggplot(aes(i, estimate, ymin = conf.low, ymax = conf.high, colour = sig)) +
-  # geom_pointrange(position = position_dodge(width = 0.5)) +
-  geom_pointrange(pch = 21) +
-  geom_hline(yintercept = out$true_effect[1], lty = 2) +
-  geom_hline(yintercept = 0, lty = 1) +
-  coord_flip() +
-  scale_colour_manual(values = c("TRUE" = "grey40", "FALSE" = "red")) +
-  xlab("Iteration") +
-  facet_wrap(species_common_name ~ type)
+# d |>
+#   mutate(sig = conf.high < 0) |>
+#   ggplot(aes(i, estimate, ymin = conf.low, ymax = conf.high, colour = sig)) +
+#   # geom_pointrange(position = position_dodge(width = 0.5)) +
+#   geom_pointrange(pch = 21) +
+#   # geom_hline(yintercept = out$true_effect[1], lty = 2) +
+#   geom_hline(yintercept = 0, lty = 1) +
+#   coord_flip() +
+#   scale_colour_manual(values = c("TRUE" = "grey40", "FALSE" = "red")) +
+#   xlab("Iteration") +
+#   facet_wrap(species_common_name ~ type)
 
 cvs <- m |>
-  select(species_common_name, orig_cv_mean) |>
+  select(species_common_name, survey_abbrev, orig_cv_mean) |>
   distinct() |>
   mutate(species_common_name = tolower(species_common_name))
-
-x <- group_by(d) |>
-  filter(!is.na(conf.high)) |>
-  group_by(species_common_name, type) |>
-  summarise(
-    power = mean(conf.high < 0),
-    coverage = mean(conf.high > true_effect & conf.low < true_effect),
-    fract_tested = mean(fract_tested)
-    # mean_se = mean(std.error),
-    # m_error = mean(estimate / true_effect),
-    # s_error = mean(estimate > 0),
-    # s_error2 = mean(conf.low > 0)
-  ) |>
-  ungroup() |>
-  group_by(species_common_name) |>
-  # filter(power[type == "restricted and shrunk"] < 1) |>
-  mutate(power_diff = power[type == "restricted and shrunk"] - power[type == "status quo"]) |>
-  left_join(cvs) |>
-  ungroup() |>
-  arrange(fract_tested, power_diff, species_common_name, type) |>
-  select(-coverage)
 
 # https://stackoverflow.com/questions/72741439/how-to-show-arrows-in-backward-and-forward-directions-in-a-ggplot2-legend
 draw_key_arrow_left <- function(data, params, size, dir) {
@@ -409,8 +459,34 @@ draw_key_arrow_left <- function(data, params, size, dir) {
   )
 }
 
-select(x, -power_diff) |>
+make_power_fig <- function(survs) {
+  x <- group_by(d) |>
+    filter(!is.na(conf.high)) |>
+    filter(survey_abbrev %in% survs) |>
+    group_by(species_common_name, survey_abbrev, type) |>
+    summarise(
+      power = mean(conf.high < 0),
+      coverage = mean(conf.high > true_effect & conf.low < true_effect),
+      fract_tested = mean(fract_tested)
+      # mean_se = mean(std.error),
+      # m_error = mean(estimate / true_effect),
+      # s_error = mean(estimate > 0),
+      # s_error2 = mean(conf.low > 0)
+    ) |>
+    ungroup() |>
+    group_by(species_common_name, survey_abbrev) |>
+    # filter(power[type == "restricted and shrunk"] < 1) |>
+    mutate(power_diff = power[type == "restricted and shrunk"] - power[type == "status quo"]) |>
+    left_join(cvs) |>
+    ungroup() |>
+    arrange(survey_abbrev, fract_tested, power_diff, species_common_name, type) |>
+    select(-coverage)
+
+  x <- select(x, -power_diff) |>
   tidyr::pivot_wider(names_from = type, values_from = power) |>
+  filter(`status quo` > 0.5)
+
+  x |>
   mutate(sp = stringr::str_to_title(species_common_name)) |>
   filter(!grepl("Blacksp", sp)) |>
   mutate(sp = gsub("Complex", "", sp)) |>
@@ -428,15 +504,28 @@ select(x, -power_diff) |>
   # theme_bw() +
   theme(axis.title.y = element_blank()) +
   xlab("Power to detect decline") +
-  scale_x_continuous(expand = c(0, 0)) +
-  coord_cartesian(xlim = c(0.35, 1)) +
-  geom_hline(yintercept = c(14.5, 21.5), lty = 2, col = "grey50") +
+  scale_x_continuous(expand = c(0, 0), limits = c(min(x$`restricted and shrunk`) - 0.02, 1)) +
+  # coord_cartesian(xlim = c(0.4, 1)) +
   labs(colour = "Simulated decline") +
   theme(
-    legend.position = c(0.28, 0.12),
-    plot.margin = margin(11 / 2, 11 / 2 + 2, 11 / 2, 11 / 2),
+    legend.position = c(0.28, 0.17),
+    plot.margin = margin(11 / 2, 11 / 2 + 2, 11 / 2, 11 / 2 - 2),
     axis.title = element_text(size = 10)
   )
+  # facet_grid(rows = vars(survey_abbrev), space = "free_y", scales = "free")
+}
 
-ggsave("figs/power.png", width = 4.2, height = 4.4)
-ggsave("figs/power.pdf", width = 4.2, height = 4.4)
+lims <- scale_x_continuous(expand = c(0, 0), limits = c(0.3, 1))
+g1 <- make_power_fig("SYN WCHG") +
+  geom_hline(yintercept = c(11.5, 15.5), lty = 2, col = "grey50") +
+  lims +
+  ggtitle("SYN WCHG")
+
+g2 <- make_power_fig("HBLL OUT N") +
+  geom_hline(yintercept = c(13.5), lty = 2, col = "grey50") +
+  lims +
+  ggtitle("HBLL OUT N")
+g <- cowplot::plot_grid(g2, g1, ncol = 1L, align = "v")
+
+ggsave("figs/power.png", width = 4, height = 6.1)
+ggsave("figs/power.pdf", width = 4, height = 6.1)
