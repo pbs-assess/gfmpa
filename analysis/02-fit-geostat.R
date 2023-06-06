@@ -519,8 +519,8 @@ calc_indices <- function(spp, survey, force = FALSE, do_sampling_stuff = TRUE) {
   if (!exists("fit_all") && "family" %in% names(i)) {
     mi <- list()
     if (i$family[1] == "tweedie") mi$family <- tweedie()
-    if (grepl("delta", i$family[1])) mi$family <- delta_gamma()
-    st <- as.list(strsplit(i$spatiotemporal, "-")[[1]])
+    if (grepl("binomial", i$family[1])) mi$family <- delta_gamma()
+    st <- as.list(strsplit(i$spatiotemporal, ", ")[[1]])
     if (length(st) == 1L) st <- st[[1]]
     mi$spatiotemporal <- st
     cutoff <- if (survey == "SYN WCHG") 5 else 8
