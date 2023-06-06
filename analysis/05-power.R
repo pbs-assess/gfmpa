@@ -423,18 +423,6 @@ d <- dplyr::bind_rows(out_list)
 # d$survey_abbrev[1:1598] <- "HBLL OUT N"
 # d$survey_abbrev[1599:nrow(d)] <- "SYN WCHG"
 
-# d |>
-#   mutate(sig = conf.high < 0) |>
-#   ggplot(aes(i, estimate, ymin = conf.low, ymax = conf.high, colour = sig)) +
-#   # geom_pointrange(position = position_dodge(width = 0.5)) +
-#   geom_pointrange(pch = 21) +
-#   # geom_hline(yintercept = out$true_effect[1], lty = 2) +
-#   geom_hline(yintercept = 0, lty = 1) +
-#   coord_flip() +
-#   scale_colour_manual(values = c("TRUE" = "grey40", "FALSE" = "red")) +
-#   xlab("Iteration") +
-#   facet_wrap(species_common_name ~ type)
-
 cvs <- m |>
   select(species_common_name, survey_abbrev, orig_cv_mean) |>
   distinct() |>
@@ -459,9 +447,13 @@ draw_key_arrow_left <- function(data, params, size, dir) {
   )
 }
 
-make_power_fig <- function(survs) {
-  x <- group_by(d) |>
+make_power_fig <- function(survs, return_data = FALSE) {
+  x <- d |>
+    group_by(species_common_name, survey_abbrev) |>
     filter(!is.na(conf.high)) |>
+    mutate(n_converged = sum(type == "status quo")) |>
+    filter(n_converged > 10) |>
+    # filter(species_common_name == "shortspine thornyhead") |>
     filter(survey_abbrev %in% survs) |>
     group_by(species_common_name, survey_abbrev, type) |>
     summarise(
@@ -484,22 +476,26 @@ make_power_fig <- function(survs) {
 
   x <- select(x, -power_diff) |>
   tidyr::pivot_wider(names_from = type, values_from = power) |>
-  filter(`status quo` > 0.5)
+  filter(`status quo` > 0.5, `restricted and shrunk` < 1)
 
-  x |>
+  # viridisLite::plasma(3, end = 0.85)
+  pal <- c("30%" = "#0D0887FF", "50%" = "#B7318AFF", "70%" = "#FEBA2CFF")
+
+  x <- x |>
   mutate(sp = stringr::str_to_title(species_common_name)) |>
   filter(!grepl("Blacksp", sp)) |>
   mutate(sp = gsub("Complex", "", sp)) |>
   mutate(sp = forcats::fct_inorder(sp)) |>
-  mutate(sp = forcats::fct_rev(sp)) |>
-  ggplot(aes(
+  mutate(sp = forcats::fct_rev(sp))
+  g <- ggplot(x, aes(
     xend = `restricted and shrunk`,
     x = `status quo`,
     y = sp,
     yend = sp,
     colour = as.factor(paste0((1 - fract_tested) * 100, "%"))
   )) +
-  scale_colour_viridis_d(end = 0.85, option = "C") +
+  # scale_colour_viridis_d(end = 0.85, option = "C") +
+  scale_colour_manual(values = pal) +
   geom_segment(arrow = arrow(length = unit(6, "pt")), key_glyph = "arrow_left") +
   # theme_bw() +
   theme(axis.title.y = element_blank()) +
@@ -509,23 +505,55 @@ make_power_fig <- function(survs) {
   labs(colour = "Simulated decline") +
   theme(
     legend.position = c(0.28, 0.17),
-    plot.margin = margin(11 / 2, 11 / 2 + 2, 11 / 2, 11 / 2 - 2),
+    plot.margin = margin(11 / 2, 11 / 2 + 4, 11 / 2, 11 / 2 - 2),
     axis.title = element_text(size = 10)
   )
   # facet_grid(rows = vars(survey_abbrev), space = "free_y", scales = "free")
+  if (!return_data) return(g) else return(x)
 }
 
-lims <- scale_x_continuous(expand = c(0, 0), limits = c(0.3, 1))
+lims <- scale_x_continuous(expand = c(0, 0), limits = c(0, 1))
 g1 <- make_power_fig("SYN WCHG") +
-  geom_hline(yintercept = c(11.5, 15.5), lty = 2, col = "grey50") +
+  geom_hline(yintercept = c(10.5, 14.5), lty = 2, col = "grey50") +
   lims +
   ggtitle("SYN WCHG")
 
 g2 <- make_power_fig("HBLL OUT N") +
-  geom_hline(yintercept = c(13.5), lty = 2, col = "grey50") +
+  geom_hline(yintercept = c(8.5), lty = 2, col = "grey50") +
   lims +
   ggtitle("HBLL OUT N")
-g <- cowplot::plot_grid(g2, g1, ncol = 1L, align = "v")
-
+g <- cowplot::plot_grid(g1, g2, ncol = 1L, align = "v", rel_heights = c(1.35, 1))
+g
 ggsave("figs/power.png", width = 4, height = 6.1)
 ggsave("figs/power.pdf", width = 4, height = 6.1)
+
+keep <- make_power_fig(c("HBLL OUT N", "SYN WCHG"), return_data = TRUE) |> select(species_common_name, survey_abbrev) |>
+  distinct()
+
+
+make_power_fig2 <- function(dd) {
+  dd |>
+    semi_join(keep) |>
+    # filter(species_common_name %in% c("dover sole", "pacific ocean perch", "shortraker rockfish", "redstripe rockfish")) |>
+    mutate(sig = conf.high < 0) |>
+    ggplot(aes(i, estimate, ymin = conf.low, ymax = conf.high, colour = sig)) +
+    # geom_pointrange(position = position_dodge(width = 0.5)) +
+    geom_pointrange(pch = 21) +
+    # geom_hline(yintercept = out$true_effect[1], lty = 2) +
+    geom_hline(yintercept = 0, lty = 1) +
+    coord_flip() +
+    scale_colour_manual(values = c("TRUE" = "grey40", "FALSE" = "red")) +
+    xlab("Iteration") +
+    facet_wrap(species_common_name ~ type)
+}
+
+d |>
+  filter(survey_abbrev %in% "SYN WCHG") |>
+  make_power_fig2() +
+  facet_wrap(species_common_name ~ type, ncol = 6)
+
+d |>
+  filter(survey_abbrev %in% "HBLL OUT N") |>
+  make_power_fig2() +
+  facet_wrap(species_common_name ~ type, ncol = 4)
+
