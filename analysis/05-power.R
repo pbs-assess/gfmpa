@@ -4,7 +4,7 @@ library(sdmTMB)
 # theme_set(theme_light())
 source("analysis/theme.R")
 library(future)
-plan(multisession, workers = 8L)
+plan(multisession, workers = 10L)
 
 # survey <- "SYN WCHG"
 # spp <- "canary rockfish"
@@ -35,7 +35,7 @@ m <- m |>
   arrange(survey_abbrev, species_common_name)
 m$species_common_name[m$species_common_name == "rougheye/blackspotted rockfish"] <- "rougheye/blackspotted rockfish complex"
 
-N_ITER <- 8 * 3
+N_ITER <- 10 * 6
 
 # spp_list <- tolower(sort(unique(m$species_common_name)))
 # spp_list <- spp_list[!grepl("greenstripe", spp_list)] # few observations, main model fails
@@ -310,6 +310,10 @@ for (s_i in seq_len(nrow(m))) {
       })
     }
 
+    aq <- group_by(s, year) |> summarise(m = mean(mu)) |> mutate(type = "squo")
+    ar <- group_by(datr, year) |> summarise(m = mean(mu)) |> mutate(type = "rest")
+    bind_rows(aq, ar) |> ggplot(aes(year, m, colour = type)) + geom_line()
+
     if (class(fit_squo) != "try-error" && class(fit_rest) != "try-error") {
       if (sanity_true(fit_rest) && sanity_true(fit_squo)) {
         ret <- bind_rows(
@@ -347,14 +351,33 @@ for (s_i in seq_len(nrow(m))) {
   # )
   # FRAC_TEST <- 0.5
 
+#   filter(m, survey_abbrev %in% "SYN WCHG",
+#     species_common_name %in% c("Rex Sole", "Shortspine Thornyhead"), est_type == "geostat") |>
+#     select(species_common_name, orig_cv_mean) |> distinct()
+#
+#   filter(m, survey_abbrev %in% "HBLL OUT N",
+#     species_common_name %in% c("Lingcod", "Longnose Skate",
+# "Quillback Rockfish", "Yelloweye Rockfish",
+# "North Pacific Spiny Dogfish"), est_type == "geostat") |>
+#     select(species_common_name, orig_cv_mean) |> distinct()
+#
+  # quantile(cvs$orig_cv_mean, probs = c(0, 1/3, 2/3, 1))
   cv <- m[s_i, "orig_cv_mean", drop = TRUE]
+  #
+  # hist(cvs$orig_cv_mean)
+  # abline(v = 0.25)
+  # abline(v = 0.15)
 
   FRAC_TEST <- if (cv > 0.5) {
-    0.3
-  } else if (cv <= 0.5 & cv > 0.3) {
+    0.5 # same as next...
+  } else if (cv <= 0.5 & cv > 0.26) {
     0.5
-  } else {
+  } else if (cv <= 0.26 & cv > 0.15) {
     0.7
+  } else if (cv <= 0.15 & cv > 0) {
+    0.85
+  } else {
+    stop("???")
   }
 
   # FRAC_TEST <- 0.98
@@ -452,7 +475,7 @@ make_power_fig <- function(survs, return_data = FALSE) {
     group_by(species_common_name, survey_abbrev) |>
     filter(!is.na(conf.high)) |>
     mutate(n_converged = sum(type == "status quo")) |>
-    filter(n_converged > 10) |>
+    filter(n_converged > 2) |>
     # filter(species_common_name == "shortspine thornyhead") |>
     filter(survey_abbrev %in% survs) |>
     group_by(species_common_name, survey_abbrev, type) |>
@@ -475,11 +498,24 @@ make_power_fig <- function(survs, return_data = FALSE) {
     select(-coverage)
 
   x <- select(x, -power_diff) |>
-  tidyr::pivot_wider(names_from = type, values_from = power) |>
-  filter(`status quo` > 0.5, `restricted and shrunk` < 1)
+    tidyr::pivot_wider(names_from = type, values_from = power)
+
+  # perfect <- filter(x, `restricted and shrunk` == 1)
+  # cat("Perfect and omitted from plot for space\n")
+  # print(paste0(perfect$species_common_name))
+  # cat("\n")
+
+  cat("Power less than 0.5 and omitted for space\n")
+  under <- filter(x, `status quo` <= 0.5)
+  print(paste0(under$species_common_name))
+  cat("\n")
+
+  # x <- filter(x, `status quo` > 0.5, `restricted and shrunk` < 1)
+  x <- filter(x, `status quo` > 0.1)
+  # filter(`status quo` > 0.3)
 
   # viridisLite::plasma(3, end = 0.85)
-  pal <- c("30%" = "#0D0887FF", "50%" = "#B7318AFF", "70%" = "#FEBA2CFF")
+  pal <- c("15%" = "#0D0887FF", "30%" = "#B7318AFF", "50%" = "#FEBA2CFF")
 
   x <- x |>
   mutate(sp = stringr::str_to_title(species_common_name)) |>
@@ -514,12 +550,12 @@ make_power_fig <- function(survs, return_data = FALSE) {
 
 lims <- scale_x_continuous(expand = c(0, 0), limits = c(0, 1))
 g1 <- make_power_fig("SYN WCHG") +
-  geom_hline(yintercept = c(10.5, 14.5), lty = 2, col = "grey50") +
+  # geom_hline(yintercept = c(10.5, 14.5), lty = 2, col = "grey50") +
   lims +
   ggtitle("SYN WCHG")
 
 g2 <- make_power_fig("HBLL OUT N") +
-  geom_hline(yintercept = c(8.5), lty = 2, col = "grey50") +
+  # geom_hline(yintercept = c(8.5), lty = 2, col = "grey50") +
   lims +
   ggtitle("HBLL OUT N")
 g <- cowplot::plot_grid(g1, g2, ncol = 1L, align = "v", rel_heights = c(1.35, 1))
@@ -527,9 +563,9 @@ g
 ggsave("figs/power.png", width = 4, height = 6.1)
 ggsave("figs/power.pdf", width = 4, height = 6.1)
 
-keep <- make_power_fig(c("HBLL OUT N", "SYN WCHG"), return_data = TRUE) |> select(species_common_name, survey_abbrev) |>
+keep <- make_power_fig(c("HBLL OUT N", "SYN WCHG"), return_data = TRUE) |>
+  select(species_common_name, survey_abbrev) |>
   distinct()
-
 
 make_power_fig2 <- function(dd) {
   dd |>
@@ -551,9 +587,25 @@ d |>
   filter(survey_abbrev %in% "SYN WCHG") |>
   make_power_fig2() +
   facet_wrap(species_common_name ~ type, ncol = 6)
+ggsave("figs/power2-wchg.pdf", width = 10, height = 10)
 
 d |>
   filter(survey_abbrev %in% "HBLL OUT N") |>
   make_power_fig2() +
   facet_wrap(species_common_name ~ type, ncol = 4)
+ggsave("figs/power2-hbll.pdf", width = 10, height = 10)
 
+# dogfish HBLL:
+# so yeah, there's a bias based on the sampling locations for dogfish which
+# makes the true decline steeper if you ignore the MPA area
+# It's not a pure power analysis. It is whether you
+# would detect a significant decline if you imposed a given true decline in the
+# full survey domain. Sometimes restricting the survey imposes a bias itself making the realized trend steeper or shallower.
+
+# I guess, the simplest explanation is that if a population becomes
+# increasingly concentrated in the MPAs, obviously we will be prone to
+# overestimating its decline. Pretty intuitive actually.
+
+# In outlining the discussion of the GF-NSB MPA project I realized it would be useful to do a 'small' power analysis to be able to ascribe meaning to the precision effects. Here's where I currently am. I'm running another version now. Start of the arrow is the power with the full dataset (probability of a continuous year predictor detecting a significant negative slope). Pointy part of arrow is the power if removing the NSB areas. Different stocks get different simulated declines depending on index CV. The simulation comes from the models fitted to the full dataset with estimated random field values and observation error.
+# It started as a back of the envelope thing for a species or two. It's ballooned a bit. But I think it's useful in turning these abstract % increases in CV into something concrete.
+# Sometimes 2 wrongs make a right: removing the NSB biases the index negative making it easier to detect a decline despite fewer samples (dogfish in HBLL is a clear one, not shown in this version).
