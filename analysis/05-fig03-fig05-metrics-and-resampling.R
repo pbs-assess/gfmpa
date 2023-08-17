@@ -10,8 +10,6 @@ mround <- function(x, digits) {
 
 make_plot <- function(dat, colour_var = survey_abbrev, prop_threshold = 0.15, cv_upper_limit = 100, group_by_survey = TRUE, include_mean_lines = TRUE, group_var = NULL) {
 
-  dat <- filter(dat, prop_mpa >= prop_threshold)
-
   # get averages...
   temp <- dat |>
     mutate(se = abs((upr - lwr)) / 4) |>
@@ -26,6 +24,19 @@ make_plot <- function(dat, colour_var = survey_abbrev, prop_threshold = 0.15, cv
    means <- temp |>
     summarise(mean_est = median(est, na.rm = TRUE)) |>
      filter(measure != "slope_re")
+
+  # doing this after such that the means above are for *all* species
+
+   # get numbers cut for paper:
+   dat2 <- mutate(dat, cut_sp = prop_mpa < prop_threshold) |>
+     select(species_common_name, survey_abbrev, cut_sp) |>
+     distinct()
+   check_cut <- group_by(dat2, survey_abbrev) |>
+     summarise(cut_n = sum(cut_sp), not_cut = sum(!cut_sp), n_sp = n())
+   print(as.data.frame(check_cut))
+
+   # now do it:
+   dat <- filter(dat, prop_mpa >= prop_threshold)
 
   dat <- dat |>
     # hack to cut off upper limit:
@@ -82,6 +93,7 @@ make_plot <- function(dat, colour_var = survey_abbrev, prop_threshold = 0.15, cv
       legend.position = "top", panel.grid.major.y = element_line(colour = "grey90"),
       strip.placement = "outside",
       axis.title = element_blank(),
+      strip.clip = "off"
     ) +
     facet_grid(survey_abbrev ~ measure_clean,
       scales = "free",
@@ -142,6 +154,14 @@ print(g)
 ggsave("figs/metrics-dotplot-main.pdf", width = 7, height = 7.5)
 ggsave("figs/metrics-dotplot-main.png", width = 7, height = 7.5)
 
+# FOR PAPER NUMBERS, HOW MANY CUT OFF??
+filter(metrics_long, est_type %in% c("geostat")) |>
+  filter(!measure %in% "cv") |>
+  filter(type %in% c("Restricted and shrunk")) |>
+  filter(!is.na(prop_mpa)) |>
+  filter(survey_abbrev != "SYN QCS, SYN HS") |>
+  mutate(NOT_PLOTTED = )
+
 g <- filter(metrics_long, est_type %in% c("bootstrap")) |>
   filter(!measure %in% "cv") |>
   filter(type %in% c("Restricted and shrunk")) |>
@@ -171,8 +191,7 @@ g <- filter(metrics_long, est_type %in% c("geostat")) |>
     type == "Restricted" ~ "Restricted and extrapolated into MPAs",
   )) |>
   filter(!is.na(prop_mpa)) |>
-  filter(survey_abbrev != "SYN QCS") |>
-  filter(survey_abbrev != "SYN HS") |>
+  filter(survey_abbrev != "SYN QCS, SYN HS") |>
   make_plot(colour_var = type, cv_upper_limit = 200, group_by_survey = TRUE) +
   labs(colour = "Scenario", fill = "Scenario") +
   scale_colour_brewer(palette = "Set1")

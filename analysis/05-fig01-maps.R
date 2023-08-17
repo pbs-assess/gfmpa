@@ -175,21 +175,24 @@ r_col <- "black"
 #           "#785EF0",
 #           "#DC267F",
 #           "#FE6100", "#FFB000")
-.pal <- viridisLite::viridis(4, begin = 0, end = 0.95)
+# .pal <- viridisLite::viridis(4, begin = 0, end = 0.95)
 # names(.pal) <- c("SYN HS", "SYN QCS", "HBLL OUT N", "SYN WCHG")
 # names(.pal) <- c("SYN QCS",  "HBLL OUT N", "SYN WCHG","SYN HS")
 source("analysis/theme.R")
-.pal <- c(restricted_cols, restricted_cols[3])
+# .pal <- c(restricted_cols, restricted_cols[3])
 
-.pal <- RColorBrewer::brewer.pal(4, "Set2")[c(2, 3, 1, 4)]
+# .pal <- RColorBrewer::brewer.pal(4, "Set2")[c(2, 3, 1, 4)]
+#
+# names(.pal) <-
+#   c(
+#     "SYN WCHG",
+#     "HBLL OUT N",
+#     "SYN QCS",
+#     "SYN HS")
+# ggplot(data.frame(loc = names(.pal)), aes(x = 1, y = loc, colour = loc)) + geom_point(size = 20) +
+#   scale_colour_manual(values = .pal)
 
-names(.pal) <-
-  c(
-    "SYN WCHG",
-    "HBLL OUT N",
-    "SYN QCS",
-    "SYN HS")
-
+.pal <- restricted_cols # from theme.R
 
 pt_size <- 0.15
 all %>%

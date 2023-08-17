@@ -1,12 +1,17 @@
-M <- 100
-n <- 300
-s2 <- 0.8
+M <- 300
+n <- 100
 
 surv_dat <- readRDS("data-generated/dat_to_fit.rds")
 dat <- filter(surv_dat, species_common_name == "pacific cod") |>
   filter(survey_abbrev == "SYN WCHG") |> mutate(density = density_kgpm2 * 10000)
 
-dat |> group_by(year) |> summarise(var = var(density))
+dat |> group_by(year) |> summarise(var = var(density)) |> summarise(var = mean(var))
+
+s2 <- 0.3
+
+# eq. 4 Schnute and Haigh CJFAS
+Vbar <- ((M - n) / M) / (s2 / n)
+Vbar
 
 
 

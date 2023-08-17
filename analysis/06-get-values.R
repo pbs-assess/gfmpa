@@ -195,6 +195,7 @@ slopes <- slopes |> mutate(measure = gsub("cv_perc", "precision", measure)) |>
   mutate(base_level = gsub("Design-based", "Design", base_level)) |>
   mutate(base_level = gsub("Geostatistical", "Geo", base_level)) |>
   mutate(measure = stringr::str_to_title(measure)) |>
+  mutate(text = gsub("\\)$", "\\\\%)", text)) |>
   mutate(label = paste0("cov", measure, base_level))
 
 apply(slopes, 1, function(.x) {
@@ -207,7 +208,8 @@ fit <- lm(slope_re_med ~ corrected_slope, data = met)
 b <- sdmTMB:::mround(coef(fit)[[2]], 2)
 lwr <- sdmTMB:::mround(confint(fit)[2, 1], 2)
 upr <- sdmTMB:::mround(confint(fit)[2, 2], 2)
-txt <- paste0(b, " (95\\% CI: ", lwr, "-- ", upr, ")")
+# txt <- paste0(b, " (95\\% CI: ", lwr, "-- ", upr, ")")
+txt <- paste0(b, ", 95\\% CI: ", lwr, "-- ", upr)
 write_tex(txt, "REslopeRegress")
 # fit2 <- sdmTMB::sdmTMB(slope_re_med ~ corrected_slope, data = met2, spatial = "off", family = sdmTMB::student(df = 5))
 # summary(fit2)
@@ -252,6 +254,16 @@ system("cp analysis/values.tex ~/src/gf-mpa-index-ms/values.tex")
 
 survey_data <- readRDS("data-generated/dat_to_fit.rds")
 hbll <- readRDS("data-generated/dat_to_fit_hbll.rds")
+
+metrics_wide <- readRDS("data-generated/metrics-wide2.rds")
+select(metrics_wide, species_common_name, survey_abbrev, prop_mpa) |>
+  distinct() |>
+  arrange(survey_abbrev) |>
+  mutate(prop_mpa_over_10 = prop_mpa > 0.1) |>
+  filter(!is.na(prop_mpa)) |>
+  group_by(survey_abbrev) |>
+  summarise(prop_incl = mean(prop_mpa_over_10))
+
 survey_data <- bind_rows(survey_data, hbll)
 survey_data |> select(species_common_name, species_science_name) |>
   mutate(species_science_name = stringr::str_to_sentence(species_science_name)) |>

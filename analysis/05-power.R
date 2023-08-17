@@ -4,7 +4,7 @@ library(sdmTMB)
 # theme_set(theme_light())
 source("analysis/theme.R")
 library(future)
-plan(multisession, workers = 10L)
+plan(multisession, workers = 8L)
 
 # survey <- "SYN WCHG"
 # spp <- "canary rockfish"
@@ -35,7 +35,7 @@ m <- m |>
   arrange(survey_abbrev, species_common_name)
 m$species_common_name[m$species_common_name == "rougheye/blackspotted rockfish"] <- "rougheye/blackspotted rockfish complex"
 
-N_ITER <- 10 * 6
+N_ITER <- 8 * 15
 
 # spp_list <- tolower(sort(unique(m$species_common_name)))
 # spp_list <- spp_list[!grepl("greenstripe", spp_list)] # few observations, main model fails
@@ -45,7 +45,8 @@ out_list <- list()
 g_list <- list()
 
 for (s_i in seq_len(nrow(m))) {
-# for (s_i in 1:2) {
+  # for (s_i in 1:2) {
+  # for (s_i in 13) {
   spp <- m[s_i, "species_common_name", drop = TRUE]
   survey <- m[s_i, "survey_abbrev", drop = TRUE]
   cat(spp, "\n")
@@ -69,14 +70,16 @@ for (s_i in seq_len(nrow(m))) {
   ind$cv <- NULL
   ind$cv <- sqrt(exp(ind$se^2) - 1)
 
-  ind_spp <- filter(ind, species_common_name == spp, type == "Status quo", survey_abbrev == survey) |> select(family, anisotropy, spatiotemporal) |> distinct()
+  ind_spp <- filter(ind, species_common_name == spp, type == "Status quo", survey_abbrev == survey) |>
+    select(family, anisotropy, spatiotemporal) |>
+    distinct()
 
   mi <- list()
   if (ind_spp$family[1] == "tweedie") mi$family <- tweedie()
   delta_model <- FALSE
   if (grepl("binomial", ind_spp$family[1])) {
     mi$family <- delta_gamma()
-  delta_model <- TRUE
+    delta_model <- TRUE
   }
   st <- as.list(strsplit(ind_spp$spatiotemporal, ", ")[[1]])
   if (length(st) == 1L) st <- st[[1]]
@@ -157,7 +160,8 @@ for (s_i in seq_len(nrow(m))) {
         # sigma_E = b$estimate[b$term == "sigma_E"],
         sigma_E = if ("sigma_E" %in% b$term) b$estimate[b$term == "sigma_E"] else NULL,
         range = b$estimate[b$term == "range"],
-        fixed_re = list(omega_s = omega_s[, 1, drop = FALSE], epsilon_st = epsilon_st[,,1,drop=FALSE], zeta_s = NULL),
+        # fixed_re = list(omega_s = omega_s[, 1, drop = FALSE], epsilon_st = epsilon_st[,,1,drop=FALSE], zeta_s = NULL),
+        fixed_re = list(omega_s = omega_s[, 1, drop = FALSE], epsilon_st = NULL, zeta_s = NULL),
         B = c(mean(b[grep("year", b$term), "estimate", drop = TRUE]), 0),
         seed = 42 * i
       )
@@ -178,7 +182,8 @@ for (s_i in seq_len(nrow(m))) {
         sigma_E = if ("sigma_E" %in% b$term) b$estimate[b$term == "sigma_E"] else NULL,
         range = b$estimate[b$term == "range"],
         phi = b$estimate[b$term == "phi"],
-        fixed_re = list(omega_s = omega_s[, 2, drop = FALSE], epsilon_st = epsilon_st[,,2,drop=FALSE], zeta_s = NULL),
+        # fixed_re = list(omega_s = omega_s[, 2, drop = FALSE], epsilon_st = epsilon_st[,,2,drop=FALSE], zeta_s = NULL),
+        fixed_re = list(omega_s = omega_s[, 2, drop = FALSE], epsilon_st = NULL, zeta_s = NULL),
         B = c(mean(b[grep("year", b$term), "estimate", drop = TRUE]), change_per_year),
         seed = 421 * i
       )
@@ -191,7 +196,6 @@ for (s_i in seq_len(nrow(m))) {
       s <- mutate(s, obs = obs_bin * obs_pos, mu = mu_bin * mu_pos)
       # hist(s$obs)
       # head(s)
-
     } else { # tweedie
       s <- sdmTMB_simulate(
         formula = ~ 1 + year_covariate,
@@ -204,7 +208,8 @@ for (s_i in seq_len(nrow(m))) {
         tweedie_p = b$estimate[b$term == "tweedie_p"],
         range = b$estimate[b$term == "range"],
         phi = b$estimate[b$term == "phi"],
-        fixed_re = list(omega_s = omega_s, epsilon_st = epsilon_st, zeta_s = NULL),
+        # fixed_re = list(omega_s = omega_s, epsilon_st = epsilon_st, zeta_s = NULL),
+        fixed_re = list(omega_s = omega_s, epsilon_st = NULL, zeta_s = NULL),
         B = c(mean(b[grep("year", b$term), "estimate", drop = TRUE]), change_per_year),
         seed = 421 * i
       )
@@ -234,9 +239,15 @@ for (s_i in seq_len(nrow(m))) {
     datr <- filter(s, !restricted)
 
     sanity_true <- function(x) {
-      a <- try({sanity(x)})
-      if (class(a) == "try-error") return(FALSE)
-      if (isFALSE(a)) return(FALSE)
+      a <- try({
+        sanity(x)
+      })
+      if (class(a) == "try-error") {
+        return(FALSE)
+      }
+      if (isFALSE(a)) {
+        return(FALSE)
+      }
       if (length(a) > 1L) {
         a$sigmas_ok <- NULL
         a$se_magnitude_ok <- NULL
@@ -254,65 +265,69 @@ for (s_i in seq_len(nrow(m))) {
       fit_squo <- try({
         sdmTMB(list(obs ~ 1, obs ~ year_zero),
           data = s, family = mi_temp$family,
-          spatial = "on", spatiotemporal = mi_temp$spatiotemporal, time = "year", mesh = mesh_all
-          # priors = priors
-        )
-      })
-
-      # if failed, try removing spatiotemporal effects:
-      if (!sanity_true(fit_squo)) {
-        if (mi_temp$spatiotemporal[[1]] == "iid") mi_temp$spatiotemporal[[1]] <- "off"
-        if (mi_temp$spatiotemporal[[2]] == "iid") mi_temp$spatiotemporal[[2]] <- "off"
-        fit_squo <- try({
-          sdmTMB(list(obs ~ 1, obs ~ year_zero),
-            data = s, family = mi_temp$family,
-            spatial = "on", spatiotemporal = mi_temp$spatiotemporal, time = "year", mesh = mesh_all
-            # priors = priors
-          )
-        })
-      }
-
-      fit_rest <- try({
-        sdmTMB(list(obs ~ 1, obs ~ year_zero),
-          data = datr, family = mi_temp$family,
-          spatial = "on", spatiotemporal = mi_temp$spatiotemporal, time = "year", mesh = meshr,
+          spatial = "on", spatiotemporal = list("off", "off"), time = "year", mesh = mesh_all,
           priors = priors
         )
       })
 
+      # # if failed, try removing spatiotemporal effects:
+      # if (!sanity_true(fit_squo)) {
+      #   if (mi_temp$spatiotemporal[[1]] == "iid") mi_temp$spatiotemporal[[1]] <- "off"
+      #   if (mi_temp$spatiotemporal[[2]] == "iid") mi_temp$spatiotemporal[[2]] <- "off"
+      #   fit_squo <- try({
+      #     sdmTMB(list(obs ~ 1, obs ~ year_zero),
+      #       data = s, family = mi_temp$family,
+      #       spatial = "on", spatiotemporal = mi_temp$spatiotemporal, time = "year", mesh = mesh_all,
+      #       priors = priors
+      #     )
+      #   })
+      # }
+
+      fit_rest <- try({
+        sdmTMB(list(obs ~ 1, obs ~ year_zero),
+          data = datr, family = mi_temp$family,
+          spatial = "on", spatiotemporal = list("off", "off"), time = "year", mesh = meshr,
+          priors = priors
+        )
+      })
     } else { # tweedie
       mi_temp <- mi
       fit_squo <- try({
         sdmTMB(obs ~ year_zero,
           data = s, family = mi_temp$family,
-          spatial = "on", spatiotemporal = mi_temp$spatiotemporal, time = "year", mesh = mesh_all,
+          spatial = "on", spatiotemporal = "off", time = "year", mesh = mesh_all,
           priors = priors
         )
       })
-      # if failed, try removing spatiotemporal effects:
-      if (!sanity_true(fit_squo)) {
-        if (mi_temp$spatiotemporal == "iid") mi_temp$spatiotemporal <- "off"
-        fit_squo <- try({
-          sdmTMB(list(obs ~ 1, obs ~ year_zero),
-            data = s, family = mi_temp$family,
-            spatial = "on", spatiotemporal = mi_temp$spatiotemporal, time = "year", mesh = mesh_all
-            # priors = priors
-          )
-        })
-      }
+      # # if failed, try removing spatiotemporal effects:
+      # if (!sanity_true(fit_squo)) {
+      #   if (mi_temp$spatiotemporal == "iid") mi_temp$spatiotemporal <- "off"
+      #   fit_squo <- try({
+      #     sdmTMB(list(obs ~ 1, obs ~ year_zero),
+      #       data = s, family = mi_temp$family,
+      #       spatial = "on", spatiotemporal = mi_temp$spatiotemporal, time = "year", mesh = mesh_all,
+      #       priors = priors
+      #     )
+      #   })
+      # }
 
       fit_rest <- try({
         sdmTMB(obs ~ year_zero,
           data = datr, family = mi_temp$family,
-          spatial = "on", spatiotemporal = mi_temp$spatiotemporal, time = "year", mesh = meshr,
+          spatial = "on", spatiotemporal = "off", time = "year", mesh = meshr,
           priors = priors
         )
       })
     }
 
-    aq <- group_by(s, year) |> summarise(m = mean(mu)) |> mutate(type = "squo")
-    ar <- group_by(datr, year) |> summarise(m = mean(mu)) |> mutate(type = "rest")
-    bind_rows(aq, ar) |> ggplot(aes(year, m, colour = type)) + geom_line()
+    aq <- group_by(s, year) |>
+      summarise(m = mean(mu)) |>
+      mutate(type = "squo")
+    ar <- group_by(datr, year) |>
+      summarise(m = mean(mu)) |>
+      mutate(type = "rest")
+    bind_rows(aq, ar) |> ggplot(aes(year, m, colour = type)) +
+      geom_line()
 
     if (class(fit_squo) != "try-error" && class(fit_rest) != "try-error") {
       if (sanity_true(fit_rest) && sanity_true(fit_squo)) {
@@ -351,16 +366,16 @@ for (s_i in seq_len(nrow(m))) {
   # )
   # FRAC_TEST <- 0.5
 
-#   filter(m, survey_abbrev %in% "SYN WCHG",
-#     species_common_name %in% c("Rex Sole", "Shortspine Thornyhead"), est_type == "geostat") |>
-#     select(species_common_name, orig_cv_mean) |> distinct()
-#
-#   filter(m, survey_abbrev %in% "HBLL OUT N",
-#     species_common_name %in% c("Lingcod", "Longnose Skate",
-# "Quillback Rockfish", "Yelloweye Rockfish",
-# "North Pacific Spiny Dogfish"), est_type == "geostat") |>
-#     select(species_common_name, orig_cv_mean) |> distinct()
-#
+  #   filter(m, survey_abbrev %in% "SYN WCHG",
+  #     species_common_name %in% c("Rex Sole", "Shortspine Thornyhead"), est_type == "geostat") |>
+  #     select(species_common_name, orig_cv_mean) |> distinct()
+  #
+  #   filter(m, survey_abbrev %in% "HBLL OUT N",
+  #     species_common_name %in% c("Lingcod", "Longnose Skate",
+  # "Quillback Rockfish", "Yelloweye Rockfish",
+  # "North Pacific Spiny Dogfish"), est_type == "geostat") |>
+  #     select(species_common_name, orig_cv_mean) |> distinct()
+  #
   # quantile(cvs$orig_cv_mean, probs = c(0, 1/3, 2/3, 1))
   cv <- m[s_i, "orig_cv_mean", drop = TRUE]
   #
@@ -370,12 +385,12 @@ for (s_i in seq_len(nrow(m))) {
 
   FRAC_TEST <- if (cv > 0.5) {
     0.5 # same as next...
-  } else if (cv <= 0.5 & cv > 0.26) {
+  } else if (cv <= 0.5 & cv > 0.25) {
     0.5
-  } else if (cv <= 0.26 & cv > 0.15) {
+  } else if (cv <= 0.25 & cv > 0.15) {
     0.7
   } else if (cv <= 0.15 & cv > 0) {
-    0.85
+    0.7
   } else {
     stop("???")
   }
@@ -403,43 +418,47 @@ for (s_i in seq_len(nrow(m))) {
     change_per_year = get_change_per_year(FRAC_TEST),
     .options = furrr::furrr_options(seed = TRUE)
   )
+  if (nrow(out) > 0L) {
+    out$species_common_name <- spp
+    out$survey_abbrev <- survey
+    out$fract_tested <- FRAC_TEST
+    out_list[[s_i]] <- out
+    group_by(out, type) |>
+      filter(!is.na(conf.high)) |>
+      summarise(
+        power = mean(conf.high < 0),
+        coverage = mean(conf.high > true_effect & conf.low < true_effect),
+        mean_se = mean(std.error),
+        m_error = mean(estimate / true_effect),
+        s_error = mean(estimate > 0),
+        s_error2 = mean(conf.low > 0)
+      ) |>
+      knitr::kable(digits = 2L)
 
-  out$species_common_name <- spp
-  out$survey_abbrev <- survey
-  out$fract_tested <- FRAC_TEST
-  out_list[[s_i]] <- out
-  group_by(out, type) |>
-    filter(!is.na(conf.high)) |>
-    summarise(
-      power = mean(conf.high < 0),
-      coverage = mean(conf.high > true_effect & conf.low < true_effect),
-      mean_se = mean(std.error),
-      m_error = mean(estimate / true_effect),
-      s_error = mean(estimate > 0),
-      s_error2 = mean(conf.low > 0)
-    ) |>
-    knitr::kable(digits = 2L)
+    g <- out |>
+      mutate(sig = conf.high < 0) |>
+      ggplot(aes(i, estimate, ymin = conf.low, ymax = conf.high, colour = sig)) +
+      # geom_pointrange(position = position_dodge(width = 0.5)) +
+      geom_pointrange(pch = 21) +
+      geom_hline(yintercept = out$true_effect[1], lty = 2) +
+      geom_hline(yintercept = 0, lty = 1) +
+      coord_flip() +
+      scale_colour_manual(values = c("TRUE" = "grey40", "FALSE" = "red")) +
+      xlab("Iteration") +
+      facet_wrap(~type) +
+      ggtitle(spp)
 
-  g <- out |>
-    mutate(sig = conf.high < 0) |>
-    ggplot(aes(i, estimate, ymin = conf.low, ymax = conf.high, colour = sig)) +
-    # geom_pointrange(position = position_dodge(width = 0.5)) +
-    geom_pointrange(pch = 21) +
-    geom_hline(yintercept = out$true_effect[1], lty = 2) +
-    geom_hline(yintercept = 0, lty = 1) +
-    coord_flip() +
-    scale_colour_manual(values = c("TRUE" = "grey40", "FALSE" = "red")) +
-    xlab("Iteration") +
-    facet_wrap(~type) +
-    ggtitle(spp)
-
-  g_list[[s_i]] <- g
+    g_list[[s_i]] <- g
+  } else {
+    out_list[[s_i]] <- NULL
+    g_list[[s_i]] <- NULL
+  }
 }
 
 plan(sequential)
 
-saveRDS(out_list, file = "data-generated/power-cached-output-2023-06-06.rds")
-out_list <- readRDS("data-generated/power-cached-output-2023-06-06.rds")
+saveRDS(out_list, file = "data-generated/power-cached-output-2023-06-06-eps-null-spatial.rds")
+out_list <- readRDS("data-generated/power-cached-output-2023-06-06-eps-null-spatial.rds")
 
 d <- dplyr::bind_rows(out_list)
 # d$survey_abbrev <- NA_character_
@@ -475,7 +494,7 @@ make_power_fig <- function(survs, return_data = FALSE) {
     group_by(species_common_name, survey_abbrev) |>
     filter(!is.na(conf.high)) |>
     mutate(n_converged = sum(type == "status quo")) |>
-    filter(n_converged > 2) |>
+    filter(n_converged > 10) |>
     # filter(species_common_name == "shortspine thornyhead") |>
     filter(survey_abbrev %in% survs) |>
     group_by(species_common_name, survey_abbrev, type) |>
@@ -495,34 +514,38 @@ make_power_fig <- function(survs, return_data = FALSE) {
     left_join(cvs) |>
     ungroup() |>
     arrange(survey_abbrev, fract_tested, power_diff, species_common_name, type) |>
+    # arrange(survey_abbrev, -orig_cv_mean, species_common_name, type) |>
     select(-coverage)
 
   x <- select(x, -power_diff) |>
     tidyr::pivot_wider(names_from = type, values_from = power)
+  table_dat <<- x |> select(-orig_cv_mean)
 
   # perfect <- filter(x, `restricted and shrunk` == 1)
   # cat("Perfect and omitted from plot for space\n")
   # print(paste0(perfect$species_common_name))
   # cat("\n")
 
-  cat("Power less than 0.5 and omitted for space\n")
-  under <- filter(x, `status quo` <= 0.5)
+  cat("Power less than 0.3 and omitted for space\n")
+  under <- filter(x, `status quo` <= 0.2)
   print(paste0(under$species_common_name))
   cat("\n")
 
   # x <- filter(x, `status quo` > 0.5, `restricted and shrunk` < 1)
-  x <- filter(x, `status quo` > 0.1)
+  x <- filter(x, `status quo` > 0.2)
   # filter(`status quo` > 0.3)
 
   # viridisLite::plasma(3, end = 0.85)
-  pal <- c("15%" = "#0D0887FF", "30%" = "#B7318AFF", "50%" = "#FEBA2CFF")
+  pal <- c("20%" = "#0D0887FF", "30%" = "#B7318AFF", "50%" = "#FEBA2CFF")
+  pal <- c("20%" = "#0D0887FF", "30%" = "#B7318AFF", "50%" = "#0D0887FF")
 
   x <- x |>
-  mutate(sp = stringr::str_to_title(species_common_name)) |>
-  filter(!grepl("Blacksp", sp)) |>
-  mutate(sp = gsub("Complex", "", sp)) |>
-  mutate(sp = forcats::fct_inorder(sp)) |>
-  mutate(sp = forcats::fct_rev(sp))
+    mutate(sp = stringr::str_to_title(species_common_name)) |>
+    mutate(sp = paste0(sp, " (", sdmTMB:::mround(orig_cv_mean, 2), ")")) |>
+    filter(!grepl("Blacksp", sp)) |>
+    mutate(sp = gsub("Complex", "", sp)) |>
+    mutate(sp = forcats::fct_inorder(sp)) |>
+    mutate(sp = forcats::fct_rev(sp))
   g <- ggplot(x, aes(
     xend = `restricted and shrunk`,
     x = `status quo`,
@@ -530,38 +553,52 @@ make_power_fig <- function(survs, return_data = FALSE) {
     yend = sp,
     colour = as.factor(paste0((1 - fract_tested) * 100, "%"))
   )) +
-  # scale_colour_viridis_d(end = 0.85, option = "C") +
-  scale_colour_manual(values = pal) +
-  geom_segment(arrow = arrow(length = unit(6, "pt")), key_glyph = "arrow_left") +
-  # theme_bw() +
-  theme(axis.title.y = element_blank()) +
-  xlab("Power to detect decline") +
-  scale_x_continuous(expand = c(0, 0), limits = c(min(x$`restricted and shrunk`) - 0.02, 1)) +
-  # coord_cartesian(xlim = c(0.4, 1)) +
-  labs(colour = "Simulated decline") +
-  theme(
-    legend.position = c(0.28, 0.17),
-    plot.margin = margin(11 / 2, 11 / 2 + 4, 11 / 2, 11 / 2 - 2),
-    axis.title = element_text(size = 10)
-  )
+    # scale_colour_viridis_d(end = 0.85, option = "C") +
+    geom_segment(arrow = arrow(length = unit(6, "pt")), key_glyph = "arrow_left") +
+    # geom_point(aes(size = orig_cv_mean), pch = 21, fill = "white") +
+    # scale_size_area(max_size = 3) +
+    scale_colour_manual(values = pal, guide = guide_legend(reverse = TRUE)) +
+    # theme_bw() +
+    theme(axis.title.y = element_blank()) +
+    xlab("Power to detect decline") +
+    scale_x_continuous(expand = c(0, 0), limits = c(min(x$`restricted and shrunk`) - 0.02, 1)) +
+    # coord_cartesian(xlim = c(0.4, 1)) +
+    labs(colour = "Simulated decline") +
+    theme(
+      legend.position = c(0.28, 0.17),
+      plot.margin = margin(11 / 2, 11 / 2 + 4, 11 / 2, 11 / 2 - 2),
+      axis.title = element_text(size = 10)
+    )
   # facet_grid(rows = vars(survey_abbrev), space = "free_y", scales = "free")
-  if (!return_data) return(g) else return(x)
+  if (!return_data) {
+    return(g)
+  } else {
+    return(x)
+  }
 }
 
-lims <- scale_x_continuous(expand = c(0, 0), limits = c(0, 1))
+lims <- scale_x_continuous(expand = c(0, 0), limits = c(0.15, 1))
 g1 <- make_power_fig("SYN WCHG") +
-  # geom_hline(yintercept = c(10.5, 14.5), lty = 2, col = "grey50") +
+  geom_hline(yintercept = c(13.5), lty = 2, col = "grey50") +
   lims +
-  ggtitle("SYN WCHG")
+  ggtitle("SYN WCHG") +
+  theme(legend.position = "none")
+# theme(legend.position = c(0.29, 0.12))
 
+# NUMBERS FOR PAPER:
+table_dat |> filter(species_common_name %in% c("redstripe rockfish", "redbanded rockfish")) |>
+  as.data.frame()
+g1
 g2 <- make_power_fig("HBLL OUT N") +
-  # geom_hline(yintercept = c(8.5), lty = 2, col = "grey50") +
+  geom_hline(yintercept = c(13.5), lty = 2, col = "grey50") +
   lims +
-  ggtitle("HBLL OUT N")
-g <- cowplot::plot_grid(g1, g2, ncol = 1L, align = "v", rel_heights = c(1.35, 1))
+  ggtitle("HBLL OUT N") +
+  theme(legend.position = c(0.29, 0.17))
+g2
+g <- cowplot::plot_grid(g1, g2, ncol = 1L, align = "v", rel_heights = c(1.37, 1))
 g
-ggsave("figs/power.png", width = 4, height = 6.1)
-ggsave("figs/power.pdf", width = 4, height = 6.1)
+ggsave("figs/power-june6-eps-null-spatial.png", width = 4.2, height = 6.4)
+ggsave("figs/power-june6-eps-null-spatial.pdf", width = 4.2, height = 6.4)
 
 keep <- make_power_fig(c("HBLL OUT N", "SYN WCHG"), return_data = TRUE) |>
   select(species_common_name, survey_abbrev) |>
@@ -583,17 +620,17 @@ make_power_fig2 <- function(dd) {
     facet_wrap(species_common_name ~ type)
 }
 
-d |>
-  filter(survey_abbrev %in% "SYN WCHG") |>
-  make_power_fig2() +
-  facet_wrap(species_common_name ~ type, ncol = 6)
-ggsave("figs/power2-wchg.pdf", width = 10, height = 10)
-
-d |>
-  filter(survey_abbrev %in% "HBLL OUT N") |>
-  make_power_fig2() +
-  facet_wrap(species_common_name ~ type, ncol = 4)
-ggsave("figs/power2-hbll.pdf", width = 10, height = 10)
+# d |>
+#   filter(survey_abbrev %in% "SYN WCHG") |>
+#   make_power_fig2() +
+#   facet_wrap(species_common_name ~ type, ncol = 6)
+# ggsave("figs/power2-wchg.pdf", width = 15, height = 20)
+#
+# d |>
+#   filter(survey_abbrev %in% "HBLL OUT N") |>
+#   make_power_fig2() +
+#   facet_wrap(species_common_name ~ type, ncol = 4)
+# ggsave("figs/power2-hbll.pdf", width = 15, height = 20)
 
 # dogfish HBLL:
 # so yeah, there's a bias based on the sampling locations for dogfish which
