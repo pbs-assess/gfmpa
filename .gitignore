@@ -13,3 +13,5 @@ archive/
 *cache*
 *.html
 figs
+*.xml
+*.plist
