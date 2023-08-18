@@ -108,11 +108,8 @@
 % \begin{spacing}{1.2}
 \maketitle
 
-% \noindent
-% Possible target journals: CJFAS, ICES JMS, Fisheries Research, Ecological Applications?
-
 \clearpage
-% \linenumbers
+\linenumbers
 
 \section*{Abstract}
 
@@ -167,20 +164,15 @@ Regulating surveys within MPA boundaries therefore requires careful consideratio
 %% % Therefore, we suggest allowing at least some survey effort in closed areas, particularly from less destructive gear; accelerating research on less-destructive survey methods; and ensuring adequate calibration between any historical and new survey methods to maintain index integrity.
 %% Therefore, we suggest careful consideration when regulating scientific surveys within MPA boundaries to understand risk tradeoffs between the conservation objectives of the MPAs and the accuracy of indices, and other data products such as sampled ages of fish, needed for the assessment and management of exploited populations.
 
+\vspace{5mm}
 \noindent
-
 Keywords:
 groundfish,
 index of abundance,
 MPA,
-scientific survey,
-spatiotemporal,
-spatio-temporal,
-survey effort reduction
-
-
-
-
+spatiotemporal or spatio-temporal,
+survey effort reduction,
+scientific survey exclusion
 
 % \clearpage
 % \tableofcontents
@@ -237,10 +229,10 @@ We used a bootstrap procedure to quantify variance of this estimator \citep{schn
 The bootstrap procedure performed the same index calculation after sampling with replacement by depth stratum 1000 times and calculating the standard deviation of the resulting means \citep{schnute2000}.
 We also calculated a classic stratified random sampling variance \citep[][p.~95]{cochran1977} although the results were similar to the bootstrap procedure and so we do not include them here.
 
-We derived model-based indices of relative abundance or biomass using a spatiotemporal modelling approach with spatial and spatiotemporal Gaussian Markov random fields describing latent spatial and spatiotemporal processes \citep[e.g.,][]{shelton2014, thorson2015a, anderson2022}.
+We derived model-based indices of relative abundance or biomass using a geostatistical modelling approach with spatial and spatiotemporal Gaussian Markov random fields describing latent spatial and spatiotemporal processes \citep[e.g.,][]{shelton2014, thorson2015a, anderson2022}.
 Depending on the species and survey, these models were configured as either delta models \citep{aitchison1955} with a logit link for a binomial model of encounter probability  and log link for a gamma model of positive catch weight \citep{schnute2003} or as \citet{tweedie1984} observation models with a log link for catch weight.
 We included an offset term \citep[][p.~206]{mccullagh1989} for log area swept for the trawl models and log hook count for the long-line models.
-Following a common model configuration for index standardization \citep[e.g.,][]{thorson2015a, thorson2019a}, our models include an independent intercept each year, a fixed spatial random field, and independent spatiotemporal random fields.
+Following a common model configuration for index standardization \citep[e.g.,][]{thorson2015a, thorson2019a}, our models included an independent intercept each year, a fixed spatial random field, and independent spatiotemporal random fields.
 We reduced model complexity as needed based on diagnostics to reflect an analyst aiming for adequate model convergence and parsimony (Table~\ref{tab:model-configs}, Supporting Material).
 We fit our models with the sdmTMB \textsf{R} package \citep{anderson2022}, which implements the models through TMB \citep{kristensen2016} with input matrices generated through \textsf{R}-INLA \citep{lindgren2015}.
 Additional modelling details are available in the Supporting Material.
@@ -265,7 +257,7 @@ We compared performance measures of the restricted shrunk or extrapolated indice
 \begin{enumerate}
   \item Precision: We calculated the annual coefficient of variation $\mathrm{CV}_{t,s}$ for year $t$ and survey~$s$ as $\sqrt{\exp(\mathrm{SE}_{t,s}^2) - 1}$, where $\mathrm{SE}$ is the standard error on the index as calculated with the generalized delta method in TMB \citep{kristensen2016} for the model-based index. We then calculated the proportional change in $\mathrm{CV}_{t,s}$ between each restricted index and the status quo index. This represents a standardized measure of precision loss.
 
-    \item Accuracy: We calculated the annual relative error (RE) as $(\hat{\theta}_t - \theta_t) / \theta_t$, where $\hat{\theta}_t$ represents the index estimate from the restricted model in year $t$ and $\theta_t$ represents the index estimate from the status quo survey. We first centered $\hat{\theta}_t$ and $\theta_t$ by dividing them by their respective geometric means across years to avoid including consistent bias (an index from a shrunk survey domain should be lower than a full-survey domain index) and because these surveys are considered relative indices of abundance/biomass with an estimated catchability parameter that is estimated in stock assessments. We then calculated the absolute RE. The median absolute RE (MARE) represents a measure of accuracy loss---the expected magnitude of relative error in a typical year.
+    \item Accuracy: We calculated the annual relative error (RE) as $(\hat{\theta}_t - \theta_t) / \theta_t$, where $\hat{\theta}_t$ represents the index estimate from the restricted model in year $t$ and $\theta_t$ represents the index estimate from the status quo survey. We first centered $\hat{\theta}_t$ and $\theta_t$ by dividing them by their respective geometric means across years to avoid including consistent bias (an index from a shrunk survey domain should be lower than a full-survey domain index) and because surveys are often considered relative indices of abundance/biomass with an estimated catchability parameter that is estimated in stock assessments. We then calculated the absolute RE. The median absolute RE (MARE) represents a measure of accuracy loss---the expected magnitude of relative error in a typical year.
 
     \item Trend bias: We determined the trend in the relative error described above by fitting a linear regression to RE by year and reporting the slope in units of RE per decade.
 
@@ -278,9 +270,9 @@ We examined three potential predictors of changes in precision, accuracy, and tr
 For the first two, we fit generalized linear models (GLMs) with gamma observation error and log links with log-transformed predictor variables to identify patterns.
 This implies that a proportional change in the predictor corresponds to a proportional change in the response.
 For any species with slight proportional decreases in precision, we set these values to small positive values (0.01) for the purposes of this GLM because the log link requires positive data.
-For the third, we compared the slope of relative error per decade against slope of density proportion within the MPA per decade for the most impacted survey, SYN WCHG and fit a linear regression.
+For the third, we compared the slope of relative error per decade against slope of density proportion within the MPA per decade for the most impacted survey(s) and fit a linear regression.
 % We did not fit these models to evaluate statistical significance (noting that we ignore uncertainty in the predictor and response variables) but to characterize the relationships.
-Because these are proposed MPAs, they should not have had any causal effect on historical biomass or abundance.
+Because our analysis applies to proposed MPAs, the MPAs should not have had any causal effect on historical biomass or abundance.
 
 \subsection*{Examining the role of effort reduction}
 
@@ -302,14 +294,14 @@ In the simulation, we replaced the year factor effects with exponential declines
 For models simulated from a delta-gamma distribution, we held the detection probability constant.
 We chose rates of decline that would be meaningful and that illustrated contrast between the two sampling scenarios: 50\% decline for species with average status quo CVs of $>$ 0.25 and 30\% decline for species with CVs $\le$ 0.25.
 
-We then fit spatiotemporal models (omitting spatiotemporal random effects for simplicity, consistency, and estimation speed) with the same observation family and tested whether the upper 95\% CI on the slope parameter representing the effect of year was less than zero.
+We then fit spatiotemporal models (omitting spatiotemporal random effects for simplicity, consistency, and estimation speed) with the same observation family and tested whether the upper 95\% confidence interval (CI) on the slope parameter representing the effect of year was less than zero.
 We repeated the simulation and estimation 120 times to calculate power: the proportion of times that the estimation models correctly identified a negative population trend.
 
-\subsection*{Application to an MPA network off the West Coast of Canada}
+\subsection*{Application to an MPA network off the west coast of Canada}
 
 \subsubsection*{Proposed Northern Shelf Bioregion MPA network}
 
-We applied the above approach to a specific MPA network and set of surveys off the West Coast of Canada.
+We applied the above approach to a specific MPA network and set of surveys off the west coast of Canada.
 The MPA network planning area, the Northern Shelf Bioregion (NSB), is approximately 102,000~km$^2$ and the proposed MPA network encompasses about 30\% of this area (30,493~km$^2$).
 % TODO: this still correct?
 The network process has been co-led by 15 partner First Nations, the province of British Columbia, and the Canadian federal government (Parks Canada, Environment and Climate Change Canada, and Fisheries and Oceans Canada). 
@@ -321,8 +313,7 @@ Additional goals and objectives include the protection of traditional use and cu
 The proposed network is built off existing areas, where nearly 50\% of the draft scenario footprint already exists as some type of spatial protection (existing provincial or federal MPAs or fisheries closures in the form of Rockfish Conservation Areas) leaving $\sim$50\% of the network as new areas identified through the planning process \citep{dfo2022networkactionplan}.
 The proposed NSB MPA network was announced by the planning partners in February 2023 with plans for iterative implementation; the first set of new MPAs are expected to be established by 2025.
 
-The NSB MPA network proposes `Category 1' and `Category 2' zones.
-Category 1 zones are proposed for implementation by 2025 and Category 2 zones by 2030 \citep{dfo2022networkactionplan}. 
+The NSB MPA network proposes `Category 1' and `Category 2' zones with the main distinction that Category 1 zones are proposed for implementation by 2025 and Category 2 zones by 2030 \citep{dfo2022networkactionplan}. 
 In our analysis, we assume both zones are restricted from bottom trawl and long-line research surveys. 
 From the existing Gwaii Haanas National Marine Conservation Area Reserve and Haida Heritage Site, we excluded trawl surveys from all ``Strict Protection'' zones, while only excluding the long-line survey from ``Strict Protection'' zones that overlap with Rockfish Conservation Areas. We do not exclude survey activity from remaining existing MPA zones where possible changes to activities are uncertain at this time \citep{dfo2022networkactionplan}.
 
@@ -334,7 +325,15 @@ We also assume all Category 1 and 2 zones will ultimately be implemented as MPAs
 
 \subsubsection*{Scientific surveys}
 
-We analyzed data from four research surveys including the three synoptic bottom trawl surveys \citep[][Fig.~\ref{fig:map}]{sinclair2003syn, anderson2019synopsis}: Queen Charlotte Sound \citep[SYN QCS,][]{williams2018synqcs}, Hecate Strait \citep[SYN HS,][]{wyeth2018synhs}, and West Coast Haida Gwaii \citep[SYN WCHG,][]{williams2018synwchg}. We omitted two related surveys off the west coast of Vancouver Island because they are not affected by the proposed MPA network. The included surveys cover the continental shelf and upper slope off the northern part of the west coast of Canada (Fig.~\ref{fig:map}) and primarily target soft-bottom habitat. They have been conducted since 2003, are typically run in alternating years, and follow a random depth-stratified design with sampling units of 2 km $\times$ 2 km blocks with consistent gear and fishing protocols \citep{sinclair2003syn}. The unit of measurement for the synoptic trawl surveys is fish biomass per area swept.
+We analyzed data from four research surveys including the three synoptic bottom trawl surveys \citep[][Fig.~\ref{fig:map}]{sinclair2003syn, anderson2019synopsis}: 
+% Queen Charlotte Sound \citep[SYN QCS,][]{williams2018synqcs}, 
+% Hecate Strait \citep[SYN HS,][]{wyeth2018synhs}, and 
+% West Coast Haida Gwaii \citep[SYN WCHG,][]{williams2018synwchg}. 
+Queen Charlotte Sound (SYN QCS), 
+Hecate Strait (SYN HS), and 
+West Coast Haida Gwaii (SYN WCHG). 
+% We omitted two related surveys off the west coast of Vancouver Island because they are not affected by the proposed MPA network. 
+The included surveys cover the continental shelf and upper slope off the northern part of the west coast of Canada (Fig.~\ref{fig:map}) and primarily target soft-bottom habitat. They have been conducted since 2003, are typically run in alternating years, and follow a random depth-stratified design with sampling units of 2 km $\times$ 2 km blocks with consistent gear and fishing protocols \citep{sinclair2003syn}. The unit of measurement for the synoptic trawl surveys is fish biomass per area swept.
 
 The fourth survey we analyzed was the Outside Northern Hard Bottom Longline survey (HBLL OUT N), which covers a similar geographic region to the synoptic trawl surveys, but instead focuses on hard bottom habitat \citep{doherty2019hbllout} (Fig.~\ref{fig:map}). This survey has generally been run in alternating years since 2006, is conducted by Fisheries and Oceans Canada in collaboration with the Pacific Halibut Management Association, and also follows a random depth-stratified design with sampling units of 2 km $\times$ 2 km blocks \citep{doherty2019hbllout, anderson2019synopsis}. The unit of measurement for the HBLL OUT N survey is numbers of fish per assumed area of catchability based on 8 ft (2.438 m) hook spacing and an assumed catch radius of 30 ft (9.144 m).
 
@@ -342,7 +341,7 @@ Based on a threshold of at least 5\% of survey sets detecting a species, we sele
 
 \section*{Results}
 
-Full exclusion of scientific surveys from the proposed NSB MPA network zones would have resulted in a proportional loss of survey domain of \lostHBLL, \lostWCHG, \lostHS, and \lostQCS\ across the HBLL, SYN WCHG, SYN HS, and SYN QCS surveys, respectively (Fig.~\ref{fig:map}, Fig.~\ref{fig:strata}).
+Full exclusion of scientific surveys from the proposed NSB MPA network zones would have resulted in a proportional loss of survey domain of \lostHBLL, \lostWCHG, \lostHS, and \lostQCS\ across the HBLL OUT N, SYN WCHG, SYN HS, and SYN QCS surveys, respectively (Fig.~\ref{fig:map}, Fig.~\ref{fig:strata}).
 % If existing MPAs also excluded survey effort, \lostHBLLall, \lostWCHGall, and \lostQCSHSall\ of the survey domain would be excluded.
 The impact of the proposed MPAs on indices was variable across species and surveys when looking at the time series (Fig.~\ref{fig:timeseries}, Fig.~\ref{fig:ts-hbll}--\ref{fig:ts-qcs}).
 Overall trends were often similar between the status quo and shrunk scenarios, although the shrunk scenario had larger confidence intervals and increased interannual variability.
@@ -351,21 +350,21 @@ The increased interannual variability led to smoother generalized additive model
 \subsection*{Metrics of precision, accuracy, and trend bias}
 
 Restricting a survey nearly universally reduced precision (Fig.~\ref{fig:dotplot}a--d) and accuracy (Fig.~\ref{fig:dotplot}e--h) with respect to the status quo index and sometimes resulted in trend bias (Fig.~\ref{fig:dotplot}i--l).
-Impacts on precision, accuracy, and trend bias were strongest in the SYN WCHG trawl survey (Fig.~\ref{fig:dotplot}a, e, i) followed by the HBLL OUT N survey (Fig.~\ref{fig:dotplot}b, f, j).
+Impacts on precision, accuracy, and trend bias were strongest in the SYN WCHG trawl survey (Fig.~\ref{fig:dotplot}a,~e,~i) followed by the HBLL~OUT~N survey (Fig.~\ref{fig:dotplot}b,~f,~j).
 These two surveys contained species with the highest proportion of density within the proposed MPA network with proportions up to $\approx$0.5 (Fig.~\ref{fig:dotplot}).
-For species with at least 15\% of their biomass or abundance density within the MPA, the average CV increase was \precisionWCHGshrunk\% in SYN WCHG and \precisionHBLLshrunk\% in HBLL OUT N (Fig.~\ref{fig:dotplot}a, b).
-Accuracy loss, MARE---reflecting proportional error in a typical bad year---ranged up to \canaryrockfishSYNWCHGslopere\ (Canary Rockfish) in SYN WCHG and \southernrocksoleHBLLslopere\ (Southern Rock Sole) in HBLL OUT N with an average for species with at least 15\% density within the MPA of \accuracyWCHGshrunk\ and \accuracyHBLLshrunk\ in these surveys, respectively (Fig.~\ref{fig:dotplot}e, f).
+For species with at least 15\% of their biomass or abundance density within the MPA, the average CV increase was \precisionWCHGshrunk\% in SYN~WCHG and \precisionHBLLshrunk\% in HBLL~OUT~N (Fig.~\ref{fig:dotplot}a, b).
+Accuracy loss, MARE---reflecting proportional error in a typical bad year---ranged up to \canaryrockfishSYNWCHGslopere\ (Canary Rockfish) in SYN WCHG and \southernrocksoleHBLLslopere\ (Southern Rock Sole) in HBLL~OUT~N with an average for species with at least 15\% density within the MPA of \accuracyWCHGshrunk\ and \accuracyHBLLshrunk\ in these surveys, respectively (Fig.~\ref{fig:dotplot}e,~f).
 
 Trends in RE ranged up to \canaryrockfishSYNWCHGslopere\ per decade for canary rockfish in SYN WCHG, meaning the index diverged from the status quo index by up to \canaryrockfishSYNWCHGsloperePerc\% per decade (Fig.~\ref{fig:dotplot}i).
-In the HBLL OUT N, trends in RE per decade were largest for North Pacific Spiny Dogfish at \northpacificspinydogfishSYNWCHGslopere\ per decade.
-Effects within the SYN QCS, where only four species had $>$15\% density within the MPA, were the smallest (Fig.~\ref{fig:dotplot}d, h, l).
+In the HBLL~OUT~N, trends in RE per decade were largest for North Pacific Spiny Dogfish at \northpacificspinydogfishSYNWCHGslopere\ per decade.
+Effects within the SYN~QCS, where only four species had $>$15\% density within the MPA, were the smallest (Fig.~\ref{fig:dotplot}d,~h,~l).
 
 \subsection*{Correlates of survey-restriction impacts}
 
 There were strong relationships between some covariates and our metrics of precision, accuracy, and trend bias for the shrunk-survey-domain indices (Figs.~\ref{fig:covariates} and ~\ref{fig:slopes}).
 Indices with larger CVs tended to have greater losses of accuracy with survey restriction than indices starting with smaller CVs (Fig.~\ref{fig:covariates}a).
 Across all surveys and species, this was at a rate of \covCvmaregeostat\ increase in MARE per 1\% increase in status quo index CV.
-Species with a greater proportion of their stock within the MPAs suffered larger losses of accuracy and precision (Fig.~\ref{fig:covariates}b, c).
+Species with a greater proportion of their density within the MPAs suffered larger losses of accuracy and precision (Fig.~\ref{fig:covariates}b, c).
 Across all surveys, a 1\% increase in proportion of a species within the MPA network resulted in an increase in MARE of \covMareGeo\ and an increase in CV of \covPrecisionGeo.
 
 There was a nearly one-to-one negative relationship between the slope of density proportion within the MPAs per decade and the slope of relative error per decade (regression slope: \REslopeRegress, Fig.~\ref{fig:slopes}).
@@ -387,7 +386,7 @@ This implies that the redistributed additional survey effort resulted in an inde
 \subsection*{Power analysis of the reduced ability to detect decline}
 
 Reductions in power to detect population declines were generally stronger in the SYN WCHG trawl survey than the HBLL OUT N longline survey (Fig.~\ref{fig:power}).
-As examples, in the SYN WCHG trawl survey, the probability of detecting a 50\% decline for Redstripe Rockfish declined from 0.64 to 0.38.
+As examples, in the SYN WCHG trawl survey, the probability of detecting a 50\% decline for Redstripe Rockfish based on a 95\%~CI declined from 0.64 to 0.38.
 Power to detect a 30\% decline for Redbanded Rockfish declined from 0.82 to 0.55.
 % See 05-power.R 'NUMBERS FOR PAPER' to grab these hardcoded values
 Reduction in power was generally 10 percentage points or smaller for the HBLL OUT N survey with the largest effects seen for Copper Rockfish and Tiger Rockfish.
@@ -409,7 +408,7 @@ Here, we discuss the magnitude of these effects, why some effects may have a gre
 
 Our results quantified effects on precision and accuracy of survey indices.
 Are these effects large enough to impact stock assessment?
-In QCS and HS, the impacts of these survey exclusions are probably small enough that they are unlikely to have major consequences for stock assessment outcomes.
+For SYN QCS and SYN HS, the impacts of these survey exclusions are probably small enough that they are unlikely to have major consequences for stock assessment outcomes.
 However, there may be impacts for some species within the SYN WCHG and the HBLL OUT N survey.
 Our analysis found notable reductions in the power to detect 30\% and 50\% declines, which hint that these effects may meaningfully impact stock assessment estimates.
 Ultimately, the impact on stock assessments will require further analysis---either with retrospective analyses degrading stock assessment input data, similar to that performed here, or through simulation.
@@ -432,19 +431,13 @@ Index precision is sometimes ignored in simple stock assessments \citep{free2020
 A bias in trend, however, will directly impact index-based management procedures and affect the ``data'' to which stock assessments compare their calculations in the likelihood.
 Additionally, if MPAs operate as hoped, the proportion of a species occurring inside the MPAs will initially increase over time, which would be expected to cause the restricted indices to underestimate the true overall species abundance resulting in a negative trend in relative error.
 Therefore, trend bias may be even more present with real MPAs compared to our retrospective analysis where future MPAs had no causal mechanism to affect the past.
-Fortunately, this potential for underestimation of abundance is consistent with the precautionary principle.
+Fortunately, this potential for underestimation of increases in abundance is consistent with the precautionary principle.
 
 We evaluated impacts on indices of abundance if surveys are excluded from closed areas; however, survey exclusion would also impact biological samples such as age and length composition data.
-The loss of such sampling within closed areas might be expected to result in larger impacts on stock assessment than degraded indices of abundance themselves (\citeauthor{yin2004} \citeyear{yin2004} but see \citeauthor{chen2003} \citeyear{chen2003}).
+The loss of such sampling within closed areas might be expected to result in larger impacts on stock assessment than degraded indices of abundance themselves (\citeauthor{yin2004} \citeyear{yin2004}, but see \citeauthor{chen2003} \citeyear{chen2003}).
 Composition data, and especially age composition data, are important inputs to modern integrated age structured stock assessments and provide high-quality information regarding recruitment, gear selectivity, growth, natural mortality, and relative depletion \citep{magnusson2007, ono2015}.
 Furthermore, age and length samples are notoriously clustered \citep{hilbornwalters1992, francis2011}---fish of a similar age tend to be caught together---and removing spatial blocks from the survey domain could have a disproportionate impact on age composition data if the MPA happened to protect some non-random portion of the population (e.g., a nursery area for young fish, or a refuge or feeding area for older fish).
 Finally, while spatiotemporal models are increasingly used for overall biomass or abundance density modelling (as done in this paper) and could use spatial information, covariates, or other surveys to alleviate the impact to indices, such approaches are less well-established for composition data \citep[but see][]{thorsonhaltuch2018}.
-
-A reduction in the spatial domain of surveys and the degradation of index precision, accuracy, and trend estimation will impact our ability to make valid inference for other purposes beyond stock assessment.
-Surveys support conservation planning analysis of biodiversity patterns and habitat suitability \citep[e.g.,][]{rubidge2016, thompson2022meps} and understanding species' potential responses to climate change \citep[e.g.,][]{english2021, thompson2023warming}.
-Indices are also used by conservation agencies such as IUCN globally \citep{iucn2012} and COSEWIC in Canada \citep{cosewicTable2} to assess rates of decline and assign population status; the results of our power analysis to detect decline is particularly relevant to this use.
-Surveys could also be used to monitor recovery effects of MPAs themselves against long historical baselines of expected spatial and temporal patterns and levels of observation error.
-In fact, the surveys examined here were used to inform the MPA network design whose impacts we are evaluating.
 
 \subsection*{Caveats and next steps}
 
@@ -453,7 +446,7 @@ First, we performed a retrospective analysis on a historical dataset.
 A simulation approach \citep[e.g.,][]{schnute2003, regular2020} could explore additional dimensions of the problem (e.g., systematically varying observation error, sampling intensity, or species distribution characteristics), derive potentially more generalizable results, and have a known truth for comparison instead of using the status quo index as a reference.
 Conversely, using a historical dataset ``bakes'' in the ``messiness'' of reality (e.g., poorly understood outliers, clustering, movement, and spatially varying abundance trends) and makes the results pertinent to real stocks and real surveys where management decisions are made.
 % TODO: next is kind of duplicated elsewhere?
-Second, we suspect that surveys covering larger areas (e.g., Gulf of Alaska) might fare better under survey restriction when using the spatiotemporal modelling approach compared to the smaller surveys examined here (especially West Coast Haida Gwaii).
+Second, we suspect that surveys covering larger areas (e.g., Gulf of Alaska) might fare better under survey restriction when using a spatiotemporal modelling approach compared to the smaller surveys examined here (especially West Coast Haida Gwaii).
 Compared to other surveys, West Coast Haida Gwaii spatiotemporal indices were more affected by survey exclusion than their design-based equivalent.
 This might be because the survey is on the verge of lacking sufficient spatial data to support these spatiotemporal models.
 Third, we found that indices were most impacted for species that had a higher relative abundance or biomass within the MPAs.
@@ -487,7 +480,7 @@ However, we see several advantages of the spatiotemporal model approach in this 
 First, the models produced more precise indices in the status quo scenario \citep[sensu][]{thorson2015a}, and even though proportionally they were more impacted by restriction than the design-based index, they remained more precise, on average.
 % TODO: some duplication with elsewhere here:
 Second, spatiotemporal model indexes are likely to be less impacted for surveys covering larger spatial areas or with denser spatial coverage than some surveys considered here.
-We suspect the spatiotemporal models were already struggling for WCHG where large spatial chunks were then removed.
+We suspect the spatiotemporal models were already struggling for SYN WCHG where large spatial chunks were then removed.
 If spatial information, covariate effects, or even spatially varying covariate effects \citep{hastie1993, barnett2021a, thorson2023svc} could be estimated well, we suspect a spatiotemporal model may be able to improve accuracy compared to omitting the MPA from the survey domain prediction grid by extrapolating into the closed area, but at the expense of precision.
 % TODO: some duplication with the previous point here:
 Third, the model-based approach affords the opportunity to leverage other data sources such as covariates \citep{johnson2019} and other surveys \citep[e.g.,][]{gruss2019, webster2020, monnahan2021} to enhance indices.
@@ -504,18 +497,27 @@ We suggest accelerating research on less-destructive survey methods, such as und
 \citep[e.g.,][]{trenkel2004, rooper2012, bryan2023} and eDNA approaches \citep[e.g.,][]{rourke2022, he2023}, but acknowledge these approaches are not a complete substitute for trawl surveys \citep{benoit2020national}.
 % CR: Kind of disagree with this statement. These approaches will never fully replace trawl surveys in that they won't be able to collect specimen data. However, they are not that far from replacing trawl surveys in terms of estimating biomass. Especially acoustic surveys have gotten really good at replacing trawl surveys (or at least reducing trawling). I've got a bit better citation for this, I'll send it along
 % SA: agreed, good points, text has been modified
-In addition to changes in catchability and size selectivity, most alternative approaches lack an opportunity to collect biological samples; information on age and maturity are critical inputs to stock assessment \citep[e.g.,][]{magnusson2007}.
+In addition to changes in catchability and size selectivity, most alternative approaches lack an opportunity to collect biological samples.
 Fish lengths may be more readily collected, such as visually with image-based surveys, but due to asymptotic growth, length provides little information on population age structure for a large portion of most groundfish lifespans.
 % For example, a XX cm long TODO Rockfish could be XX or XX years old.
 If new survey methods are adopted, it will be critical to calibrate new methods with historical ones to ensure unbroken time series \citep{field2006}.
-As an alternative, or supplement to alternative methods, some level of reduced survey intensity with extractive gear within closed areas might be chosen to balance benthic protection objectives with monitoring of other species groups.
+As an alternative or supplement to alternative methods, some level of reduced survey intensity with extractive gear within closed areas might be chosen to balance benthic protection objectives with monitoring of other species groups.
+
+\subsection*{Broader implications}
+
+A reduction in the spatial domain of surveys and the degradation of index precision, accuracy, and trend estimation will impact our ability to make valid inference for other purposes beyond stock assessment.
+Surveys support conservation planning analysis of biodiversity patterns and habitat suitability \citep[e.g.,][]{rubidge2016, thompson2022meps} and understanding species' potential responses to climate change \citep[e.g.,][]{english2021, thompson2023warming}.
+Indices are also used by conservation agencies such as IUCN globally \citep{iucn2012} and COSEWIC in Canada \citep{cosewicTable2} to assess rates of decline and assign population status; the results of our power analysis to detect decline is particularly relevant to this use.
+Surveys could also be used to monitor recovery effects of MPAs themselves against long historical baselines of expected spatial and temporal patterns and levels of observation error.
+In fact, the surveys examined here were used to inform the MPA network design whose impacts we are evaluating.
+
 
 % \textbf{Paragraph: Consider the risk tradeoff explicitly}
 
 Eliminating scientific surveys inside protected areas shifts risk from those associated with localized disturbance of benthic habitats and organisms (including corals and sponges) onto a suite of commercially exploited species (groundfish here) by reducing the ability to effectively monitor their populations.
 Many of these these commercially exploited species regularly move into and out of the MPAs and some are at low fractions of their unfished biomass.
 How to balance this tradeoff is a policy decision, but we think it is important to remember that this tradeoff exists.
-Decisions about how to manage this tradeoff should be rooted in analysis, such as what we have explored here, as well as estimates of survey gear recurrence time \citep{benoit2020national} and simulation modelling identifying impacts on probability of achieving conservation and fishery objectives.
+Decisions about how to manage this tradeoff should be informed by data analyses, such as what we have explored here, as well as estimates of survey gear recurrence time \citep{benoit2020national} and simulation modelling identifying impacts on probability of achieving conservation and fishery objectives.
 % We suggest allowing at least some survey effort in closed areas, particularly from less destructive gear, accelerating research on less destructive survey methods, and ensuring sufficient calibration between any historical and new survey methods to maintain index integrity.
 
 Although we applied our approach to a proposed MPA network, our approach is equally applicable to other forms of survey restriction including wind farms \citep{hare2022}, oil and gas, funding cuts, or other logistical restraints \citep{ices2023}.
@@ -578,7 +580,7 @@ Code for this analysis is available at \href{https://github.com/pbs-assess/gfmpa
 \begin{figure}[htb]
   \centering
   \includegraphics[width=6in]{figs/fig1.pdf}
-  \caption{Map of proposed Marine Protected Areas (MPAs) within the Northern Shelf Bioregion (NSB) MPA network that overlap with included surveys. Left panel shows the survey domains as shaded grey in 2 $\times$ 2 km grid cells and the MPAs coloured by zone category. Right panel shows all survey sampling locations between 2003 and 2022 as coloured dots (colour indicating survey) and with the MPAs coloured in black.}
+  \caption{Map of proposed Marine Protected Areas (MPAs) within the Northern Shelf Bioregion (NSB) MPA network that overlap with included surveys. Left panel shows the survey domains as shaded grey in 2 $\times$ 2 km grid cells and the MPAs coloured by zone category. Right panel shows all survey sampling locations between 2003 and 2022 as coloured dots (colour indicating survey) and with the overlapping MPAs coloured in black.}
   \label{fig:map}
 \end{figure}
 
@@ -594,7 +596,7 @@ Code for this analysis is available at \href{https://github.com/pbs-assess/gfmpa
 \begin{figure}[htb]
     \centering
     \includegraphics[width=\textwidth]{figs/index-geo-restricted-highlights}
-    \caption{Indices of relative abundance for selected species with variable patterns in abundance and responses to restrictions. Dots and lines represent means and 95\% CIs. Colours lines and points represent the status quo index (with colour indicating the survey) and grey represents the same time series estimated assuming survey sets within the NSB MPA network had been excluded and the survey domain shrunk. All time series have been centered to have a geometric mean of one and the upper vertical axis is limited to four times the maximum mean estimate per panel (affects Petrale Sole in 2007). See Figures \ref{fig:ts-hbll}, \ref{fig:ts-wchg}, \ref{fig:ts-hs}, and \ref{fig:ts-qcs} for all time series. ``Rougheye/Blackspotted'' refers to the Rougheye and Blackspotted Rockfish complex. Generalized additive models with gamma error and log links are shown to highlight trends.}
+    \caption{Indices of relative abundance for selected species with variable patterns in abundance and responses to restrictions. Dots and lines represent means and 95\% CIs. Colours lines and points represent the status quo index (with colour indicating the survey) and grey represents the same time series estimated assuming survey sets within the NSB MPA network had been excluded and the survey domain shrunk. All time series have been centered to have a geometric mean of one and the upper vertical axis is limited to four times the maximum mean estimate per panel (affects Petrale Sole in 2007). See Figures \ref{fig:ts-hbll}, \ref{fig:ts-wchg}, \ref{fig:ts-hs}, and \ref{fig:ts-qcs} for all time series. ``Rougheye/Blackspotted'' refers to the Rougheye and Blackspotted Rockfish complex. Generalized additive models with gamma error and log links are shown to highlight trends; note the flattening of some `restricted' trends due to increased interannual variation.}
     \label{fig:timeseries}
 \end{figure}
 
@@ -602,7 +604,7 @@ Code for this analysis is available at \href{https://github.com/pbs-assess/gfmpa
 \begin{figure}[htb]
     \centering
     \includegraphics[width=0.92\textwidth]{figs/metrics-dotplot-main}
-    \caption{Variation across species in the loss of precision (a--d), accuracy (e--h), and trend bias in relative error (RE: i--l) for indices of abundance resulting from retrospective survey restriction in the shrunk-survey-domain scenario. Dots represent medians and lines represent interquartile ranges across annual index values (a--h) and the mean and 95\% CI on the estimated slope from a linear model of RE per decade (i--l). Vertical grey line indicates no change from the restriction and dashed coloured vertical lines indicate medians within a category (across all species, including those not shown). Surveys are sorted with those most impacted spatially by MPA restrictions at the top. Species are sorted from top to bottom within surveys by proportion of predicted biomass or abundance within the NSB MPA regions (shown in parentheses) and species are omitted if their proportions with the NSB MPA regions are less than 0.1 (1/26 for SYN WCHG, 0/19 for HBLL OUT N, 22/32 for SYN HS, 25/29 for SYN QCS; all species are shown in Fig.~\ref{fig:covariates}). See Fig.~\ref{fig:metrics-design-geo} for a version with design-based estimators and Fig.~\ref{fig:cv-abs} for absolute CVs. }
+    \caption{Variation across species in the loss of precision (a--d), accuracy (e--h), and trend bias in relative error (RE: i--l) for indices of abundance resulting from retrospective survey restriction in the shrunk-survey-domain scenario. Dots represent medians and lines represent interquartile ranges across annual index values (a--h) and the mean and 95\% CI on the estimated slope from a linear model of RE per decade (i--l). Vertical grey line indicates no change from the restriction and dashed coloured vertical lines indicate medians within a category (across all species, including those not shown). Surveys are sorted with those most impacted spatially by MPA restrictions at the top. Species are sorted from top to bottom within surveys by decreasing proportion of predicted biomass or abundance within the NSB MPA regions (shown in parentheses) and species are omitted if their proportions with the NSB MPA regions are less than 0.15 (1/26 for SYN WCHG, 0/19 for HBLL OUT N, 22/32 for SYN HS, 25/29 for SYN QCS; all species are shown in Fig.~\ref{fig:covariates}). See Fig.~\ref{fig:metrics-design-geo} for a version with design-based estimators and Fig.~\ref{fig:cv-abs} for absolute CVs. }
     \label{fig:dotplot}
 \end{figure}
 
@@ -618,7 +620,7 @@ Code for this analysis is available at \href{https://github.com/pbs-assess/gfmpa
 \begin{figure}[htb]
     \centering
     \includegraphics[width=4.8in]{figs/slopes-wchg2}
-    \caption{Slope in relative error (i.e., how ``wrong'' the estimated index trend is) as a function of trend in the proportion of a species' density that is located within the MPA network (i.e., whether a species is increasing in density inside vs.\ outside the MPA). Shown here is the SYN WCHG survey where the strongest trends occurred. Species to the right of zero are increasingly hidden by the MPAs; species to the left are increasingly found outside the MPAs. Panels on the right illustrate the most extreme cases of trends in density proportion within the MPAs with GAMs fit for visualization. Colours in left and right panels match. Solid sloped line and ribbon represent a regression mean and 95\% CI; dotted sloped line represents a 1:1 relationship.}
+    \caption{Slope in relative error (i.e., how ``wrong'' the estimated index trend is) as a function of trend in the proportion of a species' density that is located within the MPA network (i.e., whether a species is increasing in density inside vs.\ outside the MPA). Shown here is the SYN WCHG survey where the strongest trends occurred. Species to the right of zero are increasingly hidden by the MPAs; species to the left, proportionally, are increasingly found outside the MPAs. Panels on the right illustrate the most extreme cases of trends in density proportion within the MPAs with GAMs fit for visualization. Colours in left and right panels match. Solid sloped line and ribbon represent a regression mean and 95\% CI; dotted sloped line represents a 1:1 relationship.}
     \label{fig:slopes}
 \end{figure}
 
@@ -709,11 +711,11 @@ count),
 $\omega_{\boldsymbol{s}}$ represents a spatial random field with Mat\'ern covariance [$\omega_{\boldsymbol{s}} \sim \mathrm{MVN}(\boldsymbol{0},\boldsymbol{\Sigma}_\omega)$],
 and $\epsilon_{\boldsymbol{s},t}$ represents spatiotemporal random fields with Mat\'ern covariance [$\epsilon_{\boldsymbol{s},t} \sim \mathrm{MVN}(\boldsymbol{0},\boldsymbol{\Sigma}_{\epsilon})$].
 The delta-gamma models have two components: a binomial component with a logit link modelling species encounter vs.\ non-encounter and a gamma component with a log link modelling species catch (biomass or count) if a species was observed in a given set.
-The Tweedie models use Tweedie observation error with a log link.
+The Tweedie models use \citet{tweedie1984} observation error with a log link.
 
 We place penalized complexity priors \citep{fuglstad2019} on the Mat\'ern covariance parameters. This weakly constrains the parameters to reasonable values and will tend to favour simpler random fields (less `wiggly' fields with smaller standard deviations and larger ranges) if the data are not informative about spatial correlation. We set priors on both the spatial and spatiotemporal marginal standard deviation as $P(\sigma > 5) = 0.05$ and a prior on the range parameter shared across any spatial and spatiotemporal fields within a model component as $P(\rho < 20\ \mathrm{km}) = 0.05$.
 
-We fit a sequence of models to emulate what an applied modeller might do if manually fitting models to these data sets and choosing a model that is best able to represent variation in the data while achieving satisfactory convergence diagnostics (Table~\ref{tab:model-configs}). For each survey and species combination and in the restricted survey scenario, the first model is fit; if that model fails convergence checks (positive-definite Hessian matrix, maximum gradient with respect to fixed effects $<$ 0.001, all random field standard deviations $\ge$ 0.01) then the subsequent model is run and so on. We start by fitting models to the ``restricted'' survey data sets since these have least data and therefore tend to have the most convergence issues. We then record the chosen model and use this same model when fitting the full data set for comparison (Fig.~\ref{fig:metrics-by-model}).
+We fit a sequence of models to emulate what an applied modeller might do if manually fitting models to these data sets and choosing a model that is best able to represent variation in the data while achieving satisfactory convergence diagnostics (Table~\ref{tab:model-configs}). For each survey and species combination and in the restricted survey scenario, the first model is fit; if that model fails convergence checks (positive-definite Hessian matrix, maximum gradient with respect to fixed effects $<$ 0.01, all random field standard deviations $\ge$ 0.01) then the subsequent model is run and so on. We start by fitting models to the ``restricted'' survey data sets since these have the least data and therefore tend to have the most convergence issues. We then record the chosen model and use this same model when fitting the full data set (and any up- or down-sampled datasets) for comparison (Fig.~\ref{fig:metrics-by-model}).
 
 \clearpage
 
