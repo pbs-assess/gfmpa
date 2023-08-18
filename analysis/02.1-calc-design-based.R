@@ -110,29 +110,6 @@ table(sim$survey_abbrev)
 table(sim$species_common_name)
 length(sim_nsb_list)
 
-# boot_status_quo <- purrr::map_dfr(dat_status_quo_list, function(.x) {
-#   cat(.x$species_common_name[1], .x$survey_abbrev[1], "\n")
-#   out <- boot_biomass_furrr(.x, reps = 1000L)
-#   out$species_common_name <- .x$species_common_name[1]
-#   select(out, survey_abbrev, species_common_name, everything())
-# })
-#
-# boot_nsb <- purrr::map_dfr(dat_nsb_list, function(.x) {
-#   out <- boot_biomass_furrr(.x, reps = 1000L)
-#   out$species_common_name <- .x$species_common_name[1]
-#   select(out, survey_abbrev, species_common_name, everything())
-# })
-
-# -----------
-
-# boot_biomass_purrr(dat_status_quo_list[[2]], reps = 10L)
-#
-# xx <- system.time(boot_biomass_purrr(dat_status_quo_list[[1]], reps = 900L))
-# cat("Expectation:",
-#   round(length(dat_status_quo_list) * xx[[3]] / 60 / 6, 2),
-#   "minutes\n"
-# )
-
 boot_over_list <- function(.dat, .type = "Status quo") {
   tictoc::tic()
   out <- furrr::future_map_dfr(.dat, function(.x) {
@@ -157,13 +134,11 @@ boot_nsb <- readRDS("data-generated/stratified-random-design-boot-nsb.rds")
 boot_over_list_sim <- function(.dat) {
   tictoc::tic()
   out <- furrr::future_map_dfr(.dat, function(.x) {
-  # out <- purrr::map_dfr(.dat, function(.x) {
     out <- boot_biomass_purrr(.x, reps = 600L)
     out$species_common_name <- .x$species_common_name[1]
     out$type <- paste0("Random up-sampled and shrunk ", unique(.x$upsample_seed))
     select(out, survey_abbrev, species_common_name, type, everything())
   }, .options = furrr::furrr_options(seed = TRUE), .progress = TRUE)
-  # })
   tictoc::toc()
   out$est_type <- "bootstrap"
   out
@@ -175,7 +150,6 @@ boot_sim <- readRDS("data-generated/stratified-random-design-boot-nsb-sim-up.rds
 
 
 # Design-based estimators:
-
 # working through Cochran 1977:
 # https://ia801409.us.archive.org/35/items/Cochran1977SamplingTechniques_201703/Cochran_1977_Sampling%20Techniques.pdf
 # p. 95

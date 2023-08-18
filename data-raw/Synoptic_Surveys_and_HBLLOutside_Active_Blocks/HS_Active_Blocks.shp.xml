@@ -1,0 +1,3 @@
+<?xml version="1.0"?>
+<!--<!DOCTYPE metadata SYSTEM "http://www.esri.com/metadata/esriprof80.dtd">-->
+<metadata xml:lang="en"><Esri><MetaID>{D62C81F4-74BE-45CF-A67D-71E8A6F3CF71}</MetaID><CreaDate>20230328</CreaDate><CreaTime>12254300</CreaTime><SyncOnce>TRUE</SyncOnce><DataProperties><lineage><Process ToolSource="C:\Program Files (x86)\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\RepairGeometry" Date="20230328" Time="122543">RepairGeometry HS_Active_Blocks DELETE_NULL HS_Active_Blocks</Process></lineage></DataProperties></Esri></metadata>

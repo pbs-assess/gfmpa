@@ -35,14 +35,7 @@ s <- mutate(s,
 
 table(s$type)
 table(s$est_type)
-# nrow(s)
-# table(s$type)
 s <- filter(s, type != "MPA only restricted")
-# table(s$est_type)
-# table(s$family)
-# table(s$spatiotemporal)
-# table(s$survey_abbrev)
-# table(s$survey_abbrev)
 
 s$species_common_name <- stringr::str_to_title(s$species_common_name)
 s <- mutate(s, species_common_name = gsub(
@@ -56,13 +49,6 @@ prop_mpa <- s |>
   summarise(prop_mpa = mean(est[type == "MPA only"] / est[type == "Status quo"]))
 stopifnot(sum(is.na(prop_mpa$prop_mpa)) == 0L)
 
-# s$orig_cv <- NULL
-# orig_cv <- s |>
-#   filter(type %in% c("Status quo"), est_type == "geostat") |>
-#   select(species_common_name, survey_abbrev, year, cv) |>
-#   distinct() |>
-#   mutate(orig_cv = cv) |> select(-cv)
-
 squo_est <- s |>
   filter(type %in% "Status quo") |>
   select(species_common_name, survey_abbrev, year, est_type, orig_est = est) |>
@@ -72,7 +58,6 @@ s <- left_join(s, prop_mpa) |>
   left_join(squo_est) |>
   left_join(prop_mpa_set) |>
   left_join(prop_pos)
-  # left_join(orig_cv)
 
 # geo-mean center
 s <- s |>
@@ -92,15 +77,24 @@ re_slopes <- s |>
   group_split() |>
   purrr::map_dfr(function(x) {
     x$decade <- x$year / 10
-    fit <- try({lm(re ~ decade, data = x)}, silent = TRUE)
+    fit <- try(
+      {
+        lm(re ~ decade, data = x)
+      },
+      silent = TRUE
+    )
     if (inherits(fit, "try-error")) {
-      return(data.frame(slope_re = NA_real_, se_slope_re = NA_real_,
+      return(data.frame(
+        slope_re = NA_real_, se_slope_re = NA_real_,
         species_common_name = x$species_common_name[1], survey_abbrev = x$survey_abbrev[1],
-        type = x$type[1], est_type = x$est_type[1]))
+        type = x$type[1], est_type = x$est_type[1]
+      ))
     } else {
-      return(data.frame(slope_re = coef(fit)[[2]], se_slope_re = summary(fit)$coefficients[2, 2],
+      return(data.frame(
+        slope_re = coef(fit)[[2]], se_slope_re = summary(fit)$coefficients[2, 2],
         species_common_name = x$species_common_name[1], survey_abbrev = x$survey_abbrev[1],
-        type = x$type[1], est_type = x$est_type[1]))
+        type = x$type[1], est_type = x$est_type[1]
+      ))
     }
   })
 re_slopes <- mutate(re_slopes,
@@ -108,7 +102,7 @@ re_slopes <- mutate(re_slopes,
   slope_re_med_abs = abs(slope_re),
   slope_re_lwr = slope_re - qnorm(0.75) * se_slope_re,
   slope_re_upr = slope_re + qnorm(0.75) * se_slope_re
-  ) |>
+) |>
   group_by(species_common_name, survey_abbrev, type, est_type) |>
   mutate(slope_re_lwr_abs = case_when(
     slope_re_lwr < 0 & slope_re_upr < 0 ~ abs(slope_re_lwr),
@@ -122,7 +116,8 @@ re_slopes <- mutate(re_slopes,
     slope_re_lwr < 0 & slope_re_upr > 0 ~ max(abs(slope_re_upr), abs(slope_re_lwr)), # spans 0, take max abs value
     .default = NA_real_
   )) |>
-  select(-slope_re, -se_slope_re) |> ungroup()
+  select(-slope_re, -se_slope_re) |>
+  ungroup()
 
 qs <- c(0.25, 0.75)
 
@@ -158,7 +153,8 @@ med <- select(metrics, species_common_name:est_type, ends_with("med")) |>
 nrow(lwr)
 nrow(upr)
 nrow(med)
-metrics_long <- left_join(lwr, upr) |> left_join(med) |>
+metrics_long <- left_join(lwr, upr) |>
+  left_join(med) |>
   left_join(prop_mpa) |>
   left_join(prop_mpa_set) |>
   left_join(prop_pos) |>
@@ -177,7 +173,8 @@ metrics_long$survey_abbrev <- factor(metrics_long$survey_abbrev,
 saveRDS(metrics_long, "data-generated/metrics-long2.rds")
 saveRDS(metrics, "data-generated/metrics-wide2.rds")
 
-metrics |> group_by(est_type, type) |>
+metrics |>
+  group_by(est_type, type) |>
   filter(type != "MPA only") |>
   filter(survey_abbrev != "SYN QCS, SYN HS") |>
   summarise(
@@ -202,10 +199,8 @@ metrics |> group_by(est_type, type) |>
     "Status quo",
     "Random down-sampled and shrunk 1",
     "Random down-sampled and shrunk 2"
-    )) |>
-  # arrange(-mean_slope) |>
+  )) |>
   arrange(mean_mare) |>
-  # arrange(mean_cv) |>
   knitr::kable(digits = 2)
 
 # Average conclusions
@@ -236,19 +231,7 @@ metrics |> group_by(est_type, type) |>
 # answer:
 # 50% coverage does go down with upsampling
 
-metrics |> group_by(est_type, type) |>
+metrics |>
+  group_by(est_type, type) |>
   summarise(mean_cv_med = mean(mare_med)) |>
   arrange(mean_cv_med)
-
-# remove bottom 10% quantile of biomass
-# plot omega + intercept with 'v' slopes zeta things
-# as a check - plot prediction at beginning/middle/end
-# all juvenile, mature male, mature female
-
-# is 5% and 95% good maturity thresholds!?
-# include maturity!? which is middle 90%
-# potentialy add pre 2003 lengths to density plot for US West Coast
-# moving along growth curve or diff. growth curve
-# moving deeper!? COG depth... curves...
-
-# definitely COG depth

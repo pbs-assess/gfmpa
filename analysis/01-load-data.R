@@ -1,14 +1,15 @@
-library(dplyr)
-library(ggplot2)
-library(sf)
-# library(future)
-# plan(multisession)
-
 dir.create("data-generated", showWarnings = FALSE)
 dir.create("figs", showWarnings = FALSE)
 
+if (Sys.info()[["user"]] != "seananderson") {
+  stop("This file does not need to be run; all outputs have been cached and commited in Git.")
+}
+
+library(dplyr)
+library(ggplot2)
+library(sf)
+
 cat12_only <- TRUE
-# cat12_only <- FALSE
 
 source("analysis/functions.R")
 
@@ -22,82 +23,21 @@ f <- list.files("~/src/gfsynopsis-2021/report/data-cache-feb-2023/",
   full.names = TRUE
 )
 s <- readRDS(f[grep("arrow", f)])$survey_sets
-s <- filter(s,survey_abbrev %in% c("SYN QCS", "SYN HS", "SYN WCHG"))
+s <- filter(s, survey_abbrev %in% c("SYN QCS", "SYN HS", "SYN WCHG"))
 
-trawl_removed <- dplyr::filter(x, SurveyOverlap %in% c("Category 1", "Category 2", "Gwaii Haanas Site- Strict Protection"))
+trawl_removed <- dplyr::filter(x, SurveyOverlap %in% c(
+  "Category 1", "Category 2",
+  "Gwaii Haanas Site- Strict Protection"
+))
 
-g <- ggplot(trawl_removed, aes(colour = SurveyOverlap)) + geom_sf() +
+g <- ggplot(trawl_removed, aes(colour = SurveyOverlap)) +
+  geom_sf() +
   theme_light() +
   theme(legend.position = "top")
-  # geom_point(data = s, mapping = aes())
+# geom_point(data = s, mapping = aes())
 ggsave("figs/rough-map-trawl.png", width = 7, height = 7)
 
-# filter(x, SurveyOverlap %in% "Gwaii Haanas Site- Strict Protection") |>
-#   ggplot() + geom_sf(mapping = aes(colour = SurveyOverlap))
-#
-# filter(x, SurveyOverlap %in% "Category 1") |>
-#   ggplot() + geom_sf(mapping = aes(colour = SurveyOverlap))
-#
-# filter(x, SurveyOverlap %in% "Category 2") |>
-#   ggplot() + geom_sf(mapping = aes(colour = SurveyOverlap))
-#
-# g <- filter(x, SurveyOverlap %in% c("Category 1", "Category 2")) |>
-#   ggplot() + geom_sf(mapping = aes(colour = SurveyOverlap))
-# ggsave("~/Desktop/map.png", width = 8, height = 8)
-#
-# filter(x, SurveyOverlap %in% "Category 2") |>
-#   ggplot() + geom_sf(mapping = aes(colour = SurveyOverlap))
-#
-#
-# x <- sf::read_sf("data-raw/MPATT_P2_Nov25_limited_attributes.gdb/", type = 7)
-# table(x$Category_Detailed)
-# # Category 1
-# # 171
-# # Category 2
-# # 12
-# # Existing MPA/RCA - 'as-is, where-is'
-# # 54
-# # Existing MPA/RCA - 'as-is, where-is' *
-# #   24
-# # Existing MPA/RCA - 'as-is, where-is' **
-# #   29
-# # Existing MPA/RCA - 'as-is, where-is' ***
-# #   67
-# table(x$Prop_Desig_Tool)
-# # BC WMA Fisheries Act + BC tools
-# # 2                        7                        9
-# # Fisheries Act tool                     MNWA                    NMCAR
-# # 17                       51                       76
-# # Oceans Act MPA                      TBD
-# # 18                       12
-# table(x$SUBREGION)
-# # CC  HG  NC NVI
-# # 83  84  68 122
-
-# if (cat12_only) {
-#   trawl_removed <- dplyr::filter(x, SurveyOverlap %in% c("Category 1", "Category 2", "Gwaii Haanas Site- Strict Protection", "Gwaii Haanas Site- Multi Use Gwaii"))
-# } else {
-#   stop("Not implemented")
-#   # .cat <- c("Category 1", "Category 2", "Existing MPA/RCA - 'as-is, where-is'",
-#   #   "Existing MPA/RCA - 'as-is, where-is' *", "Existing MPA/RCA - 'as-is, where-is' **",
-#   #   "Existing MPA/RCA - 'as-is, where-is' ***")
-#   # trawl_removed <- dplyr::filter(x, Category_Detailed %in% .cat)
-# }
-
-# x |>
-#   dplyr::filter(Category_Detailed == "Category 1") |>
-#   plot()
-
-
-# x <- sf::read_sf("data-raw/Spatial_N1_May17_2021.gdb")
-# # plot(x["hu_co_demersalfishing_bottomtrawling_d"])
-# trawl_removed <- dplyr::filter(x, hu_co_demersalfishing_bottomtrawling_d %in% c("X"))
-# plot(trawl_removed["hu_co_demersalfishing_bottomtrawling_d"])
-
 # https://gis.stackexchange.com/questions/389814/r-st-centroid-geos-error-unknown-wkb-type-12
-
-# library(sf)
-# library(gdalUtilities)
 ensure_multipolygons <- function(X) {
   tmp1 <- tempfile(fileext = ".gpkg")
   tmp2 <- tempfile(fileext = ".gpkg")
@@ -138,10 +78,9 @@ f <- list.files("~/src/gfsynopsis-2021/report/data-cache-feb-2023/",
 )
 aleut <- readRDS(f[grep("arrow", f)])$survey_sets
 aleut <- filter(aleut, year %in% c(2021, 2022))
-# aleut <- filter(aleut, survey_abbrev == "SYN WCHG", year == 2015)
-# aleut <- filter(aleut, survey_abbrev == "SYN WCHG", year == 2015)
 aleut <- assign_restricted_tows(aleut)
-ggplot(aleut, aes(longitude, latitude, size = density_kgpm2, colour = restricted)) + geom_point()
+ggplot(aleut, aes(longitude, latitude, size = density_kgpm2, colour = restricted)) +
+  geom_point()
 
 if (Sys.info()[["user"]] == "seananderson") {
   f <- list.files("~/src/gfsynopsis-2021/report/data-cache-feb-2023/",
@@ -185,11 +124,11 @@ saveRDS(dat_to_fit, file = "data-generated/dat_to_fit.rds")
 
 # HBLL -----------------
 
-# x <- sf::read_sf("data-raw/Spatial_N1_May17_2021.gdb")
 x <- sf::read_sf("data-raw/mpatt_survey_overlaps.gdb", type = 7, layer = "MPATT_Q1_full_march2023_Cat1_Cat2_GH_singlepart")
 unique(x$SurveyOverlap)
 
-g <- ggplot(x, aes(colour = SurveyOverlap)) + geom_sf() +
+g <- ggplot(x, aes(colour = SurveyOverlap)) +
+  geom_sf() +
   theme_light() +
   theme(legend.position = "right")
 # geom_point(data = s, mapping = aes())
@@ -197,7 +136,8 @@ ggsave("figs/rough-map-rca.png", width = 10, height = 7)
 
 hbll_removed <- dplyr::filter(x, SurveyOverlap %in% c("Category 1", "Category 2", "Gwaii Haanas Site- Strict Protection - RCA overlap"))
 
-g <- ggplot(hbll_removed, aes(colour = SurveyOverlap)) + geom_sf() +
+g <- ggplot(hbll_removed, aes(colour = SurveyOverlap)) +
+  geom_sf() +
   theme_light() +
   theme(legend.position = "top")
 ggsave("figs/rough-map-hbll.png", width = 7, height = 7)
@@ -206,15 +146,6 @@ hbll_removed <- ensure_multipolygons(hbll_removed)
 ll_removed <- hbll_removed
 
 saveRDS(ll_removed, file = "data-generated/LL_Cat1_2_GH_Apr2023.rds")
-
-# ll_removed <- trawl_removed
-# plot(x["hu_co_demersalfishing_bottomlongline_d"])
-# ll_removed <- dplyr::filter(x, hu_co_demersalfishing_bottomlongline_d %in% c("X"))
-# ll_removed <- sf::st_cast(ll_removed, "MULTIPOLYGON")
-# saveRDS(ll_removed, file = "data-generated/hu_co_demersalfishing_bottomlongline_d_X.rds")
-# png("figs/ll-map.png", width = 5, height = 6, units = "in", res = 200)
-# plot(ll_removed["hu_co_demersalfishing_bottomlongline_d"])
-# dev.off()
 
 assign_restricted_tows_hbll <- function(dat) {
   orig <- dat
@@ -239,50 +170,22 @@ assign_restricted_tows_hbll <- function(dat) {
   dat %>% as_tibble()
 }
 
-# aleut <- readRDS(f[grep("aleut", f)])$survey_sets
-# aleut <- filter(aleut, survey_abbrev == "HBLL OUT N", year == 2015)
-# aleut <- assign_restricted_tows_hbll(aleut)
-# ggplot(aleut, aes(longitude, latitude, size = density_ppkm2, colour = restricted)) + geom_point()
-
-if (Sys.info()[["user"]] == "seananderson") {
-  f <- list.files("~/src/gfsynopsis-2021/report/data-cache-feb-2023/",
-    full.names = TRUE
-  )
-  f <- f[!grepl("cpue", f)]
-  f <- f[!grepl("iphc", f)]
-  hbll_data <- purrr::map_dfr(seq_along(f), function(i) {
-    cat(f[i], "\n")
-    d <- readRDS(f[i])$survey_sets
-    filter(d, survey_abbrev %in% c("HBLL OUT N")) %>%
-      select(
-        year, fishing_event_id, survey_abbrev, species_science_name, species_common_name,
-        density_ppkm2, latitude, longitude, grouping_code, area_km2, depth_m,
-        hook_count, catch_count
-      )
-  })
-  saveRDS(hbll_data, file = "data-raw/hbll-survey-data.rds")
-} else {
-  if (Sys.info()[["user"]] == "dfomac") {
-    f <- list.files("~/github/dfo/gfsynopsis/report/data-cache/",
-      full.names = TRUE
+f <- list.files("~/src/gfsynopsis-2021/report/data-cache-feb-2023/",
+  full.names = TRUE
+)
+f <- f[!grepl("cpue", f)]
+f <- f[!grepl("iphc", f)]
+hbll_data <- purrr::map_dfr(seq_along(f), function(i) {
+  cat(f[i], "\n")
+  d <- readRDS(f[i])$survey_sets
+  filter(d, survey_abbrev %in% c("HBLL OUT N")) %>%
+    select(
+      year, fishing_event_id, survey_abbrev, species_science_name, species_common_name,
+      density_ppkm2, latitude, longitude, grouping_code, area_km2, depth_m,
+      hook_count, catch_count
     )
-    f <- f[!grepl("cpue", f)]
-    f <- f[!grepl("iphc", f)]
-    hbll_data <- purrr::map_dfr(seq_along(f), function(i) {
-      cat(f[i], "\n")
-      d <- readRDS(f[i])$survey_sets
-      filter(d, survey_abbrev %in% c("HBLL OUT N")) %>%
-        select(
-          year, fishing_event_id, survey_abbrev, species_science_name, species_common_name,
-          density_ppkm2, latitude, longitude, grouping_code, area_km2, depth_m,
-          hook_count, catch_count
-        )
-    })
-    saveRDS(hbll_data, file = "data-raw/hbll-survey-data.rds")
-  } else {
-    hbll_data <- readRDS("data-raw/hbll-survey-data.rds")
-  }
-}
+})
+saveRDS(hbll_data, file = "data-raw/hbll-survey-data.rds")
 
 dat <- assign_restricted_tows_hbll(hbll_data)
 

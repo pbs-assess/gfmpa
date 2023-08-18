@@ -4,31 +4,12 @@ source("analysis/theme.R")
 metrics_long <- readRDS("data-generated/metrics-long2.rds")
 metrics_wide <- readRDS("data-generated/metrics-wide2.rds")
 
-# metrics_long <- filter(metrics_long, !survey_abbrev %in% c("SYN QCS", "SYN HS"))
-# metrics_wide <- filter(metrics_wide, !survey_abbrev %in% c("SYN QCS", "SYN HS"))
-
 metrics_long <- filter(metrics_long, !survey_abbrev %in% c("SYN QCS, SYN HS"))
 metrics_wide <- filter(metrics_wide, !survey_abbrev %in% c("SYN QCS, SYN HS"))
 
-# m <- select(metrics_wide, survey_abbrev, species_common_name, cv_orig, prop_mpa, slope_squo_decade) |>
-#   distinct()
-#
-# metrics_long <- metrics_long |>
-#   left_join(m, by = join_by(species_common_name, survey_abbrev))
-#
-# metrics_long <- metrics_long |>
-#   mutate(survey_abbrev = factor(survey_abbrev,
-#     levels = c(
-#       "SYN WCHG",
-#       "HBLL OUT N",
-#       "SYN QCS, SYN HS"))
-#   )
-
-# restricted_cols <- RColorBrewer::brewer.pal(4, "Set2")
 g <- metrics_wide |>
   filter(type %in% "Restricted and shrunk") |>
   filter(est_type %in% "geostat") |>
-  # filter(grepl("mare", measure)) |>
   ggplot(
     aes(orig_cv_mean, mare_med, colour = survey_abbrev)
   ) +
@@ -39,12 +20,14 @@ g <- metrics_wide |>
   guides(shape = "none") +
   scale_colour_manual(name = "Survey", values = restricted_cols) +
   scale_x_log10() +
-  stat_smooth(se = TRUE, alpha = 0.2, method = "glm", method.args = list(family = Gamma(link = "log")), formula = y ~ x, show.legend = FALSE) +
+  stat_smooth(
+    se = TRUE, alpha = 0.2, method = "glm",
+    method.args = list(family = Gamma(link = "log")), formula = y ~ x, show.legend = FALSE
+  ) +
   theme(
     legend.position = c(0.23, 0.8),
     strip.placement = "outside"
   ) +
-  # coord_cartesian(ylim = c(0, 0.9), xlim = c(0.08, 0.85)) +
   coord_cartesian(ylim = c(0, 0.5), xlim = c(0.08, 0.8)) +
   scale_x_continuous(breaks = c(0.1, 0.2, 0.4, 0.8)) +
   scale_y_continuous(expand = expansion(mult = c(0, .01)))
@@ -67,32 +50,25 @@ g <- metrics_long |>
   xlab("Proportion stock in MPA") +
   guides(shape = "none") +
   scale_colour_manual(name = "Survey", values = restricted_cols) +
-  # scale_colour_brewer(palette = "Set2") +
   facet_wrap(
     ~measure_clean,
     nrow = 1L,
     scales = "free_y"
   ) +
   scale_x_log10() +
-  stat_smooth(se = TRUE, alpha = 0.15, method = "glm", method.args = list(family = Gamma(link = "log")), formula = y ~ x, show.legend = FALSE) +
+  stat_smooth(
+    se = TRUE, alpha = 0.15, method = "glm",
+    method.args = list(family = Gamma(link = "log")), formula = y ~ x, show.legend = FALSE
+  ) +
   theme(
     axis.title.y = element_blank(),
     axis.title.x = element_text(size = 10),
     legend.position = c(0.25, 0.918),
     strip.placement = "outside"
   ) +
-  coord_cartesian(xlim = c(0.06, max(metrics_long$prop_mpa, na.rm = TRUE)* 1.04), expand = FALSE)
+  coord_cartesian(xlim = c(0.06, max(metrics_long$prop_mpa, na.rm = TRUE) * 1.04), expand = FALSE)
 
-# g <- g + tagger::tag_facets(tag_prefix = "(", position = "tl", tag_pool = c("b", "c"))
-# g
-
-# ggsave("figs/prop-mpa-vs-metrics.pdf", width = 3.70, height = 6.5)
-# ggsave("figs/prop-mpa-vs-metrics.png", width = 3.70, height = 6.5)
-
-# cv_fig + tagger::tag_facets(tag_prefix = "(", position = "tl", tag_pool = "a")
-
-g +   facet_wrap(~measure_clean, scales = "free_y", ncol = 3
-) +
+g + facet_wrap(~measure_clean, scales = "free_y", ncol = 3) +
   theme(
     axis.title.y = element_blank(),
     axis.title.x = element_text(size = 10),
@@ -108,9 +84,8 @@ make_panel <- function(dat, xvar, yvar, xlab = "CV of 'Status quo' index", ylab 
   g <- dat |>
     filter(type %in% "Restricted and shrunk") |>
     filter(est_type %in% "geostat") |>
-    # filter(grepl("mare", measure)) |>
     ggplot(
-      aes({{xvar}}, {{yvar}}, colour = survey_abbrev)
+      aes({{ xvar }}, {{ yvar }}, colour = survey_abbrev)
     ) +
     geom_point(pch = 21, alpha = 1) +
     geom_point(pch = 19, alpha = 0.2) +
@@ -124,9 +99,6 @@ make_panel <- function(dat, xvar, yvar, xlab = "CV of 'Status quo' index", ylab 
       legend.position = c(0.23, 0.7),
       strip.placement = "outside"
     ) +
-    # coord_cartesian(ylim = c(0, 0.9), xlim = c(0.08, 0.85)) +
-    # coord_cartesian(ylim = c(0, 0.5), xlim = c(0.08, 0.8)) +
-    # scale_x_continuous(breaks = c(0.1, 0.2, 0.4, 0.8)) +
     scale_y_continuous(expand = expansion(mult = c(0, .01)))
   g
 }
@@ -148,9 +120,7 @@ g3 <- metrics_wide |>
 cowplot::plot_grid(g1, g2, g3, nrow = 1, align = "h", axis = "b")
 ggsave("figs/metrics-cross-plot1.pdf", width = 9, height = 2.75)
 
-
 # -------------
-
 
 # design-based instead!?
 
@@ -167,22 +137,19 @@ g <- metrics_long2 |>
     aes(prop_mpa_set, est, colour = survey_abbrev)
   ) +
   geom_point(pch = 21, alpha = 1) +
-  # scale_y_continuous(lim = c(0, NA), expand = expansion(mult = c(0, .04))) +
   geom_point(pch = 19, alpha = 0.2) +
   xlab("Proportion stock in MPA") +
   guides(shape = "none") +
-  # scale_colour_manual(name = "Survey", values = restricted_cols) +
   scale_colour_manual(name = "Survey", values = RColorBrewer::brewer.pal(4, "Set2")) +
-  # scale_colour_brewer(palette = "Set2") +
   facet_grid(
     rows = vars(measure_clean),
-    # switch = "y",
     scales = "free_y"
   ) +
   scale_x_log10() +
-  stat_smooth(se = FALSE, alpha = 0.15, method = "glm", method.args = list(family = Gamma(link = "log")), formula = y ~ x, show.legend = FALSE) +
-  # stat_smooth(se = TRUE, alpha = 0.2, method = "glm", formula = y ~ x, show.legend = FALSE) +
-  # geom_smooth(se = FALSE) +
+  stat_smooth(
+    se = FALSE, alpha = 0.15, method = "glm",
+    method.args = list(family = Gamma(link = "log")), formula = y ~ x, show.legend = FALSE
+  ) +
   theme(
     axis.title.y = element_blank(),
     axis.title.x = element_text(size = 10),

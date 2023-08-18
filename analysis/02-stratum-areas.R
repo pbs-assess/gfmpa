@@ -95,26 +95,15 @@ plot_shrunk_grid <- function(f, restr_dat, return_data = FALSE) {
   pal <- c(as.character(colorBlindness::availableColors())[-1], c("grey60"))
   d <- shrink_domain(d, restr_dat)
 
-  # grouping <- readRDS("data-raw/grouping22.rds")
-
   g <- d |>
-    # left_join(grouping, by = c("GROUPING_CO" = "GROUPING_CODE")) |>
-    # mutate(stratum = paste0(">", MIN_DEPTH_M, "; <", MAX_DEPTH_M)) |>
     ggplot(aes(fill = as.factor(GROUPING_CO))) +
     geom_sf(colour = NA, linewidth = 0) +
-    # scale_colour_manual(values = c("white", "grey20")) +
     scale_fill_manual(values = pal) +
     scale_colour_manual(values = pal) +
-    # ggthemes::scale_colour_colorblind() +
-    # ggthemes::scale_fill_colorblind() +
     geom_sf(data = filter(d, restricted), colour = "#00000050", linewidth = 0.03) +
     theme_light() +
     geom_sf(data = bc_coast, inherit.aes = FALSE) +
     labs(fill = "Stratum ID") +
-  #   coord_sf(
-  #     xlim = c(505961.3 - 20000, 842564.7 + 20000),
-  #     ylim = c(758369.3 - 90000, 1092017.2 - 20000)
-  #   )
   coord_sf(
     xlim = c(164985.2 + 20000, 274985.2 + 300000),
     ylim = c(5851334.2 - 210000, 6047334.2)

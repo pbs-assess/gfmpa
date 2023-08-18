@@ -2,9 +2,6 @@ library(tidyverse)
 library(sdmTMB)
 theme_set(theme_light())
 
-# spp <- "big skate"
-# spp <- "pacific cod"
-# survey <- "SYN WCHG"
 SILENT <- TRUE
 
 dir.create("figs/raw-data-maps", showWarnings = FALSE)
@@ -105,9 +102,6 @@ calc_indices <- function(spp, survey, force = FALSE, do_sampling_stuff = TRUE) {
 
     mesh_all <- make_mesh(surv_dat, xy_cols = c("X", "Y"), cutoff = cutoff)
     mesh_restr <- make_mesh(surv_dat_r, xy_cols = c("X", "Y"), cutoff = cutoff, mesh = mesh_all$mesh) # helps convergence not to use full mesh!?
-    # mesh_up <- make_mesh(surv_dat_up, xy_cols = c("X", "Y"), mesh = mesh_all$mesh)
-    # mesh_down <- make_mesh(surv_dat_down, xy_cols = c("X", "Y"), mesh = mesh_all$mesh)
-    # mesh_down2 <- make_mesh(surv_dat_down2, xy_cols = c("X", "Y"), mesh = mesh_all$mesh)
 
     mi <- list(
       spatiotemporal = list("iid", "iid"),
@@ -118,64 +112,8 @@ calc_indices <- function(spp, survey, force = FALSE, do_sampling_stuff = TRUE) {
     # relax default gradient_thresh from 0.001 to 0.01:
     sanity <- function(...) sdmTMB::sanity(..., gradient_thresh = 0.01)
 
-    # fit_restr2 <- try({
-    #   sdmTMB(
-    #     formula = response ~ 0 + as.factor(year),
-    #     data = surv_dat_r,
-    #     family = tweedie(),
-    #     time = "year",
-    #     spatiotemporal = "iid",
-    #     offset = "offset",
-    #     mesh = mesh_restr,
-    #     anisotropy = FALSE,
-    #     priors = priors,
-    #     silent = SILENT,
-    #     control = sdmTMBcontrol(newton_loops = 1L),
-    #   )})
-
     cat("Fit restricted\n")
 
-    #####################
-    #
-    #     mesh <- make_mesh(surv_dat_r, xy_cols = c("X", "Y"), cutoff = 5)
-    #     plot(mesh$mesh, asp = 1)
-    #
-    #     # sum(is.na(surv_dat_r$depth_m))
-    #     m_aniso <- sdmTMB(
-    #       formula = response ~ 0 + as.factor(year),
-    #       data = surv_dat_r,
-    #       family = mi$family,
-    #       time = "year",
-    #       spatiotemporal = mi$spatiotemporal,
-    #       offset = "offset",
-    #       mesh = mesh,
-    #       anisotropy = T,
-    #       # priors = priors,
-    #       silent = F,
-    #       control = sdmTMBcontrol(newton_loops = 1L),
-    #     )
-    # m_iso <- update(m_aniso, anisotropy = FALSE)
-    #
-    # sanity(m_iso)
-    # sanity(m_aniso)
-    # AIC(m_iso, m_aniso)
-
-    #####################
-
-    # fit_restr_aniso <- try({
-    #  sdmTMB(
-    #     formula = response ~ 0 + as.factor(year),
-    #     data = surv_dat_r,
-    #     family = mi$family,
-    #     time = "year",
-    #     spatiotemporal = mi$spatiotemporal,
-    #     offset = "offset",
-    #     mesh = mesh_restr,
-    #     anisotropy = TRUE,
-    #     priors = priors,
-    #     silent = SILENT
-    #   )
-    # })
     fit_restr_iso <- try({
       sdmTMB(
         formula = response ~ 0 + as.factor(year),
@@ -191,30 +129,7 @@ calc_indices <- function(spp, survey, force = FALSE, do_sampling_stuff = TRUE) {
       )
     })
 
-    # s_aniso <- all(unlist(sanity(fit_restr_aniso)))
-    # s_iso <- all(unlist(sanity(fit_restr_iso)))
-    # if (s_aniso && s_iso) {
-    #   delta_AIC <- AIC(fit_restr_aniso) - AIC(fit_restr_iso)
-    #   if (delta_AIC < -2) {
-    #     mi$anisotropy <- TRUE
-    #   } else {
-    #     mi$anisotropy <- FALSE
-    #   }
-    # }
-    # if (s_aniso && !s_iso) {
-    #   mi$anisotropy <- TRUE
-    # }
-    # if (!s_aniso && s_iso) {
-    #   mi$anisotropy <- FALSE
-    # }
-    # if (!s_aniso && !s_iso) {
-    #   mi$anisotropy <- FALSE
-    # }
-    # if (mi$anisotropy) {
-    # fit_restr <- fit_restr_aniso
-    # } else {
     fit_restr <- fit_restr_iso
-    # }
     ok <- all(unlist(sanity(fit_restr)))
 
     if (!ok) {
@@ -305,8 +220,8 @@ calc_indices <- function(spp, survey, force = FALSE, do_sampling_stuff = TRUE) {
     # Steps:
     # - figure out how many points have been restricted each year/stratum
     # - sample an equivalent number without replacement from the remaining blocks each year
-    # - this is a quick hack to avoid and assigning survey blocks to all existing
-    #   survey at locations, which is tricky because sometimes they fall very
+    # - this is a quick hack to avoid assigning survey blocks to all existing
+    #   survey set locations, which is tricky because sometimes they fall very
     #   slightly outside of the block
 
     # select random locations:
@@ -489,11 +404,6 @@ calc_indices <- function(spp, survey, force = FALSE, do_sampling_stuff = TRUE) {
       filter(!grepl("Random down-sampled [2-9]+", type)) |> # only visualize seed 1
       filter(type %in% c("Restricted and shrunk", "Status quo")) |>
       group_by(type) |>
-
-      # mutate(lwr = lwr / exp(mean(log(est), na.rm = TRUE))) |>
-      # mutate(upr = upr / exp(mean(log(est), na.rm = TRUE))) |>
-      # mutate(est = est / exp(mean(log(est), na.rm = TRUE))) |>
-
       ggplot(aes(year, est, ymin = lwr, ymax = upr, colour = type, group = type)) +
       geom_pointrange(position = position_dodge(width = 1), pch = 21) +
       scale_colour_brewer(palette = "Dark2") +
@@ -526,10 +436,6 @@ calc_indices <- function(spp, survey, force = FALSE, do_sampling_stuff = TRUE) {
     cutoff <- if (survey == "SYN WCHG") 5 else 8
     if (length(survey) > 1) cutoff <- 15
     mesh_all <- make_mesh(surv_dat, xy_cols = c("X", "Y"), cutoff = cutoff)
-    # priors <- sdmTMBpriors(
-    #   matern_s = pc_matern(range_gt = 20, sigma_lt = 5),
-    #   matern_st = pc_matern(range_gt = 20, sigma_lt = 5)
-    # )
     priors <- sdmTMBpriors()
     grid <- sdmTMB::replicate_df(grid, "year", time_values = unique(surv_dat$year))
     gr_full <- dplyr::filter(grid, survey_abbrev %in% survey)
@@ -565,13 +471,16 @@ calc_indices <- function(spp, survey, force = FALSE, do_sampling_stuff = TRUE) {
         scale_fill_viridis_c(option = "D") +
         geom_tile(data = filter(p$data, restricted), fill = "#00000035", width = 2, height = 2) +
         coord_fixed() +
-
-        geom_point(data = filter(surv_dat, response > 0),
+        geom_point(
+          data = filter(surv_dat, response > 0),
           mapping = aes(X, Y, colour = restricted, size = response / exp(offset)),
-          pch = 21, inherit.aes = FALSE, alpha = 0.7) +
-        geom_point(data = filter(surv_dat, response == 0),
+          pch = 21, inherit.aes = FALSE, alpha = 0.7
+        ) +
+        geom_point(
+          data = filter(surv_dat, response == 0),
           mapping = aes(X, Y, colour = restricted), pch = 4, inherit.aes = FALSE,
-          alpha = 0.7, size = 0.6) +
+          alpha = 0.7, size = 0.6
+        ) +
         scale_colour_manual(values = c(`TRUE` = "red", `FALSE` = "white")) +
         ggtitle(spp) +
         scale_size_area(max_size = 8)
@@ -589,8 +498,6 @@ source("analysis/spp.R")
 
 # syn_survs <- c("SYN WCHG", "SYN QCS|SYN HS", "SYN QCS", "SYN HS")
 syn_survs <- c("SYN WCHG", "SYN QCS", "SYN HS")
-# syn_survs <- c("SYN WCHG")
-# syn_survs <- c("SYN QCS|SYN HS")
 
 library(future)
 is_rstudio <- !is.na(Sys.getenv("RSTUDIO", unset = NA))
@@ -607,7 +514,6 @@ if (FALSE) {
   SILENT <- T
   calc_indices(spp = "pacific ocean perch", survey = "SYN WCHG", force = T)
 
-  # calc_indices(spp = syn_highlights[17], survey = syn_survs[3], force = F)
   x <- readRDS("data-generated/indexes/redbanded-rockfish-SYN-WCHG.rds")
   x |>
     filter(type != "MPA only", type != "MPA only restricted", type != "Restricted") |>
@@ -624,15 +530,19 @@ if (FALSE) {
   x <- readRDS("data-generated/sim-data/lingcod-HBLL-OUT-N-seed5.rds")
   glimpse(x)
   grid <- readRDS("data-generated/grids-strata-restricted.rds")
-  # grid <- filter(grid, survey_abbrev %in% "SYN WCHG")
   grid <- filter(grid, survey_abbrev %in% "HBLL OUT N")
   pal <- c(as.character(colorBlindness::availableColors())[-1], c("grey60"))
-  x |> filter(year %in% c(2006, 2010, 2020)) |>
+  x |>
+    filter(year %in% c(2006, 2010, 2020)) |>
     ggplot(aes(X, Y, shape = up_sample)) +
-    geom_tile(data = grid, mapping = aes(X, Y, colour = as.factor(grouping_code),
-      fill = as.factor(grouping_code)), inherit.aes = FALSE, width = 2.01, height = 2.01) +
-    geom_tile(data = filter(grid, restricted), mapping = aes(X, Y),
-      inherit.aes = FALSE, width = 2, height = 2, fill = "grey60") +
+    geom_tile(data = grid, mapping = aes(X, Y,
+      colour = as.factor(grouping_code),
+      fill = as.factor(grouping_code)
+    ), inherit.aes = FALSE, width = 2.01, height = 2.01) +
+    geom_tile(
+      data = filter(grid, restricted), mapping = aes(X, Y),
+      inherit.aes = FALSE, width = 2, height = 2, fill = "grey60"
+    ) +
     geom_point(alpha = 0.8, mapping = aes(size = response)) +
     facet_wrap(~year) +
     scale_shape_manual(values = c(21, 19)) +
@@ -641,8 +551,10 @@ if (FALSE) {
     ggsidekick::theme_sleek() +
     scale_fill_manual(values = pal) +
     scale_colour_manual(values = pal) +
-    labs(colour = "Stratum", fill = "Stratum", shape = "Up sampled",
-      size = "Observed or\nsimulated catch") +
+    labs(
+      colour = "Stratum", fill = "Stratum", shape = "Up sampled",
+      size = "Observed or\nsimulated catch"
+    ) +
     theme(legend.position = "bottom")
   ggsave("figs/upsample-example.pdf", width = 9, height = 4.2)
   ## end test -----------------------------
@@ -652,7 +564,7 @@ set.seed(123)
 
 syn_survs <- c("SYN WCHG", "SYN QCS", "SYN HS")
 to_fit <- expand_grid(spp = syn_highlights, survey = syn_survs)
-to_fit <- to_fit[sample(nrow(to_fit)),] # randomize for parallel
+to_fit <- to_fit[sample(nrow(to_fit)), ] # randomize for parallel
 furrr::future_pmap(to_fit, calc_indices, force = TRUE)
 
 to_fit <- expand_grid(spp = syn_highlights, survey = "SYN QCS|SYN HS")

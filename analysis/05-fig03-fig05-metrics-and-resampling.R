@@ -9,7 +9,6 @@ mround <- function(x, digits) {
 }
 
 make_plot <- function(dat, colour_var = survey_abbrev, prop_threshold = 0.15, cv_upper_limit = 100, group_by_survey = TRUE, include_mean_lines = TRUE, group_var = NULL) {
-
   # get averages...
   temp <- dat |>
     mutate(se = abs((upr - lwr)) / 4) |>
@@ -19,24 +18,23 @@ make_plot <- function(dat, colour_var = survey_abbrev, prop_threshold = 0.15, cv
   } else {
     temp <- group_by(temp, measure, measure_clean, {{ colour_var }})
   }
-  # temp <-
-    # summarise(mean_est = weighted.mean(est, w = 1 / variance))
-   means <- temp |>
+
+  means <- temp |>
     summarise(mean_est = median(est, na.rm = TRUE)) |>
-     filter(measure != "slope_re")
+    filter(measure != "slope_re")
 
   # doing this after such that the means above are for *all* species
 
-   # get numbers cut for paper:
-   dat2 <- mutate(dat, cut_sp = prop_mpa < prop_threshold) |>
-     select(species_common_name, survey_abbrev, cut_sp) |>
-     distinct()
-   check_cut <- group_by(dat2, survey_abbrev) |>
-     summarise(cut_n = sum(cut_sp), not_cut = sum(!cut_sp), n_sp = n())
-   print(as.data.frame(check_cut))
+  # get numbers cut for paper:
+  dat2 <- mutate(dat, cut_sp = prop_mpa < prop_threshold) |>
+    select(species_common_name, survey_abbrev, cut_sp) |>
+    distinct()
+  check_cut <- group_by(dat2, survey_abbrev) |>
+    summarise(cut_n = sum(cut_sp), not_cut = sum(!cut_sp), n_sp = n())
+  print(as.data.frame(check_cut))
 
-   # now do it:
-   dat <- filter(dat, prop_mpa >= prop_threshold)
+  # now do it:
+  dat <- filter(dat, prop_mpa >= prop_threshold)
 
   dat <- dat |>
     # hack to cut off upper limit:
@@ -102,10 +100,13 @@ make_plot <- function(dat, colour_var = survey_abbrev, prop_threshold = 0.15, cv
     scale_colour_brewer(palette = "Set2") +
     scale_fill_brewer(palette = "Set2")
 
-  if (include_mean_lines)
+  if (include_mean_lines) {
     g <- g + geom_hline(data = means, mapping = aes(yintercept = mean_est, colour = {{ colour_var }}), lty = 2)
-  g + tagger::tag_facets(tag_prefix = "(", position = "tl",
-    tag_pool = letters[c(1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12)])
+  }
+  g + tagger::tag_facets(
+    tag_prefix = "(", position = "tl",
+    tag_pool = letters[c(1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12)]
+  )
 }
 
 
@@ -129,10 +130,14 @@ g <- .dat |> make_plot(colour_var = type, group_by_survey = FALSE, prop_threshol
     space = "free_y"
   ) +
   labs(colour = "Scenario", fill = "Scenario")
-g + geom_hline(data = temp_mean_lines,
-  mapping = aes(yintercept = mean_est, colour = type), lty = 2) +
-  tagger::tag_facets(tag_prefix = "(", position = "tl",
-    tag_pool = letters)
+g + geom_hline(
+  data = temp_mean_lines,
+  mapping = aes(yintercept = mean_est, colour = type), lty = 2
+) +
+  tagger::tag_facets(
+    tag_prefix = "(", position = "tl",
+    tag_pool = letters
+  )
 ggsave("figs/abs-cv.pdf", width = 6.5, height = 8.4)
 ggsave("figs/abs-cv.png", width = 6.5, height = 8.4)
 
@@ -142,8 +147,6 @@ g <- filter(metrics_long, est_type %in% c("geostat")) |>
   filter(type %in% c("Restricted and shrunk")) |>
   filter(!is.na(prop_mpa)) |>
   filter(survey_abbrev != "SYN QCS, SYN HS") |>
-  # filter(survey_abbrev != "SYN QCS") |>
-  # filter(survey_abbrev != "SYN HS") |>
   mutate(upr = ifelse(measure == "slope_re" & upr > 0.5, 0.5, upr)) |> # FIXME Note
   make_plot(colour_var = survey_abbrev, cv_upper_limit = 100, group_by_survey = FALSE) +
   labs(colour = "Survey", fill = "Survey") +
@@ -166,13 +169,8 @@ g <- filter(metrics_long, est_type %in% c("bootstrap")) |>
   filter(!measure %in% "cv") |>
   filter(type %in% c("Restricted and shrunk")) |>
   filter(!is.na(prop_mpa_set)) |>
-  mutate(prop_mpa = prop_mpa_set) |>  #<
+  mutate(prop_mpa = prop_mpa_set) |> #<
   filter(survey_abbrev != "SYN QCS, SYN HS") |>
-  # filter(!is.na(prop_pos_set)) |>
-  # filter(prop_pos_set > 0.1) |> # TODO note this
-  # filter(survey_abbrev != "SYN QCS") |>
-  # filter(survey_abbrev != "SYN HS") |>
-  # mutate(upr = ifelse(measure == "slope_re" & upr > 0.5, 0.5, upr)) |> # FIXME Note
   mutate(upr = ifelse(measure == "mare" & upr > .83, .83, upr)) |> # FIXME Note
   make_plot(colour_var = survey_abbrev, cv_upper_limit = 1e6, group_by_survey = FALSE) +
   labs(colour = "Survey", fill = "Survey") +
@@ -254,13 +252,15 @@ m <- select(m, species_common_name, survey_abbrev, spatiotemporal, family) |>
   mutate(model = gsub("off", "Off", model))
 unique(m$model)
 
-m$model <- factor(m$model, levels =
-  c(
-    "Binomial-Gamma\n(IID, IID)",
-    "Binomial-Gamma\n(Off, IID)",
-    "Tweedie\n(IID)",
-    "Binomial-Gamma\n(Off, Off)"
-))
+m$model <- factor(m$model,
+  levels =
+    c(
+      "Binomial-Gamma\n(IID, IID)",
+      "Binomial-Gamma\n(Off, IID)",
+      "Tweedie\n(IID)",
+      "Binomial-Gamma\n(Off, Off)"
+    )
+)
 
 g <- filter(metrics_long, est_type %in% c("geostat")) |>
   filter(!measure %in% "cv") |>
@@ -268,8 +268,6 @@ g <- filter(metrics_long, est_type %in% c("geostat")) |>
   filter(!is.na(prop_mpa)) |>
   filter(survey_abbrev != "SYN QCS, SYN HS") |>
   left_join(m) |>
-  # filter(survey_abbrev != "SYN QCS") |>
-  # filter(survey_abbrev != "SYN HS") |>
   mutate(upr = ifelse(measure == "slope_re" & upr > 0.5, 0.5, upr)) |> # FIXME Note
   mutate(survey_abbrev = factor(survey_abbrev,
     levels =
@@ -282,22 +280,6 @@ g <- filter(metrics_long, est_type %in% c("geostat")) |>
 print(g)
 ggsave("figs/metrics-dotplot-by-model.pdf", width = 7.8, height = 9)
 ggsave("figs/metrics-dotplot-by-model.png", width = 7.8, height = 9)
-
-
-# ggplot(metrics, aes(cv_med, geo, colour = survey_abbrev)) +
-#   geom_linerange(aes(x = design, ymin = geo, ymax = design), colour = "grey70", alpha = 0.5) +
-#   geom_abline(intercept = 0, slope = 1, lty = 2, alpha = 0.5) +
-#   geom_point(na.rm = TRUE, pch = 21, fill = "white") +
-#   geom_point(na.rm = TRUE, pch = 21, mapping = aes(fill = survey_abbrev), alpha = 0.18) +
-#   scale_colour_brewer(palette = "Dark2") +
-#   scale_fill_brewer(palette = "Dark2") +
-#   xlab("Design-based") + ylab("Geostatistical model") +
-#   coord_fixed() +
-#   labs(colour = "Survey", fill = "Survey") +
-#   ggrepel::geom_text_repel(aes(label = species_common_name),
-#     show.legend = FALSE, size = 2.5, alpha = 0.6) +
-#   theme(legend.position = c(0.2,0.8))
-# # theme(legend.position = "bottom", legend.direction = "vet")
 
 make_cross_plot <- function(dat1, dat2, xlab = "x", ylab = "y") {
   dat_a <- dat1 |>
@@ -410,12 +392,6 @@ metrics_wide |>
   arrange(mean_cv_change) |>
   knitr::kable(digits = 2L)
 
-# metrics_wide |>
-#   filter(est_type == "geostat") |>
-#   group_by(survey_abbrev, species_common_name) |>
-#   summarise()
-#
-
 extra <- select(
   metrics_wide, species_common_name, survey_abbrev, type,
   est_type, coverage, prop_mpa
@@ -433,19 +409,15 @@ to_plot <- metrics_long |>
   filter(!is.na(prop_mpa)) |>
   filter(survey_abbrev != "SYN QCS, SYN HS") |>
   filter(survey_abbrev != "SYN QCS, SYN HS") |>
-  # filter(survey_abbrev != "SYN QCS") |>
-  # filter(survey_abbrev != "SYN HS") |>
   filter(!grepl("cochran", est_type)) |>
   filter(!grepl("^Restricted$", type)) |>
   mutate(type2 = gsub(" [0-9]$", "", type)) |>
   group_by(species_common_name, survey_abbrev, est_type, measure, measure_clean, type2) |>
   summarise(est = mean(est)) |> # compress sims
   mutate(est_diff = est / est[type2 == "Restricted and shrunk"]) |>
-  # mutate(type = gsub(" [0-9]$", "", type)) |>
-
   filter(est_type == "geostat") |>
   ungroup() |>
-  mutate(est = if_else(measure =="slope_re", abs(est), est)) # abs() it
+  mutate(est = if_else(measure == "slope_re", abs(est), est)) # abs() it
 
 th <- ggsidekick::theme_sleek() +
   theme(
@@ -453,18 +425,6 @@ th <- ggsidekick::theme_sleek() +
     panel.grid.major = element_line(linewidth = rel(0.5)),
     panel.grid.minor = element_line(linewidth = rel(0.25))
   )
-
-# to_plot |>
-#   filter(type2 != "Restricted and shrunk") |>
-#   filter(measure != "cv_perc") |>
-#   ggplot(aes(type2, est_diff, colour = survey_abbrev)) +
-#   geom_boxplot() +
-#   facet_wrap(~measure_clean, scales = "free_x") +
-#   scale_y_log10() +
-#   geom_hline(yintercept = 1, lty = 2) +
-#   coord_flip() +
-#   scale_color_manual(values = restricted_cols) +
-#   th
 
 to_plot <- to_plot |>
   filter(measure != "cv") |>
@@ -477,7 +437,8 @@ all_conv <- to_plot |>
   filter(n == 3L) |>
   select(-n)
 
-pmpa <- select(metrics_wide, survey_abbrev, species_common_name, prop_mpa) |> distinct() |>
+pmpa <- select(metrics_wide, survey_abbrev, species_common_name, prop_mpa) |>
+  distinct() |>
   filter(!is.na(prop_mpa))
 
 to_plot <- left_join(to_plot, pmpa)
@@ -493,13 +454,9 @@ semi_join(to_plot, all_conv) |>
   ungroup() |>
   mutate(survey_abbrev = forcats::fct_reorder(survey_abbrev, -mean_prop)) |>
   ggplot(aes(type2, est, colour = type2)) +
-  # geom_boxplot() +
   geom_pointrange(aes(ymin = lwr, ymax = upr), pch = 21, size = 0.3) +
-  facet_grid(survey_abbrev~measure_clean, scales = "free_x") +
-  # facet_grid(~measure_clean, scales = "free_x") +
-  # scale_y_log10() +
+  facet_grid(survey_abbrev ~ measure_clean, scales = "free_x") +
   coord_flip() +
-  # geom_jitter(height = 0, width = 0.3, mapping = aes(colour = survey_abbrev), pch = 21, alpha = 0.5) +
   scale_color_brewer(palette = "Set2") +
   scale_color_manual(values = c(RColorBrewer::brewer.pal(4, "Set2")[1:3])) +
   th +
@@ -523,39 +480,19 @@ semi_join(to_plot, all_conv) |>
   ungroup() |>
   mutate(survey_abbrev = forcats::fct_reorder(survey_abbrev, -mean_prop)) |>
   ggplot(aes(survey_abbrev, est, colour = type2)) +
-  # geom_boxplot() +
   geom_pointrange(aes(ymin = lwr, ymax = upr), pch = 21, size = 0.3, position = position_dodge(width = 0.38)) +
   facet_wrap(~measure_clean, scales = "free_x", ncol = 4) +
-  # facet_grid(~measure_clean, scales = "free_x") +
-  # scale_y_log10() +
   coord_flip() +
-  # geom_jitter(height = 0, width = 0.3, mapping = aes(colour = survey_abbrev), pch = 21, alpha = 0.5) +
-  # scale_color_brewer(palette = "Set2") +
   scale_colour_manual(values = c("Restricted and shrunk" = "grey30", "Random up-sampled and shrunk" = pal[3], "Random down-sampled" = pal[7])) +
-  # scale_color_manual(values = c(RColorBrewer::brewer.pal(4, "Set2")[1:3])) +
   th +
   theme(axis.title.y = element_blank(), legend.position = "top") +
   labs(y = "Metric value", colour = "Scenario") +
-  # guides(colour = "none") +
   theme(strip.text.y.right = element_text(size = 7)) +
   tagger::tag_facets(tag_prefix = "(", position = "tl")
 ggsave("figs/sampled-dotplot-comparison2.pdf", width = 7, height = 3)
 ggsave("figs/sampled-dotplot-comparison2.png", width = 7, height = 3)
 
-# NOTES:
-# downsampling helps trend bias a bit
-# MARE about same as MPA + shrunk...
-# should be random downsample and NOT shrunk
-
-
-# all_conv <- to_plot |>
-#   group_by(survey_abbrev, species_common_name) |>
-#   summarise(n = length(unique(type2))) |>
-#   filter(n == 3L) |>
-#   select(-n)
-
-
-# FIXME: drop those that don't converge in one or other!!
+# FIXME: drop those that don't converge in one or other!?
 all_conv <- metrics_long |>
   filter(est_type %in% c("geostat", "bootstrap"), !grepl("sample", type)) |>
   group_by(survey_abbrev, species_common_name) |>
@@ -563,14 +500,14 @@ all_conv <- metrics_long |>
   filter(n == 2L) |>
   select(-n)
 
-
 metrics_long |>
   semi_join(all_conv) |>
   left_join(pmpa) |>
-  filter(est_type %in% c("geostat", "bootstrap"), !grepl("sample", type)) |> glimpse() |>
+  filter(est_type %in% c("geostat", "bootstrap"), !grepl("sample", type)) |>
+  glimpse() |>
   filter(survey_abbrev != "SYN QCS, SYN HS") |>
-  mutate(est = if_else(measure =="slope_re", abs(est), est)) |>  # abs() it
-filter(prop_mpa > 0.1) |>
+  mutate(est = if_else(measure == "slope_re", abs(est), est)) |> # abs() it
+  filter(prop_mpa > 0.1) |>
   filter(measure != "cv") |>
   filter(measure != "cv_perc") |>
   ungroup() |>
@@ -580,28 +517,23 @@ filter(prop_mpa > 0.1) |>
     upr = quantile(est, probs = 0.75),
     est = mean(est),
     mean_prop = mean(prop_mpa, na.rm = TRUE),
-  )  |>
-    # mutate(survey_abbrev = forcats::fct_reorder(survey_abbrev, -mean_prop)) |>
+  ) |>
   ggplot(aes(est_type, est, colour = est_type)) +
   coord_flip() +
   geom_pointrange(aes(ymin = lwr, ymax = upr), pch = 21) +
-  facet_grid(forcats::fct_reorder(survey_abbrev, -mean_prop)~measure_clean, scales = "free_x") +
-  xlab("") + ylab("Metric value") + guides(colour = "none") +
+  facet_grid(forcats::fct_reorder(survey_abbrev, -mean_prop) ~ measure_clean, scales = "free_x") +
+  xlab("") +
+  ylab("Metric value") +
+  guides(colour = "none") +
   scale_color_brewer(palette = "Set2")
 
 ggsave("figs/geo-design-mare-trend.pdf", width = 5, height = 5)
 ggsave("figs/geo-design-mare-trend.png", width = 5, height = 5)
 
-  # summarise(
-  #   mean_cv = mean(cv_med, na.rm = TRUE),
-  #   mean_cv_change = mean(cv_perc_med, na.rm = TRUE),
-  #   mean_coverage = mean(coverage, na.rm = TRUE),
-  #   mean_mare = mean(mare_med, na.rm = TRUE),
-  #   mean_slope = mean(abs(slope_re_med), na.rm = TRUE)
-  # ) |> knitr::kable(digits = 3)
-
 metrics_long |>
-  filter(est_type %in% c("geostat", "bootstrap"), !grepl("sample", type)) |> glimpse() |>
+  filter(est_type %in% c("geostat", "bootstrap"), !grepl("sample", type)) |>
+  glimpse() |>
   group_by(survey_abbrev, est_type, measure) |>
   summarise(value = mean(est, na.rm = TRUE)) |>
-  filter(measure == "mare") |> knitr::kable(digits = 3)
+  filter(measure == "mare") |>
+  knitr::kable(digits = 3)
