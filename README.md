@@ -16,10 +16,11 @@ Patrick L. Thompson
 
 ### Folders:
 
-- `analysis`: R code to run the analyses
-- `data-generated`: data that has been manipulated and cached
+- `analysis`: code to run the analyses
+- `data-generated`: data that have been manipulated and cached
 - `data-raw`: raw data; mostly kept locally and not in version control due to size
-- `figs`: folder for generated figures
+- `figs`: generated figures
+- `text`: manuscript text; copied from an Overleaf repository (do not edit here)
 
 ### Analysis instructions:
 
