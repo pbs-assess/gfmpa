@@ -4,14 +4,21 @@ library(sdmTMB)
 # theme_set(theme_light())
 source("analysis/theme.R")
 library(future)
-plan(multisession, workers = 8L)
+is_server <- function() {
+  future::availableCores() > 50L
+}
+if (is_server()) {
+  plan(multicore, workers = 25L)
+} else {
+  plan(multisession, workers = 5L)
+}
 
 metrics_wide <- readRDS("data-generated/metrics-wide2.rds")
 m <- metrics_wide |>
   filter(!is.na(prop_mpa)) |>
-  filter(prop_mpa > 0.15) |>
+  # filter(prop_mpa > 0.15) |>
   filter(est_type == "geostat") |>
-  filter(survey_abbrev %in% c("SYN WCHG", "HBLL OUT N"))
+  filter(survey_abbrev %in% c("SYN WCHG", "SYN QCS", "SYN HS", "HBLL OUT N"))
 m <- m |>
   mutate(species_common_name = tolower(species_common_name)) |>
   select(species_common_name, survey_abbrev, orig_cv_mean) |>
@@ -19,7 +26,7 @@ m <- m |>
   arrange(survey_abbrev, species_common_name)
 m$species_common_name[m$species_common_name == "rougheye/blackspotted rockfish"] <- "rougheye/blackspotted rockfish complex"
 
-N_ITER <- 8 * 15
+N_ITER <- 100L
 
 out_list <- list()
 g_list <- list()
