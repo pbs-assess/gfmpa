@@ -35,12 +35,14 @@ g
 cv_fig <- g # for assembly later...
 ggsave("figs/cv-status-quo-mare.pdf", width = 4.2, height = 3.6)
 
+# plotting --------------------
+
 g <- metrics_long |>
   filter(type %in% "Restricted and shrunk") |>
   filter(est_type %in% "geostat") |>
   filter(measure != "cv") |>
   mutate(est = if_else(measure == "slope_re", abs(est), est)) |>
-  mutate(est = if_else(measure == "cv_perc" & est < 0, 0.01, est)) |>
+  # mutate(est = if_else(measure == "cv_perc" & est < 0, 0.01, est)) |>
   ggplot(
     aes(prop_mpa, est, colour = survey_abbrev)
   ) +
@@ -56,10 +58,10 @@ g <- metrics_long |>
     scales = "free_y"
   ) +
   scale_x_log10() +
-  stat_smooth(
-    se = TRUE, alpha = 0.15, method = "glm",
-    method.args = list(family = Gamma(link = "log")), formula = y ~ x, show.legend = FALSE
-  ) +
+  # stat_smooth(
+  #   se = TRUE, alpha = 0.15, method = "glm",
+  #   method.args = list(family = Gamma(link = "log")), formula = y ~ x, show.legend = FALSE
+  # ) +
   theme(
     axis.title.y = element_blank(),
     axis.title.x = element_text(size = 10),
@@ -78,12 +80,14 @@ g + facet_wrap(~measure_clean, scales = "free_y", ncol = 3) +
 ggsave("figs/prop-mpa-vs-metrics-wide.pdf", width = 10, height = 3.5)
 ggsave("figs/prop-mpa-vs-metrics-wide.png", width = 10, height = 3.5)
 
+
 # combine these two into one... -------------
 
 make_panel <- function(
-    dat, xvar, yvar,
+    dat, xvar, yvar, ribbon_select,
     xlab = "CV of 'Status quo' index", ylab = "MARE (accuracy loss)",
     .est_type = "geostat") {
+
   g <- dat |>
     filter(type %in% "Restricted and shrunk") |>
     filter(est_type %in% .est_type) |>
@@ -111,27 +115,87 @@ make_panel <- function(
     theme(
       legend.position = c(0.23, 0.67),
       strip.placement = "outside"
-    ) +
-    scale_y_continuous(expand = expansion(mult = c(0, .01)))
+    )
+
+    # scale_y_continuous(expand = expansion(mult = c(0, .01)))
   g
 }
-g1 <- make_panel(metrics_wide, orig_cv_mean, mare_med) +
+g1 <- make_panel(metrics_wide, orig_cv_mean, mare_med, "mare") +
   tagger::tag_facets(tag_prefix = "(", position = "tl", tag_pool = "a") +
   coord_cartesian(ylim = c(0, .4), expand = FALSE)
-g2 <- make_panel(metrics_wide, prop_mpa, mare_med,
+g2 <- make_panel(metrics_wide, prop_mpa, mare_med, "slope_re",
   xlab = "Proportion stock in MPA", ylab = "MARE (accuracy loss)"
 ) +
   guides(colour = "none") +
   tagger::tag_facets(tag_prefix = "(", position = "tl", tag_pool = "b") +
   coord_cartesian(ylim = c(0, .4), expand = FALSE)
-g3 <- metrics_wide |>
-  mutate(cv_perc_med = ifelse(cv_perc_med < 0, 0.01, cv_perc_med)) |>
-  make_panel(prop_mpa, cv_perc_med,
-    xlab = "Proportion stock in MPA", ylab = "% increase CV (precision loss)"
+
+# third one is with normal, model on variance!
+met_dat <- metrics_long |>
+  filter(type %in% "Restricted and shrunk") |>
+  filter(est_type %in% "geostat") |>
+  filter(measure != "cv") |>
+  mutate(est = if_else(measure == "slope_re", abs(est), est))
+met_dat <- filter(met_dat, measure == "cv_perc")
+
+m <- glmmTMB::glmmTMB(est ~ prop_mpa, dispformula = ~ prop_mpa, data = met_dat)
+nd <- data.frame(prop_mpa = seq(min(met_dat$prop_mpa), max(met_dat$prop_mpa), length.out = 300))
+p <- predict(m, newdata = nd, se.fit = TRUE)
+rd <- data.frame(
+  prop_mpa = nd$prop_mpa,
+  measure = met_dat$measure[1], mid = (p$fit),
+  lwr = (p$fit - p$se.fit * 1.96),
+  upr = (p$fit + p$se.fit * 1.96), stringsAsFactors = FALSE
+)
+rd2 <- group_by(met_dat, survey_abbrev) |>
+  group_split() |>
+  purrr::map_dfr(function(.x) {
+    m <- glmmTMB::glmmTMB(est ~ prop_mpa, dispformula = ~ prop_mpa, data = .x)
+    nd <- data.frame(prop_mpa = seq(min(.x$prop_mpa), max(.x$prop_mpa), length.out = 300))
+    p <- predict(m, newdata = nd, se.fit = TRUE)
+    data.frame(
+      prop_mpa = nd$prop_mpa,
+      survey_abbrev = .x$survey_abbrev[1],
+      measure = .x$measure[1],
+      mid = (p$fit),
+      lwr = (p$fit - p$se.fit * 1.96),
+      upr = (p$fit + p$se.fit * 1.96), stringsAsFactors = FALSE
+    )
+  })
+row.names(rd2) <- NULL
+
+g3 <- met_dat |>
+  ggplot(
+    aes(prop_mpa, est, colour = survey_abbrev)
   ) +
-  guides(colour = "none") +
-  tagger::tag_facets(tag_prefix = "(", position = "tl", tag_pool = "c") +
-  coord_cartesian(ylim = c(0, 50), expand = FALSE)
+  geom_point(pch = 21, alpha = 1) +
+  geom_point(pch = 19, alpha = 0.2) +
+  xlab("Proportion stock in MPA") +
+  ylab("% increase CV (precision loss") +
+  guides(shape = "none", colour = "none") +
+  scale_colour_manual(name = "Survey", values = restricted_cols) +
+  scale_x_log10() +
+  geom_ribbon(data = rd,
+    mapping = aes(x = prop_mpa, y = mid, ymin = lwr, ymax = upr), inherit.aes = FALSE, alpha = 0.2) +
+  geom_line(data = rd,
+    mapping = aes(x = prop_mpa, y = mid), inherit.aes = FALSE, alpha = 1, lwd = 1.1) +
+  geom_ribbon(data = rd2,
+    mapping = aes(x = prop_mpa, y = mid, ymin = lwr, ymax = upr, group = survey_abbrev), inherit.aes = FALSE, alpha = 0.2) +
+  geom_line(data = rd2,
+    mapping = aes(x = prop_mpa, y = mid, colour = survey_abbrev), inherit.aes = FALSE, alpha = 1, lwd = 1.1) +
+  tagger::tag_facets(tag_prefix = "(", position = "tl", tag_pool = "c")
+
+g3
+
+
+# g3 <- metrics_wide |>
+#   # mutate(cv_perc_med = ifelse(cv_perc_med < 0, 0.01, cv_perc_med)) |>
+#   make_panel(prop_mpa, cv_perc_med, "cv_perc",
+#     xlab = "Proportion stock in MPA", ylab = "% increase CV (precision loss)"
+#   ) +
+#   guides(colour = "none") +
+#   tagger::tag_facets(tag_prefix = "(", position = "tl", tag_pool = "c") +
+#   # coord_cartesian(ylim = c(0, 50), expand = FALSE)
 cowplot::plot_grid(g1, g2, g3, nrow = 1, align = "h", axis = "b")
 
 ggsave("figs/metrics-cross-plot1.pdf", width = 8.5, height = 2.55)
@@ -158,7 +222,7 @@ met_dat <- metrics_long2 |>
   mutate(est_type = gsub("bootstrap", "Design-based", est_type)) |>
   mutate(est_type = gsub("geostat", "Geostatistical", est_type)) |>
   mutate(est = if_else(measure == "slope_re", abs(est), est)) |>
-  mutate(est = if_else(measure == "cv_perc" & est < 0, 0.01, est)) |>
+  # mutate(est = if_else(measure == "cv_perc" & est < 0, 0.01, est)) |>
   filter(measure != "cv")
 
 g <- met_dat |>
@@ -193,6 +257,41 @@ g <- met_dat |>
   ggrepel::geom_text_repel(aes(label = species_common_name), size = 2.5, alpha = 0.6) +
   coord_cartesian(xlim = c(0.015, max(metrics_long$prop_mpa, na.rm = TRUE))) +
   ylab("Metric value")
+
+## add on Gaussian fits for first row!
+temp <- filter(met_dat, measure == "cv_perc")
+line_dat <- group_by(temp, est_type) |>
+  group_split() |>
+  purrr::map_dfr(function(.x) {
+    m <- glmmTMB::glmmTMB(est ~ prop_mpa, dispformula = ~ prop_mpa, data = .x)
+    nd <- data.frame(prop_mpa = seq(min(.x$prop_mpa, na.rm = TRUE), max(.x$prop_mpa, na.rm = TRUE), length.out = 300))
+    p <- predict(m, newdata = nd, se.fit = TRUE)
+    data.frame(
+      prop_mpa = nd$prop_mpa,
+      est_type = .x$est_type[1],
+      measure = .x$measure[1],
+      measure_clean = .x$measure_clean[1],
+      line_fit = (p$fit),
+      survey_abbrev = NA
+    )
+  })
+line_dat_survey <- group_by(temp, est_type, survey_abbrev) |>
+  group_split() |>
+  purrr::map_dfr(function(.x) {
+    m <- glmmTMB::glmmTMB(est ~ prop_mpa, dispformula = ~ prop_mpa, data = .x)
+    nd <- data.frame(prop_mpa = seq(min(.x$prop_mpa, na.rm = TRUE), max(.x$prop_mpa, na.rm = TRUE), length.out = 300))
+    p <- predict(m, newdata = nd, se.fit = TRUE)
+    data.frame(
+      prop_mpa = nd$prop_mpa,
+      est_type = .x$est_type[1],
+      measure = .x$measure[1],
+      measure_clean = .x$measure_clean[1],
+      line_fit = (p$fit),
+      survey_abbrev = .x$survey_abbrev[1]
+    )
+  })
+g <- g + geom_line(data = line_dat, mapping = aes(y = line_fit), lwd = 1, colour = "grey20") +
+  geom_line(data = line_dat_survey, mapping = aes(y = line_fit), lwd = 1)
 
 g <- g + tagger::tag_facets(tag_prefix = "(", position = "tl")
 ggsave("figs/prop-mpa-vs-metrics-design2.pdf", width = 7.5, height = 9.5)
