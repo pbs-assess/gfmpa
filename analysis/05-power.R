@@ -26,7 +26,7 @@ m <- m |>
   arrange(survey_abbrev, species_common_name)
 m$species_common_name[m$species_common_name == "rougheye/blackspotted rockfish"] <- "rougheye/blackspotted rockfish complex"
 
-N_ITER <- 100L
+N_ITER <- 300L
 
 out_list <- list()
 g_list <- list()
@@ -352,6 +352,14 @@ cvs <- m |>
   distinct() |>
   mutate(species_common_name = tolower(species_common_name))
 
+tokeep <- metrics_wide |>
+  filter(type == "Restricted and shrunk", est_type == "geostat") |>
+  select(species_common_name, survey_abbrev, prop_mpa) |>
+  filter(prop_mpa >= 0.15) |>
+  distinct() |>
+  select(-prop_mpa) |>
+  mutate(species_common_name = tolower(species_common_name))
+
 # https://stackoverflow.com/questions/72741439/how-to-show-arrows-in-backward-and-forward-directions-in-a-ggplot2-legend
 draw_key_arrow_left <- function(data, params, size, dir) {
   if (is.null(data$linetype)) {
@@ -371,12 +379,19 @@ draw_key_arrow_left <- function(data, params, size, dir) {
   )
 }
 
-make_power_fig <- function(survs, return_data = FALSE) {
-  x <- d |>
+make_power_fig <- function(survs, return_data = FALSE, show_all = FALSE) {
+
+  if (isFALSE(show_all)) {
+    x <- d |> right_join(tokeep)
+  } else {
+    x <- d
+  }
+
+  x <- x |>
     group_by(species_common_name, survey_abbrev) |>
     filter(!is.na(conf.high)) |>
     mutate(n_converged = sum(type == "status quo")) |>
-    filter(n_converged > 10) |>
+    filter(n_converged > 100) |>
     filter(survey_abbrev %in% survs) |>
     group_by(species_common_name, survey_abbrev, type) |>
     summarise(
@@ -396,10 +411,12 @@ make_power_fig <- function(survs, return_data = FALSE) {
     tidyr::pivot_wider(names_from = type, values_from = power)
   table_dat <<- x |> select(-orig_cv_mean)
 
-  cat("Power less than 0.3 and omitted for space\n")
   under <- filter(x, `status quo` <= 0.2)
-  print(paste0(under$species_common_name))
-  cat("\n")
+  if (nrow(under) > 0L) {
+    cat("Power less than 0.2 and omitted for space\n")
+    print(paste0(under$species_common_name))
+    cat("\n")
+  }
 
   x <- filter(x, `status quo` > 0.2)
 
@@ -426,7 +443,7 @@ make_power_fig <- function(survs, return_data = FALSE) {
     theme(axis.title.y = element_blank()) +
     xlab("Power to detect decline") +
     scale_x_continuous(expand = c(0, 0), limits = c(min(x$`restricted and shrunk`) - 0.02, 1)) +
-    labs(colour = "Simulated decline") +
+    labs(colour = "Simulated\ndecline") +
     theme(
       legend.position = c(0.28, 0.17),
       plot.margin = margin(11 / 2, 11 / 2 + 4, 11 / 2, 11 / 2 - 2),
@@ -440,44 +457,69 @@ make_power_fig <- function(survs, return_data = FALSE) {
 }
 
 lims <- scale_x_continuous(expand = c(0, 0), limits = c(0.15, 1))
-g1 <- make_power_fig("SYN WCHG") +
+gwchg <- make_power_fig("SYN WCHG") +
   geom_hline(yintercept = c(13.5), lty = 2, col = "grey50") +
   lims +
   ggtitle("SYN WCHG") +
-  theme(legend.position = "none")
+  # theme(legend.position = "none")
+  theme(legend.position = c(0.23, 0.17))
 
 # NUMBERS FOR PAPER:
 table_dat |>
   filter(species_common_name %in% c("redstripe rockfish", "redbanded rockfish")) |>
   as.data.frame()
-g1
-g2 <- make_power_fig("HBLL OUT N") +
+
+ghbll <- make_power_fig("HBLL OUT N") +
   geom_hline(yintercept = c(13.5), lty = 2, col = "grey50") +
   lims +
   ggtitle("HBLL OUT N") +
-  theme(legend.position = c(0.29, 0.17))
-g2
-g <- cowplot::plot_grid(g1, g2, ncol = 1L, align = "v", rel_heights = c(1.37, 1))
+  theme(legend.position = "none")
+
+s <- c("SYN WCHG", "HBLL OUT N", "SYN HS", "SYN QCS")
+nspp <- purrr::map(s, make_power_fig, return_data = TRUE) |>
+  purrr::map_int(nrow)
+
+ghs <- make_power_fig("SYN HS") +
+  geom_hline(yintercept = c(6.5), lty = 2, col = "grey50") +
+  lims +
+  ggtitle("SYN HS") +
+  theme(legend.position = c(0.29, 0.17)) +
+  theme(legend.position = "none")
+
+gqcs <- make_power_fig("SYN QCS") +
+  geom_hline(yintercept = c(2.5), lty = 2, col = "grey50") +
+  lims +
+  ggtitle("SYN QCS") +
+  theme(legend.position = c(0.29, 0.17)) +
+  theme(legend.position = "none")
+
+p <- 5 # padding
+g <- cowplot::plot_grid(
+  gwchg + ggplot2::theme(axis.title.x.bottom = element_blank()),
+  ghbll + ggplot2::theme(axis.title.x.bottom = element_blank()),
+  ghs + ggplot2::theme(axis.title.x.bottom = element_blank()),
+  gqcs,
+  ncol = 1L, align = "v", rel_heights = nspp + c(p, p, p, p + 1)
+)
 g
-ggsave("figs/power-june6-eps-null-spatial.png", width = 4.2, height = 6.4)
-ggsave("figs/power-june6-eps-null-spatial.pdf", width = 4.2, height = 6.4)
+ggsave("figs/power-fig7.png", width = 4, height = 8.5)
+ggsave("figs/power-fig7.pdf", width = 4, height = 8.5)
 
-keep <- make_power_fig(c("HBLL OUT N", "SYN WCHG"), return_data = TRUE) |>
-  select(species_common_name, survey_abbrev) |>
-  distinct()
+# full one for supplement:
+gall <- purrr::map(s, make_power_fig, show_all = TRUE)
+gall <- purrr::map2(s, gall, function(.s, .g) .g + ggtitle(.s))
+nspp <- purrr::map(s, make_power_fig, return_data = TRUE, show_all = TRUE) |>
+  purrr::map_int(nrow)
 
-make_power_fig2 <- function(dd) {
-  dd |>
-    semi_join(keep) |>
-    mutate(sig = conf.high < 0) |>
-    ggplot(aes(i, estimate, ymin = conf.low, ymax = conf.high, colour = sig)) +
-    geom_pointrange(pch = 21) +
-    geom_hline(yintercept = 0, lty = 1) +
-    coord_flip() +
-    scale_colour_manual(values = c("TRUE" = "grey40", "FALSE" = "red")) +
-    xlab("Iteration") +
-    facet_wrap(species_common_name ~ type)
-}
+p <- 5 # padding
+g <- cowplot::plot_grid(plotlist = gall,
+  ncol = 2L, align = "v", rel_heights = c(2.2, 3)
+)
+g
+ggsave("figs/power-supp.png", width = 8.5, height = 8.5)
+ggsave("figs/power-supp.pdf", width = 8.5, height = 8.5)
+
+
 
 # dogfish HBLL:
 # so yeah, there's a bias based on the sampling locations for dogfish which

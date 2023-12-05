@@ -28,7 +28,8 @@ if (Sys.info()[["user"]] == "seananderson") {
       "metrics-dotplot-by-model.pdf",
       "metrics-cross-plot1.pdf",
       "prop-mpa-vs-metrics-design2.pdf",
-      "power-june6-eps-null-spatial.pdf",
+      "power-fig7.pdf",
+      "power-supp.pdf",
       "abs-cv.pdf"
     )
 

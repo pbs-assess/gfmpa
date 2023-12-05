@@ -100,7 +100,7 @@ make_panel <- function(
     ylab(ylab) +
     guides(shape = "none") +
     scale_colour_manual(name = "Survey", values = restricted_cols) +
-    scale_x_log10() +
+    # scale_x_log10() +
     geom_smooth(
       se = TRUE, alpha = 0.2, method = "glm",
       method.args = list(family = Gamma(link = "log")),
@@ -129,6 +129,8 @@ g2 <- make_panel(metrics_wide, prop_mpa, mare_med, "slope_re",
   guides(colour = "none") +
   tagger::tag_facets(tag_prefix = "(", position = "tl", tag_pool = "b") +
   coord_cartesian(ylim = c(0, .4), expand = FALSE)
+g1
+g2
 
 # third one is with normal, model on variance!
 met_dat <- metrics_long |>
@@ -136,18 +138,19 @@ met_dat <- metrics_long |>
   filter(est_type %in% "geostat") |>
   filter(measure != "cv") |>
   mutate(est = if_else(measure == "slope_re", abs(est), est))
-met_dat <- filter(met_dat, measure == "cv_perc")
 
-m <- glmmTMB::glmmTMB(est ~ prop_mpa, dispformula = ~ prop_mpa, data = met_dat)
-nd <- data.frame(prop_mpa = seq(min(met_dat$prop_mpa), max(met_dat$prop_mpa), length.out = 300))
+met_dat_cv_inc <- filter(met_dat, measure == "cv_perc")
+
+m <- glmmTMB::glmmTMB(est ~ prop_mpa, dispformula = ~ prop_mpa, data = met_dat_cv_inc)
+nd <- data.frame(prop_mpa = seq(min(met_dat_cv_inc$prop_mpa), max(met_dat_cv_inc$prop_mpa), length.out = 300))
 p <- predict(m, newdata = nd, se.fit = TRUE)
 rd <- data.frame(
   prop_mpa = nd$prop_mpa,
-  measure = met_dat$measure[1], mid = (p$fit),
+  measure = met_dat_cv_inc$measure[1], mid = (p$fit),
   lwr = (p$fit - p$se.fit * 1.96),
   upr = (p$fit + p$se.fit * 1.96), stringsAsFactors = FALSE
 )
-rd2 <- group_by(met_dat, survey_abbrev) |>
+rd2 <- group_by(met_dat_cv_inc, survey_abbrev) |>
   group_split() |>
   purrr::map_dfr(function(.x) {
     m <- glmmTMB::glmmTMB(est ~ prop_mpa, dispformula = ~ prop_mpa, data = .x)
@@ -164,14 +167,14 @@ rd2 <- group_by(met_dat, survey_abbrev) |>
   })
 row.names(rd2) <- NULL
 
-g3 <- met_dat |>
+g3 <- met_dat_cv_inc |>
   ggplot(
     aes(prop_mpa, est, colour = survey_abbrev)
   ) +
   geom_point(pch = 21, alpha = 1) +
   geom_point(pch = 19, alpha = 0.2) +
   xlab("Proportion stock in MPA") +
-  ylab("% increase CV (precision loss") +
+  ylab("% increase CV (precision loss)") +
   guides(shape = "none", colour = "none") +
   scale_colour_manual(name = "Survey", values = restricted_cols) +
   scale_x_log10() +
@@ -187,6 +190,15 @@ g3 <- met_dat |>
 
 g3
 
+g3 + scale_x_continuous()
+
+cat("additional CV % increase per 0.1 proportion increase (all additive!)")
+print(round(glmmTMB::fixef(m)[[1]][[2]] / 10, 1))
+cat("Lower 95% CI\n")
+print(round(confint(m)[2,1] / 10, 1))
+cat("Upper 95% CI\n")
+print(round(confint(m)[2,2] / 10, 1))
+cat("\n")
 
 # g3 <- metrics_wide |>
 #   # mutate(cv_perc_med = ifelse(cv_perc_med < 0, 0.01, cv_perc_med)) |>
