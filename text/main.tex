@@ -227,11 +227,7 @@ We examined three potential predictors of changes in precision, accuracy, and tr
 When modelling MARE as the response, we fit generalized linear models (GLMs) with gamma observation error and log links with log-transformed predictor variables to identify patterns.
 This implies that a proportional change in the predictor corresponds to a proportional change in the response.
 % For any species with slight proportional decreases in precision, we set these values to small positive values (0.01) for the purposes of this GLM because the log link requires positive data.
-When modelling percent increase in CV as the response (which had some negative values), we fit a model with both the mean and observation variance growing linearly with the log-transformed predictor (log proportion stock in MPA).
-% TODO loss)!
-
-
-TODO!!!!!!!!!!!!!!!!!!!!!!!!!!! FIX LOG PREDICTOR?? WHAT DID I DO !!!!????????????????
+\R{B9a}Percent increase in CV contained negative values (for sporadically observed species, sometimes removing outlying observations reduces the CV). Therefore, for this response variable, we used glmmTMB \citep{brooks2017} to fit a model with both the mean and Gaussian observation variance growing linearly with the predictor (proportion stock in MPA).
 
 For the third, we compared the slope of relative error per decade against slope of density proportion within the MPA per decade for the most impacted survey(s) and fit a linear regression.
 % We did not fit these models to evaluate statistical significance (noting that we ignore uncertainty in the predictor and response variables) but to characterize the relationships.
@@ -244,8 +240,6 @@ We therefore examined two additional scenarios to assess the contribution of eff
 (1) Down-sampled: do not remove survey sets from the MPAs explicitly, but remove an equivalent level of survey effort by randomly removing survey sets from the entire survey domain, with equal numbers removed from each survey depth stratum.
 (2) Up-sampled: redistribute the lost survey effort by assigning an equivalent number of new survey sets within each stratum and generate plausible observations for these new locations by simulating new observations from the status quo spatiotemporal model (Supporting Methods).
 We created five random versions of each resampled dataset, calculated the same indices as the main analysis, and calculated the same metrics of precision, accuracy, and trend bias.
-
-% TODO: debatably, this should come a bit earlier:
 
 \subsection*{Power analysis of the reduced ability to detect decline}
 
@@ -264,11 +258,9 @@ We repeated the simulation and estimation 300 times to calculate power: the prop
 
 We applied the above approach to an MPA network and set of surveys off the west coast of Canada.
 The MPA network planning area, the Northern Shelf Bioregion (NSB), is approximately 102,000~km$^2$ and the proposed MPA network encompasses about 30\% of this area (30,493~km$^2$).
-% TODO: this still correct?
 The network process has been co-led by 15 partner First Nations, the province of British Columbia, and the Canadian federal government.
 % (Fisheries and Oceans Canada, Environment and Climate Change Canada, Parks Canada, Natural Resources Canada, Transport Canada).
 % CR: Parks Canada, EEEC and DFO? Might be worth mentioning, just because they represent a diversity of spaces (not just fisheries management).
-% TODO: ER: is this correct?
 Following a systematic conservation planning approach \citep{margules2000}, its design was guided by national and regional goals \citep{canada2011, canada2014} and centered on meeting network conservation objectives \citep{dfo2022networkactionplan}.
 Of the six goals of the network, Goal 1 is of primary importance: ``protect and maintain marine biodiversity, ecological representation and special natural features.''
 Additional goals and objectives include the protection of traditional use and cultural heritage, contributing to the protection of fisheries resources and their habitat, and providing opportunities for scientific research, education, and awareness \citep{canada2014}.
@@ -318,7 +310,9 @@ There were strong relationships between some covariates and our metrics of preci
 Indices with larger CVs tended to have greater losses of accuracy with survey restriction than indices starting with smaller CVs (Fig.~\ref{fig:covariates}a).
 Across all surveys and species, this was at a rate of \covCvmaregeostat\ increase in MARE per 1\% increase in status quo index CV.
 Species with a greater proportion of their density within the MPAs suffered larger losses of accuracy and precision (Fig.~\ref{fig:covariates}b, c).
-Across all surveys, a 1\% increase in proportion of a species within the MPA network resulted in an increase in MARE of \covMareGeo\ and an increase in CV of \covPrecisionGeo.
+Across all surveys, a 1\% increase in proportion of a species within the MPA network resulted in an increase in MARE of \covMareGeo\ and
+\R{B9b} an additive increase of 10\% in proportion of a species within the MPA network resulted in additive increase to the CV of 7.8\% (95\% CI: 6.3--9.2).
+% an increase in CV of \covPrecisionGeo.
 
 There was a nearly one-to-one negative relationship between the slope of density proportion within the MPAs per decade and the slope of relative error per decade (regression slope: \REslopeRegress, Fig.~\ref{fig:slopes}).
 Visualizations of the most extreme cases illustrate these trends in proportion (Fig.~\ref{fig:slopes}, right column)---Canary Rockfish, North Pacific Spiny Dogfish, Redstripe Rockfish, and Petrale Sole were increasingly found in higher density proportions outside the proposed MPA zones.
@@ -335,7 +329,6 @@ Through two resampling scenarios, we evaluated the contribution of reduced sampl
 In the scenario where we removed an equivalent effort randomly from each strata, we observed similar precision loss to the MPA exclusion scenario but with improved confidence interval coverage, accuracy loss, and trend bias (Fig.~\ref{fig:sampling}, orange vs.\ black).
 In the scenario where we up-sampled survey effort to maintain an equivalent total effort distributed across the now restricted surveyed domain,
 precision loss was almost entirely ameliorated but at the expense of accuracy and poorer confidence interval coverage (Fig.~\ref{fig:sampling}, blue vs.\ black).
-% TODO: CR: The implication that you make here also implies that the MPAs are biased towards some species? Did you test if it was wrong about the trend as well? In the next paragraph you look at the precision relative to the trend, but if you design calculate/estimate the model inside the MPA areas, do you get the same trend as in the "open" areas? This speaks to an analysis from Cordue 2006 who looked at untrawlable areas and concluded if the trends were going in opposite directions, that's bad, but if the trends go in the same direction its OK, cause you just fit a lower Q, precision notwithstanding (I'm paraphrasing and trying to remember the exact result). This comment you can choose to address or not, I'm mostly just curious. I guess to answer this you would fit the model in the closed area, fit it in the open area and see if the trend is the same. I guess you kind of get this from teh RE on the trend over decades.
 This implies that the redistributed additional survey effort resulted in an index that was increasingly precise about the ``wrong'' values (with correct defined as the full status quo index).
 
 \subsection*{Power analysis of the reduced ability to detect decline}
@@ -401,7 +394,6 @@ There are several caveats to our analysis.
 First, we performed a retrospective analysis on a historical dataset.
 A simulation approach \citep[e.g.,][]{schnute2003, regular2020, yalcin2023} could explore additional dimensions of the problem (e.g., systematically varying observation error, sampling intensity, or species distribution characteristics), derive potentially more generalizable results, and have a known truth for comparison instead of using the status quo index as a reference.
 Conversely, using a historical dataset embeds the ``messiness'' of reality (e.g., poorly understood outliers, clustering, movement, and spatially varying abundance trends) and makes the results pertinent to real stocks and real surveys where management decisions are made.
-% TODO: next is kind of duplicated elsewhere?
 Second, we suspect that surveys covering larger areas (e.g., Gulf of Alaska) might fare better under survey restriction when using a spatiotemporal modelling approach compared to the smaller surveys examined here (especially West Coast Haida Gwaii).
 Compared to other surveys, West Coast Haida Gwaii spatiotemporal indices were more affected by survey exclusion than their design-based equivalent.
 This might be because the survey is on the verge of lacking sufficient spatial data to support these spatiotemporal models.
@@ -410,22 +402,19 @@ These species might also be expected to be most protected by the MPAs and it is 
 However, the degree of protection will depend on several factors including juvenile and adult species movement \citep[e.g.,][]{gerber2003, gruss2011}, larval dispersal distance \citep[e.g.,][]{botsford2003, planes2009}, and \R{B4} enforcement of fishing restrictions.
 \R{E5} Furthermore, knowledge about the effectiveness of the protection, and therefore developing effective species management strategies, will be challenging to establish without continued monitoring within the MPAs.
 
-% TODO: come back to---duplicating elsewhere
 % Our analysis of impacts on survey indices raises several important follow-on questions.
 % We suspect that losing age and length composition samples may have a stronger effect on stock assessment estimates than the degraded survey indices examined here---such composition data are known to be important (REFs).
 % Furthermore, added bias or imprecision on stock assessment estimates such as measures of status with respect to reference points and fishing intensity are only impactful if they affect science advice and the probability of achieving conservation and fishery objectives.
 % Management strategy evaluation would be a key tool for addressing such questions.
 
-% TODO: this paragraph is a bit rough still:
-
-\R{B3}Omitting a portion of a stock from the survey domain results in a mismatch between the population spatial domain and the assessment domain \citep{field2006} and a violation of the unit stock concept---a basic theoretical assumption of nearly all conventional stock assessment \citep{russell1931, cushing1968}---specifically the assumption that there is no fish movement into or out of the stock spatial domain \citep[e.g.,][]{cadrin2020}.
+\R{B3}Omitting a portion of a stock from the survey domain results in a mismatch between the population spatial domain and the survey/assessment domain \citep{field2006} and a violation of the unit stock concept---a basic theoretical assumption of nearly all conventional stock assessment \citep{russell1931, cushing1968}---specifically the assumption that there is no fish movement into or out of the stock spatial domain \citep[e.g.,][]{cadrin2020}.
 Such a situation can lead to misperception of stock productivity and overharvesting or foregone yield \citep[e.g.,][]{goethel2011, mcgilliard2015, kerr2017}.
 Furthermore, while there are a variety of approaches available to navigate the complexities of mismatched population and stock units \citep{kerr2017}, most would be challenged by a lack of monitoring data within the spatial domain of the MPA portion of a stock.
 The degree this mismatch will impact stock assessment will depend on the magnitude of exclusion but also on the degree to which the fish move (i.e., connectivity) \citep{field2006}.
 At one extreme, if the stock is stationary and has little larval exchange, the portion of the population in the MPA could be considered an independent stock and shrinking the survey domain would have little impact on assessment outcomes.
 However, if a species freely moves into and out of the MPA---and especially if the stock does not maintain a static distribution---the survey will no longer represent an index that is proportional to abundance.
 We expect most of the groundfish examined here fall towards the latter scenario.
-Movement tracking, oceanographic studies of larval dispersal, and some degree of continued monitoring within the MPA could help inform these scenarios.
+Movement tracking, oceanographic studies of larval dispersal, and, in particular, some degree of continued monitoring within the MPA could help inform these scenarios.
 
 % If no longer represents the full population, spatial mismatch...
 
@@ -478,11 +467,9 @@ Should we use design- or model-based indices when faced with survey restrictions
 Overall, we found similar effects for design- and model-based indices.
 However, we see several advantages of the spatiotemporal model approach in this context.
 First, the models produced more precise indices in the status quo scenario \citep[sensu][]{thorson2015a}, and even though proportionally they were more impacted by restriction than the design-based index, they remained more precise, on average.
-% TODO: some duplication with elsewhere here:
 Second, spatiotemporal model indexes are likely to be less impacted for surveys covering larger spatial areas or with denser spatial coverage than some surveys considered here.
 We suspect the spatiotemporal models were already struggling in West Coast Haida Gwaii where large spatial chunks were then removed.
 If spatial information, covariate effects \citep{johnson2019}, or even spatially varying covariate effects \citep{hastie1993, barnett2021a, thorson2023svc} could be estimated well, we suspect a spatiotemporal model may be able to improve accuracy compared to omitting the MPA from the survey domain prediction grid by extrapolating into the closed area, but at the expense of precision.
-% TODO: some duplication with the previous point here:
 Third, the model-based approach affords the opportunity to leverage other data sources such as other surveys \citep[e.g.,][]{gruss2019, webster2020, monnahan2021} to enhance indices.
 The approach provides a mechanism to make use of historical data in areas that later restrict surveys rather than discarding all historical data the does not match new stratum definitions.
 Fourth, the model-based approach provides a statistical framework to make inference about the benefits of the MPAs through causal inference \citep[e.g.,][]{pearl2016}, assuming some sampling within the MPAs is maintained.
@@ -499,13 +486,13 @@ We suggest accelerating research on less-destructive survey methods, such as und
 % SA: agreed, good points, text has been modified
 In addition to changes in catchability and size selectivity, most alternative approaches lack an opportunity to collect biological samples.
 Fish lengths may be more readily collected, such as visually with image-based surveys, but due to asymptotic growth, length provides little information on population age structure for a large portion of most groundfish lifespans.
-% For example, a XX cm long TODO Rockfish could be XX or XX years old.
+% For example, a XX cm long Rockfish could be XX or XX years old.
 If new survey methods are adopted, it will be critical to calibrate new methods with historical ones to ensure unbroken time series \citep{field2006}.
 As an alternative or supplement to alternative methods, some level of reduced survey intensity with extractive gear within closed areas might be chosen to balance benthic protection objectives with monitoring of other species groups.
 
 \subsection*{Broader implications}
 
-A reduction in the spatial domain of surveys and the degradation of index precision, accuracy, and trend estimation will impact our ability to make valid inference for other purposes beyond stock assessment.
+\R{E2a}A reduction in the spatial domain of surveys and the degradation of index precision, accuracy, and trend estimation will impact our ability to make valid inference for other purposes beyond stock assessment.
 Surveys support conservation planning analysis of biodiversity patterns and habitat suitability \citep[e.g.,][]{rubidge2016, thompson2022meps} and understanding species' potential responses to climate change \citep[e.g.,][]{english2021, thompson2023warming}.
 Indices are also used by conservation agencies such as IUCN globally \citep{iucn2012} and COSEWIC in Canada \citep{cosewicTable2} to assess rates of decline and assign population status; the results of our power analysis to detect decline is particularly relevant to this use.
 Surveys could also be used to monitor recovery effects of MPAs themselves against long historical baselines of expected spatial and temporal patterns and levels of observation error.
@@ -523,7 +510,7 @@ Decisions about how to manage this tradeoff should be informed by data analyses,
 Although we applied our approach to a proposed MPA network, our approach is equally applicable to other forms of survey restriction including wind farms \citep{hare2022, haase2023}, oil and gas, funding cuts, or other logistical restraints \citep{ices2023}.
 Structured decision making benefits from an understanding of consequence tradeoffs incurred by potential decisions \citep{gregory2012}.
 Our approach is a structured way to assess expected impacts from unanticipated reductions in survey coverage using historical data.
-% TODO: experimental? thinking adaptive management style experiments I guess
+% experimental? thinking adaptive management style experiments I guess
 We see it as important step in analyzing the problem---complimented by simulation-based and experimental analyses.
 % MPAs are an opportunity to monitor and learn about effectiveness of these strategies... but need to make sure they don't hamper our ability to
 As long as we as a society let aquatic species be exploited commercially, we have an obligation to maintain the integrity of the long-term data streams that are critical to managing the health our marine ecosystems.
@@ -558,8 +545,7 @@ As long as we as a society let aquatic species be exploited commercially, we hav
 
 We thank the many individuals who have contributed to collecting the survey data on which this manuscript is based.
 We thank A.R. Kronlund, P.M. Regular, and S. Yalcin for helpful discussions.
-We thank C.N. Rooper for comments on an earlier draft that improved this manuscript.
-% TODO there will be more
+We thank C.N. Rooper, C. Minto, an anonymous reviewer, and the editor, S. Kotwicki, for helpful comments that improved this manuscript.
 
 \section*{Data Availability Statement}
 
@@ -649,7 +635,7 @@ Code for this analysis is available at \href{https://github.com/pbs-assess/gfmpa
 %     \centering
 %     \includegraphics[width=0.8\textwidth]{figs/explore-all-slopes2.pdf}
 %     \caption{Relationship between the proportion of a species' biomass occurring within MPAs and the change in relative error per decade (RE trend) resulting from `extrapolated' indices of abundance from all four surveys. Selected species are labelled.}
-%     %  TODO: Maybe update fig 2 to include Silvergray and others highlighted for QCS and HBLL here?
+%     %  Maybe update fig 2 to include Silvergray and others highlighted for QCS and HBLL here?
 %     \label{fig:slopes}
 % \end{figure}
 
@@ -904,7 +890,7 @@ We have added a paragraph discussing these approaches (see \lr{E1}).
 
 \rev{E2: line 318 “Furthermore, biases in population trend—driven largely by changes in distribution inside vs. outside the excluded areas—could impact stock assessment results and estimates of decline for conservation agencies.” In my mind ability to estimate decline (or increase ) for conservation agencies should be consider as very important. If the role of MPAs is to protect something we need to know how well this protection is working. Eliminating ability to monitor stock in MPA can be counterproductive for conservation purposes. I suggest that you develop this topic a little bit more.}
 
-TODO MORE HERE!! We agree. We have added text on this topic in response to Reviewer 2's comment `B3'. See the new text starting at \lr{B3}.
+We agree. We have added text on this topic in response to Reviewer 2's comment `B3'. See the paragraph starting at \lr{B3}. We do comment specifically on conservation agency use in the paragraph starting on \lr{E2a}. We also added a sentence at \lr{E5} on the importance of monitoring to evaluating the effectiveness of the protection and species management strategies.
 
 \rev{E3: Line 344 “changes to catchability due to different fishing captains” Changes in catchability are caused by different captains, but also and probably to larger degree by other factors such as variation in spatial and vertical availability to surveys, weather and environmental conditions (e.g. light, temperature), use of multiple nets, fish density, etc. The additional variance component in the assessment would increase if the MPA are excluded from surveys. I suggest that you expand on this a little bit.}
 
@@ -916,7 +902,7 @@ This now reads ``age and length composition data". See \lr{E4}.
 
 \rev{E5: Line 400 “These species might also be expected to be most protected by the MPAs and it is possible this protection could offset some of the risk incurred by poorer survey coverage.” But it is also possible that lack of adequate monitoring can be detrimental to management of these species. When taking protective action is also necessary to monitor effectiveness of these actions.}
 
-We agree. We think this is the main point of the paper, but here we were adding one possible caveat. We have revised the final sentence in the paragraph to expand on this a bit (see \lr{E5}): ``Furthermore, knowledge about the effectiveness of the protection, and therefore developing effective species management strategies, will be challenging to establish without continued monitoring within the MPAs.''
+We agree. We see this is the main point of the paper, but here we were adding one possible caveat. We have revised the final sentence in the paragraph to expand on this a bit (see \lr{E5}): ``Furthermore, knowledge about the effectiveness of the protection, and therefore developing effective species management strategies, will be challenging to establish without continued monitoring within the MPAs.''
 
 \section{Reviewer: 1}
 
@@ -1001,7 +987,7 @@ Good point. Removed.
 
 \rev{B9: This seems a bit of a corner to cut. Would a normal distribution with non-constant variance fit it and avoid the fudge?}
 
-Fair point. Looking back, we made this decision when a small number of species-survey combinations were just slightly below zero. In the final version, there are some outliers well below zero. We have fit a linear model here that includes a non-constant variance (a linear of effect of proportion of density in MPA on the log dispersion variance). This affects Figure 4 and Figure S9.
+Fair point. Looking back, we made this decision when a small number of species-survey combinations were just slightly below zero. In the final version, there are some outliers well below zero. We have fit a linear model here that includes a non-constant variance (a linear of effect of proportion of density in MPA on the  dispersion variance). This affects Figure 4c and Figure S9. We describe the model briefly on \lr{B9a} and the result on \lr{B9b}.
 
 \rev{B10: For the “HBLL OUT N” survey, are all line sets deployed for the same amount of
 time or is there an offset to include here too?}
