@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10633228.svg)](https://doi.org/10.5281/zenodo.10633228)
+
 ## Impacts on population indices if scientific surveys are excluded from marine protected areas
 
 Code for an analysis of impacts on population indices if scientific surveys are
