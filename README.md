@@ -4,15 +4,12 @@ Code for an analysis of impacts on population indices if scientific surveys are
 excluded from MPAs. The analysis focuses on groundfish and the Northern Shelf
 Bioregion MPA network off the west coast of Canada.
 
-### Authors: 
+### Citation:
 
-Sean C. Anderson,
-Philina A. English,
-Katie S.P. Gale,
-Dana R. Haggarty,
-Carolyn K. Robb,
-Emily M. Rubidge,
-Patrick L. Thompson
+Anderson, S.C., P.A. English, K.S.P. Gale, D.R. Haggarty, C.K. Robb, E.M. Rubidge,
+and P.L. Thompson. Impacts on population indices if scientific surveys are
+excluded from marine protected areas. ICES Journal of Marine Science.
+https://doi.org/10.1093/icesjms/fsae009
 
 ### Folders:
 
